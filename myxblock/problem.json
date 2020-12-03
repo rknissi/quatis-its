@@ -1,0 +1,6 @@
+{
+    "title": "Teste",
+    "description": "Teste",
+    "radioAnswers": ["Option A", "Option B", "Option C"],
+    "correcRadioAnswer": "Option A"
+}

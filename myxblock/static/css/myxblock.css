@@ -1,0 +1,33 @@
+/* CSS for MyXBlock */
+
+
+
+#userInputDiv {
+    float: right;
+    position: relative;
+    top: 50px;
+    width: 600px;
+    height: 200px;
+}
+
+#hint {
+    float: right;
+}
+
+.userInput {
+    font-weight: bold;
+    width: 600px;
+    height: 150px;
+}
+
+.answer #userAnswerDiv{
+    height: 200px;
+}
+
+.myxblock_block .count {
+    font-weight: bold;
+}
+
+.myxblock_block p {
+    cursor: pointer;
+}
