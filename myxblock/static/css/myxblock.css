@@ -1,27 +1,26 @@
-/* CSS for MyXBlock */
-
-
-
-#userInputDiv {
-    float: right;
-    position: relative;
-    top: 50px;
-    width: 600px;
-    height: 200px;
-}
-
-#hint {
-    float: right;
+#hintDiv {
+    margin-top: 100px;
+    position:relative;
+    float: left;
 }
 
 .userInput {
     font-weight: bold;
     width: 600px;
-    height: 150px;
+    height: 200px;
+    float: right;
+    position: relative;
+    bottom: 50px;
+    margin-top:70px;
 }
 
-.answer #userAnswerDiv{
-    height: 200px;
+#userAnswerDiv{
+    margin-top:30px;
+}
+
+.answer {
+    margin-top:30px;
+    float: left;
 }
 
 .myxblock_block .count {
