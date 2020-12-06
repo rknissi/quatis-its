@@ -4,7 +4,7 @@ import json
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
-from xblock.fields import Integer, Scope, String, Boolean, List
+from xblock.fields import Integer, Scope, String, Boolean, List, Set
 from xblock.reference.plugins import Filesystem
 
 @XBlock.needs('fs')
@@ -26,8 +26,13 @@ class MyXBlock(XBlock):
     )
 
     problemCorrectRadioAnswer = String(
-        default="Option A", scope=Scope.settings,
+        default="Option 1", scope=Scope.settings,
         help="Correct item of the problem",
+    )
+
+    problemCorrectSteps = List(
+        default=[["Option 1", "Option 2"], ["Option 2", "Option 1", "Option 3"]], scope=Scope.settings,
+        help="List of correct steps to the answer",
     )
 
     problemAnswer1 = String(
@@ -126,10 +131,35 @@ class MyXBlock(XBlock):
 
         self.answerSteps = answerArray
         self.answerRadio = data['radioAnswer']
-        if answerArray[-1] == self.problemCorrectRadioAnswer and self.answerRadio == self.problemCorrectRadioAnswer:
+
+        isStepsCorrect = False
+
+        for l in self.problemCorrectSteps:
+            if answerArray == l:
+                isStepsCorrect = True
+
+        if isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer:
             return {"hint": "Correto!", "answers": answerArray, "radioAnswer": data['radioAnswer']}
         else:
-            return {"hint": "Verifique se a resposta está correta!", "answers": answerArray}
+            bestAnswer = None
+            mostTrues = 0
+            for l in self.problemCorrectSteps:
+                i = 0
+                trues = 0
+                while i < len(l) and i < len(answerArray) :
+                    if l[i] == answerArray[i]:
+                        trues = trues + 1
+                    i = i + 1
+
+                if bestAnswer == None or trues > mostTrues:
+                    bestAnswer = l
+                    mostTrues = trues
+
+            if  mostTrues < len(answerArray):
+                return {"hint": "Verifique se a resposta está correta!", "answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[mostTrues]}
+            else:
+                return {"hint": "Verifique se a resposta está correta!", "answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[-1]}
+
 
     @XBlock.json_handler
     def initial_data(self, data, suffix=''):

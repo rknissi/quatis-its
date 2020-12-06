@@ -1,7 +1,8 @@
 #hintDiv {
     margin-top: 100px;
     position:relative;
-    float: left;
+    float: right;
+    outline: 1px solid black;
 }
 
 .userInput {
@@ -16,6 +17,10 @@
 
 #userAnswerDiv{
     margin-top:30px;
+}
+
+#userInputDiv .span{
+    font-style: italic;
 }
 
 .answer {
