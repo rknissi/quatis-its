@@ -35,3 +35,16 @@
 .myxblock_block p {
     cursor: pointer;
 }
+
+/*
+::-moz-selection {
+    color: red;
+    background: yellow;
+}
+
+::selection {
+    color: red;
+    background: yellow;
+}
+*/
+

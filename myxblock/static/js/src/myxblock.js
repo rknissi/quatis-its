@@ -62,20 +62,8 @@ function MyXBlock(runtime, element, data) {
                     tarea.focus();
                     tarea.selectionStart = startPos;
                     tarea.selectionEnd = endPos;
-                    //$('#userInput').css('font-style', 'italic')
                     var sel = tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); // Gets selection
                     console.log (sel);
-                    //var e = document.createElement('p');
-                    //$(e).css("z-index", 9999);
-                    //$('#userInput').append(e);
-                    //var e = document.createElement('span');
-                    //e.innerHTML = value.stepHint + "teste UIA"; // Selected text
-                    //sel.getRangeAt(0);
-
-                        // https://developer.mozilla.org/en-US/docs/Web/API/Selection/getRangeAt
-                        //var range = sel.getRangeAt(0);
-                        //range.deleteContents(); // Deletes selected text…
-                        //range.insertNode(e); // … and inserts the new element at its place
                 }
             }
 
