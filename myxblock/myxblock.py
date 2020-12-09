@@ -35,6 +35,16 @@ class MyXBlock(XBlock):
         help="List of correct steps to the answer",
     )
 
+    problemTips = List(
+        default=[["Option 1", "Option 2"], ["Option 2", "Option 1", "Option 3"]], scope=Scope.settings,
+        help="List of tips for each step of the correct answers",
+    )
+
+    problemDefaultHint = String(
+        default="Verifique se a resposta está correta", scope=Scope.settings,
+        help="If there is no available hint",
+    )
+
     problemAnswer1 = String(
         default="Option 1", scope=Scope.settings,
         help="Item 1 of the problem",
@@ -143,10 +153,14 @@ class MyXBlock(XBlock):
         else:
             bestAnswer = None
             mostTrues = 0
+
+            indexL = 0
+            hintList = None
+
             for l in self.problemCorrectSteps:
                 i = 0
                 trues = 0
-                while i < len(l) and i < len(answerArray) :
+                while i < len(l) and i < len(answerArray):
                     if l[i] == answerArray[i]:
                         trues = trues + 1
                     i = i + 1
@@ -154,11 +168,15 @@ class MyXBlock(XBlock):
                 if bestAnswer == None or trues > mostTrues:
                     bestAnswer = l
                     mostTrues = trues
+                    indexCorrectSteps = indexL
+                    hintList = self.problemTips[indexL]
+                
+                indexL = indexL + 1
 
-            if  mostTrues < len(answerArray):
-                return {"hint": "Verifique se a resposta está correta!", "answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[mostTrues]}
+            if  mostTrues < len(bestAnswer):
+                return {"hint": hintList[mostTrues], "hintList": hintList,"answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[mostTrues]}
             else:
-                return {"hint": "Verifique se a resposta está correta!", "answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[-1]}
+                return {"hint": hintList[-1], "answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[-1]}
 
 
     @XBlock.json_handler
