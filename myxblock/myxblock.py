@@ -163,20 +163,25 @@ class MyXBlock(XBlock):
                 while i < len(l) and i < len(answerArray):
                     if l[i] == answerArray[i]:
                         trues = trues + 1
-                    i = i + 1
+                        i = i + 1
+                    else:
+                        break
 
                 if bestAnswer == None or trues > mostTrues:
                     bestAnswer = l
                     mostTrues = trues
                     indexCorrectSteps = indexL
                     hintList = self.problemTips[indexL]
+                    try:
+                        hintText = hintList[mostTrues]
+                        stepText = answerArray[mostTrues]
+                    except IndexError:
+                        hintText = self.problemDefaultHint
+                        stepText = answerArray[-1]
                 
                 indexL = indexL + 1
 
-            if  mostTrues < len(bestAnswer):
-                return {"hint": hintList[mostTrues], "hintList": hintList,"answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[mostTrues]}
-            else:
-                return {"hint": hintList[-1], "answers": answerArray, "steps": list(bestAnswer), "stepHint": answerArray[-1]}
+            return {"hint": hintText, "hintList": hintList,"answers": answerArray, "steps": list(bestAnswer), "stepHint": stepText}
 
 
     @XBlock.json_handler
