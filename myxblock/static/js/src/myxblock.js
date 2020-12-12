@@ -3,6 +3,8 @@ function MyXBlock(runtime, element, data) {
 
     var hints = [];
     var actualHint = -1;
+    var lastStepForHint = -1;
+    var lastStepHintRepeat = 0;
 
     function defineValues(value) {
         $('#question', element).text(value.title);
@@ -52,6 +54,12 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0;i < lines.length;i++){
                 endPos += lines[i].length;
                 if (lines[i] == value.stepHint) {
+                    if (lastStepForHint == i) {
+                        lastStepHintRepeat++;
+                    } else {
+                        lastStepForHint = i;
+                        lastStepHintRepeat = 1;
+                    }
                     tarea = document.getElementById("userInput");
                     if  (i == 0) {
                         startPos = 0;
@@ -62,8 +70,7 @@ function MyXBlock(runtime, element, data) {
                     tarea.focus();
                     tarea.selectionStart = startPos;
                     tarea.selectionEnd = endPos;
-                    var sel = tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); // Gets selection
-                    console.log (sel);
+                    tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); // Gets selection
                 }
             }
 
@@ -92,7 +99,7 @@ function MyXBlock(runtime, element, data) {
         $.ajax({
             type: "POST",
             url: send_answer,
-            data: JSON.stringify({answer: stepAnswer, radioAnswer: radioAnswer}),
+            data: JSON.stringify({answer: stepAnswer, radioAnswer: radioAnswer, repeatHint: lastStepHintRepeat, hintLine: lastStepForHint}),
             success: showAnswer
         });
     });

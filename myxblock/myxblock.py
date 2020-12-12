@@ -36,7 +36,7 @@ class MyXBlock(XBlock):
     )
 
     problemTips = List(
-        default=[["Option 1", "Option 2"], ["Option 2", "Option 1", "Option 3"]], scope=Scope.settings,
+        default=[[["Option 1", "UiaUiaUia"], ["Option 2"]], [["Option 2"], ["Option 1"], ["Option 3"]]], scope=Scope.settings,
         help="List of tips for each step of the correct answers",
     )
 
@@ -172,15 +172,22 @@ class MyXBlock(XBlock):
                     mostTrues = trues
                     hintList = self.problemTips[indexL]
                     try:
-                        hintText = hintList[mostTrues]
+                        if (data['hintLine'] != mostTrues):
+                            hintText = hintList[mostTrues][0]
+                        else:
+                            if (data['repeatHint'] < len(hintList[mostTrues])):
+                                hintText = hintList[mostTrues][data['repeatHint']]
+                            else:
+                                hintText = hintList[mostTrues][-1]
                         stepText = answerArray[mostTrues]
                     except IndexError:
                         hintText = self.problemDefaultHint
-                        stepText = answerArray[-1]
+                        stepText = ""
+                        #stepText = answerArray[-1]
                 
                 indexL = indexL + 1
 
-            return {"hint": hintText, "hintList": hintList, "answers": answerArray, "steps": list(bestAnswer), "stepHint": stepText}
+            return {"hint": hintText, "stepHint": stepText}
 
 
     @XBlock.json_handler
