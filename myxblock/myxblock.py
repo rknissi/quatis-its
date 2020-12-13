@@ -7,6 +7,15 @@ from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
 from xblock.reference.plugins import Filesystem
 
+def levenshteinDistance(A, B):
+    if(len(A) == 0):
+        return len(B)
+    if(len(B) == 0):
+        return len(A)
+    if (A[0] == B[0]):
+        return levenshteinDistance(A[1:], B[1:])
+    return min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
+
 @XBlock.needs('fs')
 class MyXBlock(XBlock):
     """
@@ -36,7 +45,7 @@ class MyXBlock(XBlock):
     )
 
     problemTipsToNextStep = Dict(
-        default={'_start_': ["Dicaaaaas 1"], "Option 1": ["Dicaaaaas 2", "Dicaaaaaaa 3"]}, scope=Scope.settings,
+        default={"Option 1": ["Dicaaaaas 1", "Dicaaaaaaa 2"], "Option 2": ["Tainted Love", "Uia"]}, scope=Scope.settings,
         help="List of tips for each step of the correct answers",
     )
 
@@ -148,7 +157,9 @@ class MyXBlock(XBlock):
         hintList = None
 
         currentStep = 0
+
         lastElement = None
+        actualElement = None
 
         isWrong = False
 
@@ -161,6 +172,7 @@ class MyXBlock(XBlock):
                         continue
                 else:
                     isWrong = True
+                    actualElement = step
                     break
             else:
                 if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
@@ -173,13 +185,24 @@ class MyXBlock(XBlock):
                         continue
                 else:
                     isWrong = True
+                    actualElement = step
                     break
         
         if  (isWrong == True):
             if (lastElement == None):
-                hintList = self.problemTipsToNextStep.get("_start_")
+                possibleSteps = self.problemCorrectSteps.get("_start_")
             else:
-                hintList = self.problemTipsToNextStep.get(lastElement)
+                possibleSteps = self.problemCorrectSteps.get(lastElement)
+
+            min = float('inf')
+            choosenStep = None
+            for step in possibleSteps:
+                actualValue = levenshteinDistance(actualElement, step)
+                if(actualValue < min):
+                    min = actualValue
+                    choosenStep = step
+            hintList = self.problemTipsToNextStep.get(choosenStep)
+
             try:
                 if (data['hintLine'] != currentStep):
                     hintText = hintList[0]
@@ -196,7 +219,7 @@ class MyXBlock(XBlock):
         if isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer:
             return {"hint": "Correto!", "answers": answerArray, "radioAnswer": data['radioAnswer']}
         else:
-            return {"hint": hintText, "stepHint": stepText, "hintList": hintList[currentStep], "answerArray": answerArray[currentStep]}
+            return {"hint": hintText, "stepHint": stepText}
 
 
 
