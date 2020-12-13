@@ -4,7 +4,7 @@ import json
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
-from xblock.fields import Integer, Scope, String, Boolean, List, Set
+from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
 from xblock.reference.plugins import Filesystem
 
 @XBlock.needs('fs')
@@ -30,13 +30,13 @@ class MyXBlock(XBlock):
         help="Correct item of the problem",
     )
 
-    problemCorrectSteps = List(
-        default=[["Option 1", "Option 2"], ["Option 2", "Option 1", "Option 3"]], scope=Scope.settings,
+    problemCorrectSteps = Dict(
+        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.settings,
         help="List of correct steps to the answer",
     )
 
-    problemTips = List(
-        default=[[["Option 1", "UiaUiaUia"], ["Option 2"]], [["Option 2"], ["Option 1"], ["Option 3"]]], scope=Scope.settings,
+    problemTipsToNextStep = Dict(
+        default={'_start_': ["Dicaaaaas 1"], "Option 1": ["Dicaaaaas 2", "Dicaaaaaaa 3"]}, scope=Scope.settings,
         help="List of tips for each step of the correct answers",
     )
 
@@ -142,52 +142,63 @@ class MyXBlock(XBlock):
         self.answerSteps = answerArray
         self.answerRadio = data['radioAnswer']
 
+
         isStepsCorrect = False
 
-        for l in self.problemCorrectSteps:
-            if answerArray == l:
-                isStepsCorrect = True
+        hintList = None
 
+        currentStep = 0
+        lastElement = None
+
+        isWrong = False
+
+        for step in answerArray:
+            if (currentStep == 0):
+                if (step in self.problemCorrectSteps['_start_']):
+                    if (self.problemCorrectSteps.get(step) != None):
+                        lastElement = step
+                        currentStep = currentStep + 1
+                        continue
+                else:
+                    isWrong = True
+                    break
+            else:
+                if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
+                    if  ("_end_" in self.problemCorrectSteps.get(step)):
+                        isStepsCorrect = True
+                        break
+                    else:
+                        lastElement = step
+                        currentStep = currentStep + 1
+                        continue
+                else:
+                    isWrong = True
+                    break
+        
+        if  (isWrong == True):
+            if (lastElement == None):
+                hintList = self.problemTipsToNextStep.get("_start_")
+            else:
+                hintList = self.problemTipsToNextStep.get(lastElement)
+            try:
+                if (data['hintLine'] != currentStep):
+                    hintText = hintList[0]
+                else:
+                    if (data['repeatHint'] < len(hintList)):
+                        hintText = hintList[data['repeatHint']]
+                    else:
+                        hintText = hintList[-1]
+                stepText = answerArray[currentStep]
+            except IndexError:
+                hintText = self.problemDefaultHint
+                stepText = ""
+                
         if isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer:
             return {"hint": "Correto!", "answers": answerArray, "radioAnswer": data['radioAnswer']}
         else:
-            bestAnswer = None
-            mostTrues = 0
+            return {"hint": hintText, "stepHint": stepText, "hintList": hintList[currentStep], "answerArray": answerArray[currentStep]}
 
-            indexL = 0
-            hintList = None
 
-            for listSteps in self.problemCorrectSteps:
-                i = 0
-                trues = 0
-                while i < len(listSteps) and i < len(answerArray):
-                    if listSteps[i] == answerArray[i]:
-                        trues = trues + 1
-                        i = i + 1
-                    else:
-                        break
-
-                if bestAnswer == None or trues > mostTrues:
-                    bestAnswer = listSteps
-                    mostTrues = trues
-                    hintList = self.problemTips[indexL]
-                    try:
-                        if (data['hintLine'] != mostTrues):
-                            hintText = hintList[mostTrues][0]
-                        else:
-                            if (data['repeatHint'] < len(hintList[mostTrues])):
-                                hintText = hintList[mostTrues][data['repeatHint']]
-                            else:
-                                hintText = hintList[mostTrues][-1]
-                        stepText = answerArray[mostTrues]
-                    except IndexError:
-                        hintText = self.problemDefaultHint
-                        stepText = ""
-                        #stepText = answerArray[-1]
-                
-                indexL = indexL + 1
-
-            return {"hint": hintText, "stepHint": stepText}
 
 
     @XBlock.json_handler
