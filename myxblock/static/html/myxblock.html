@@ -15,9 +15,7 @@
 <div id="descriptionDiv">
     <b id=description>Descrição</b>
 </div>
-<div id="userInputDiv"> 
-    <textarea id="userInput" class="userInput" name="userInput"></textarea>
-</div>
+
 
 <div id="userAnswerDiv">
     <input type="radio" id="answer1" class=radioAnswer name="radioAnswer" value="X = ?">
@@ -30,13 +28,20 @@
     <label for="answer4">X = ?</label><br>
     <input type="radio" id="answer5" class=radioAnswer name="radioAnswer" value="X = ?">
     <label for="answer5">X = ?</label><br>
+    <button type="button" class='answer'>Verificar resposta</button> 
 </div>
+    
 
-<button type="button" class='answer'>Verificar resposta</button> 
-
-<div id="hintDiv">
-    <span id='hint'></span>
+<div id="userExternalInput">
+    <div id="userInputDiv"> 
+        <textarea id="userInput" class="userInput" name="userInput"></textarea>
+    </div>
+    
+    
+    <div id="hintDiv">
+        <span id='hint'></span>
+    </div>
+    
+    <button type="button" class='prevHint'>Dica anterior</button> 
+    <button type="button" class='nextHint'>Próxima dica</button>
 </div>
-
-<button type="button" class='prevHint'>Dica anterior</button> 
-<button type="button" class='nextHint'>Próxima dica</button> 

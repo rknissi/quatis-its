@@ -14,7 +14,7 @@ def levenshteinDistance(A, B):
         return len(A)
     if (A[0] == B[0]):
         return levenshteinDistance(A[1:], B[1:])
-    return min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
+    return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
 
 @XBlock.needs('fs')
 class MyXBlock(XBlock):
@@ -30,7 +30,7 @@ class MyXBlock(XBlock):
     )
 
     problemDescription = String(
-        default="Description", scope=Scope.settings,
+        default="Description test of the problem", scope=Scope.settings,
         help="Description of the problem",
     )
 
@@ -85,7 +85,7 @@ class MyXBlock(XBlock):
     )
 
     problemTags = List(
-        default=["Tag"], scope=Scope.settings,
+        default=["Tag1, Tag2, Tag3"], scope=Scope.settings,
         help="Tags of the problem",
     )
 
@@ -163,6 +163,11 @@ class MyXBlock(XBlock):
 
         isWrong = False
 
+
+        hintText = self.problemDefaultHint
+        stepText = ""
+    
+
         for step in answerArray:
             if (currentStep == 0):
                 if (step in self.problemCorrectSteps['_start_']):
@@ -194,13 +199,14 @@ class MyXBlock(XBlock):
             else:
                 possibleSteps = self.problemCorrectSteps.get(lastElement)
 
-            min = float('inf')
+            minValue = float('inf')
             choosenStep = None
             for step in possibleSteps:
                 actualValue = levenshteinDistance(actualElement, step)
-                if(actualValue < min):
-                    min = actualValue
+                if(actualValue < minValue):
+                    minValue = actualValue
                     choosenStep = step
+
             hintList = self.problemTipsToNextStep.get(choosenStep)
 
             try:
