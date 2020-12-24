@@ -33,15 +33,26 @@
     
 
 <div id="userExternalInput">
+        <div>
+            <b> Resolução: </b>
+        </div>
     <div id="userInputDiv"> 
         <textarea id="userInput" class="userInput" name="userInput"></textarea>
     </div>
     
     
-    <div id="hintDiv">
-        <span id='hint'></span>
+    <div id="helpButtonDiv">
+        <b> Ajuda: </b>
+        <p></p>
+        <button type="button" class='answer' id=hintButton>Dica</button> 
     </div>
     
-    <button type="button" class='prevHint'>Dica anterior</button> 
-    <button type="button" class='nextHint'>Próxima dica</button>
+    <div id="hintDiv">
+        <span id='hint'>Dicas</span>
+        <div id="hintButtonsDiv">
+            <button type="button" class='prevHint'>Dica anterior</button> 
+            <button type="button" class='nextHint'>Próxima dica</button>
+        </div>
+    </div>
+    
 </div>
