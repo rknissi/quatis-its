@@ -45,7 +45,7 @@ class MyXBlock(XBlock):
     )
 
     problemTipsToNextStep = Dict(
-        default={"Option 1": ["Dicaaaaas 1", "Dicaaaaaaa 2"], "Option 2": ["Tainted Love", "Uia"]}, scope=Scope.settings,
+        default={"Option 1": ["Dicaaaaas 1", "Dicaaaaaaa 2"], "Option 2": ["Tainted Love suaidiosadisasa bcsabcasbcascnasnc sancnsacnsn cbascbasbcsabcbascbas", "Uia"]}, scope=Scope.settings,
         help="List of tips for each step of the correct answers",
     )
 
@@ -135,6 +135,82 @@ class MyXBlock(XBlock):
 
     problem_view = student_view
 
+
+    @XBlock.json_handler
+    def get_hint(self, data, suffix=''):
+        answerArray = data['answer'].split('\n')
+
+        if '' in answerArray:
+            answerArray =  list(filter(lambda value: value != '', answerArray))
+
+        hintList = None
+
+        currentStep = 0
+
+        lastElement = None
+        actualElement = None
+
+        hintText = self.problemDefaultHint
+        stepText = ""
+    
+
+        for step in answerArray:
+            if (currentStep == 0):
+                if (step in self.problemCorrectSteps['_start_']):
+                    if (self.problemCorrectSteps.get(step) != None):
+                        lastElement = step
+                        currentStep = currentStep + 1
+                        continue
+                else:
+                    actualElement = step
+                    break
+            else:
+                if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
+                    lastElement = step
+                    currentStep = currentStep + 1
+                    if  ("_end_" in self.problemCorrectSteps.get(step)):
+                        break
+                    else:
+                        continue
+                else:
+                    actualElement = step
+                    break
+        
+        if (lastElement == None):
+            possibleSteps = self.problemCorrectSteps.get("_start_")
+        else:
+            possibleSteps = self.problemCorrectSteps.get(lastElement)
+
+        minValue = float('inf')
+        choosenStep = None
+        if  (actualElement != None):
+            for step in possibleSteps:
+                actualValue = levenshteinDistance(actualElement, step)
+                if(actualValue < minValue):
+                    minValue = actualValue
+                    choosenStep = step
+        else:
+            choosenStep = lastElement
+            currentStep = currentStep - 1
+
+        hintList = self.problemTipsToNextStep.get(choosenStep)
+
+        try:
+            if (data['hintLine'] != currentStep):
+                hintText = hintList[0]
+            else:
+                if (data['repeatHint'] < len(hintList)):
+                    hintText = hintList[data['repeatHint']]
+                else:
+                    hintText = hintList[-1]
+            stepText = answerArray[currentStep]
+        except IndexError:
+            hintText = self.problemDefaultHint
+            stepText = ""
+                
+        return {"hint": hintText, "stepHint": stepText}
+
+
     # TO-DO: change this handler to perform your own actions.  You may need more
     # than one handler, or you may not need any handlers at all.
     @XBlock.json_handler
@@ -151,22 +227,13 @@ class MyXBlock(XBlock):
         self.answerSteps = answerArray
         self.answerRadio = data['radioAnswer']
 
-
         isStepsCorrect = False
-
-        hintList = None
 
         currentStep = 0
 
         lastElement = None
         actualElement = None
 
-        isWrong = False
-
-
-        hintText = self.problemDefaultHint
-        stepText = ""
-    
 
         for step in answerArray:
             if (currentStep == 0):
@@ -176,7 +243,6 @@ class MyXBlock(XBlock):
                         currentStep = currentStep + 1
                         continue
                 else:
-                    isWrong = True
                     actualElement = step
                     break
             else:
@@ -189,45 +255,13 @@ class MyXBlock(XBlock):
                         currentStep = currentStep + 1
                         continue
                 else:
-                    isWrong = True
                     actualElement = step
                     break
         
-        if  (isWrong == True):
-            if (lastElement == None):
-                possibleSteps = self.problemCorrectSteps.get("_start_")
-            else:
-                possibleSteps = self.problemCorrectSteps.get(lastElement)
-
-            minValue = float('inf')
-            choosenStep = None
-            for step in possibleSteps:
-                actualValue = levenshteinDistance(actualElement, step)
-                if(actualValue < minValue):
-                    minValue = actualValue
-                    choosenStep = step
-
-            hintList = self.problemTipsToNextStep.get(choosenStep)
-
-            try:
-                if (data['hintLine'] != currentStep):
-                    hintText = hintList[0]
-                else:
-                    if (data['repeatHint'] < len(hintList)):
-                        hintText = hintList[data['repeatHint']]
-                    else:
-                        hintText = hintList[-1]
-                stepText = answerArray[currentStep]
-            except IndexError:
-                hintText = self.problemDefaultHint
-                stepText = ""
-                
         if isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer:
-            return {"hint": "Correto!", "answers": answerArray, "radioAnswer": data['radioAnswer']}
+            return {"answer": "Correto!"}
         else:
-            return {"hint": hintText, "stepHint": stepText}
-
-
+            return {"answer": "Incorreto!"}
 
 
     @XBlock.json_handler

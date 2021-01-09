@@ -29,7 +29,7 @@
     <label for="answer4">X = ?</label><br>
     <input type="radio" id="answer5" class=radioAnswer name="radioAnswer" value="X = ?">
     <label for="answer5">X = ?</label><br>
-    <button type="button" class='answer'>Verificar resposta</button> 
+    <button type="button" class='answer' id='answerButton'>Verificar resposta</button> 
 </div>
     
 
@@ -45,14 +45,14 @@
     <div id="helpButtonDiv">
         <b> Ajuda: </b>
         <p></p>
-        <button type="button" class='answer' id=hintButton>Dica</button> 
+        <button type="button" class='answer' id='hintButton'>Dica</button> 
     </div>
     
     <div id="hintDiv">
-        <span id='hint'>Dicas</span>
+        <span id='hint'></span>
         <div id="hintButtonsDiv">
-            <button type="button" class='prevHint'>Dica anterior</button> 
-            <button type="button" class='nextHint'>Próxima dica</button>
+            <button type="button" id='prevHint'>Dica anterior</button> 
+            <button type="button" id='nextHint'>Próxima dica</button>
         </div>
     </div>
     

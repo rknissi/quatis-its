@@ -30,6 +30,14 @@
     border-radius: 8px;
 }
 
+#prevHint, #nextHint{
+    background-color: darkslategrey;
+    color: white;
+    padding: 8px 16px;
+    text-align: center;
+    border-radius: 8px;
+}
+
 .myxblock_block .count {
     font-weight: bold;
 }
@@ -51,7 +59,7 @@
 #tagsDiv {
     display: table;
     margin: 10px 0px;
-    border: solid lightgreen 1px;
+    border: solid darkgreen 1px;
 }
 
 #hintDiv {
@@ -67,13 +75,14 @@
 }
 
 #hint {
-    margin: 0px 0px 30px 0px;
+    margin: 0px 0px 40px 0px;
     border: solid black 1px;
-    min-width: 300px;
+    min-width: 400px;
     min-height: 100px;
+    max-width: 400px;
+    max-height: 100px;
     display: inline-block;
 }
-
 
 #hintButtonsDiv {
     position: absolute;

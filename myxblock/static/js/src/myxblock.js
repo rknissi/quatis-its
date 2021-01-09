@@ -40,7 +40,7 @@ function MyXBlock(runtime, element, data) {
         itsLabel5.text(value.answer5);
     }
 
-    function showAnswer(value) {
+    function showHint(value) {
         $('#hint', element).append("\n" + value.hint);
         hints.push(value.hint);
         actualHint = hints.length - 1;
@@ -73,12 +73,27 @@ function MyXBlock(runtime, element, data) {
                     tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); // Gets selection
                 }
             }
-
-
         }
     }
 
+    function showResults(value) {
+        //$('#hint', element).append("\n" + value.answer);
+        $("#hintButton").css("background","grey");
+        $("#answerButton").css("background","grey");
+        $("#prevHint").css("background","grey");
+        $("#nextHint").css("background","grey");
+        document.getElementById('userInput').readOnly = true;
+        document.getElementById("hintButton").disabled = true;
+        document.getElementById("answerButton").disabled = true;
+        document.getElementById("nextHint").disabled = true;
+        document.getElementById("prevHint").disabled = true;
+        $(':radio:not(:checked)').attr('disabled', true);
+        alert(value.answer);
+    }
+
+
     var send_answer = runtime.handlerUrl(element, 'send_answer');
+    var get_hint = runtime.handlerUrl(element, 'get_hint');
     var getInitialData = runtime.handlerUrl(element, 'initial_data');
 
     $('#userInput').attr("rows", $('#userInput').val().split("\n").length+1||2);
@@ -92,7 +107,18 @@ function MyXBlock(runtime, element, data) {
         });
     });
 
-    $('.answer', element).click(function(eventObject) {
+    $('#hintButton', element).click(function(eventObject) {
+        var stepAnswer = $(".userInput").val();
+
+        $.ajax({
+            type: "POST",
+            url: get_hint,
+            data: JSON.stringify({answer: stepAnswer, repeatHint: lastStepHintRepeat, hintLine: lastStepForHint}),
+            success: showHint
+        });
+    });
+
+    $('#answerButton', element).click(function(eventObject) {
         var stepAnswer = $(".userInput").val();
         var radioAnswer = $("input:radio[name=radioAnswer]:checked").val()
 
@@ -100,11 +126,11 @@ function MyXBlock(runtime, element, data) {
             type: "POST",
             url: send_answer,
             data: JSON.stringify({answer: stepAnswer, radioAnswer: radioAnswer, repeatHint: lastStepHintRepeat, hintLine: lastStepForHint}),
-            success: showAnswer
+            success: showResults
         });
     });
 
-    $('.prevHint', element).click(function(eventObject) {
+    $('#prevHint', element).click(function(eventObject) {
         if (actualHint == -1) {
             return;
         }
@@ -116,7 +142,7 @@ function MyXBlock(runtime, element, data) {
         document.getElementById('hint').innerHTML = hints[actualHint];
     });
 
-    $('.nextHint', element).click(function(eventObject) {
+    $('#nextHint', element).click(function(eventObject) {
         if (actualHint == -1) {
             return;
         }
