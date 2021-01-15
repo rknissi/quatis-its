@@ -24,6 +24,21 @@ class MyXBlock(XBlock):
 
     fs = Filesystem(help="File system", scope=Scope.user_state_summary)  # pylint: disable=invalid-name
 
+    problemGraph = Dict(
+        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.settings,
+        help="The problem graph itself",
+    )
+
+    problemGraphStates = Dict(
+        default={'Option 1': True, 'Option 2': True}, scope=Scope.settings,
+        help="Shows if each node of the graph is correct with true or false",
+    )
+    
+    problemGraphStatesSteps = Dict(
+        default={str(('_start_', 'Option 1')): True, str(('Option 1', 'Option 2')): True, str(('Option 2', '_end_')): True}, scope=Scope.settings,
+        help="Shows if each step of the graph is correct with true or false",
+    )
+
     problemTitle = String(
         default="Title", scope=Scope.settings,
         help="Title of the problem",
@@ -193,7 +208,10 @@ class MyXBlock(XBlock):
             choosenStep = lastElement
             currentStep = currentStep - 1
 
-        hintList = self.problemTipsToNextStep.get(choosenStep)
+        if (self.problemTipsToNextStep.get(choosenStep) != None):
+            hintList = self.problemTipsToNextStep.get(choosenStep)
+        else:
+            hintList = self.problemTipsToNextStep.get(self.problemCorrectSteps.get("_start_")[0])
 
         try:
             if (data['hintLine'] != currentStep):
@@ -203,12 +221,13 @@ class MyXBlock(XBlock):
                     hintText = hintList[data['repeatHint']]
                 else:
                     hintText = hintList[-1]
-            stepText = answerArray[currentStep]
+            if  (currentStep != -1):
+                stepText = answerArray[currentStep]
         except IndexError:
             hintText = self.problemDefaultHint
             stepText = ""
                 
-        return {"hint": hintText, "stepHint": stepText}
+        return {"hint": hintText, "stepHint": stepText, "hintList": hintList, "currentStep": currentStep, "hintLine": data['hintLine']}
 
 
     # TO-DO: change this handler to perform your own actions.  You may need more
@@ -225,8 +244,11 @@ class MyXBlock(XBlock):
             answerArray =  list(filter(lambda value: value != '', answerArray))
 
         self.answerSteps = answerArray
-        self.answerRadio = data['radioAnswer']
 
+        if('radioAnswer' not in data) :
+            return {"error": "Nenhuma opções de resposta foi selecionada!"}
+
+        self.answerRadio = data['radioAnswer']
         isStepsCorrect = False
 
         currentStep = 0
@@ -257,8 +279,38 @@ class MyXBlock(XBlock):
                 else:
                     actualElement = step
                     break
+
+        lastElement = '_start_'
+        isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
+
+        for step in answerArray:
+            if (lastElement not in self.problemGraph):
+                self.problemGraph[lastElement] = [step]
+            elif (lastElement in self.problemGraph and step not in self.problemGraph[lastElement]):
+                self.problemGraph[lastElement].append(step)
+            if (isAnswerCorrect):
+                self.problemGraphStates[step] = True                
+                self.problemGraphStatesSteps[str((lastElement, step))] = True                
+            else:
+                if (step not in self.problemGraphStates):
+                    self.problemGraphStates[step] = False                
+                if (str((lastElement, step)) not in self.problemGraphStatesSteps):
+                    self.problemGraphStatesSteps[str((lastElement, step))] = False
+            lastElement = step
+
+        finalElement = '_end_'
+        if (lastElement not in self.problemGraph):
+            self.problemGraph[lastElement] = [finalElement]
+        elif (lastElement in self.problemGraph and finalElement not in self.problemGraph[lastElement]):
+            self.problemGraph[lastElement].append(finalElement)
+        if (isAnswerCorrect):
+            self.problemGraphStatesSteps[str((lastElement, finalElement))] = True                
+        else:
+            if (str((lastElement, finalElement)) not in self.problemGraphStatesSteps):
+                self.problemGraphStatesSteps[str((lastElement, finalElement))] = False
+
         
-        if isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer:
+        if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
             return {"answer": "Incorreto!"}

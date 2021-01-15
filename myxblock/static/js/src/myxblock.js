@@ -46,7 +46,7 @@ function MyXBlock(runtime, element, data) {
         actualHint = hints.length - 1;
         document.getElementById('hint').innerHTML = hints[actualHint];
 
-        if (value.stepHint != null) {
+        if (value.stepHint != "") {
             var lines = $('#userInput').val().split('\n');
 
             endPos = 0;
@@ -73,11 +73,17 @@ function MyXBlock(runtime, element, data) {
                     tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); // Gets selection
                 }
             }
+        } else {
+            lastStepHintRepeat++;
         }
     }
 
     function showResults(value) {
         //$('#hint', element).append("\n" + value.answer);
+        if(value.error) {
+            alert(value.error);
+            return;
+        }
         $("#hintButton").css("background","grey");
         $("#answerButton").css("background","grey");
         $("#prevHint").css("background","grey");
