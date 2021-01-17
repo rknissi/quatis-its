@@ -79,7 +79,6 @@ function MyXBlock(runtime, element, data) {
     }
 
     function showResults(value) {
-        //$('#hint', element).append("\n" + value.answer);
         if(value.error) {
             alert(value.error);
             return;

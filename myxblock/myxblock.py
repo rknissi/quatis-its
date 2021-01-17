@@ -169,6 +169,7 @@ class MyXBlock(XBlock):
         stepText = ""
     
 
+        #Ver até onde está certo
         for step in answerArray:
             if (currentStep == 0):
                 if (step in self.problemCorrectSteps['_start_']):
@@ -196,6 +197,7 @@ class MyXBlock(XBlock):
         else:
             possibleSteps = self.problemCorrectSteps.get(lastElement)
 
+        #Pegar a dica do próximo passo
         minValue = float('inf')
         choosenStep = None
         if  (actualElement != None):
