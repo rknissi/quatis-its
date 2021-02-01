@@ -34,6 +34,7 @@ class MyXBlock(XBlock):
         help="Shows if each node of the graph is correct with true or false",
     )
     
+
     problemGraphStatesSteps = Dict(
         default={str(('_start_', 'Option 1')): True, str(('Option 1', 'Option 2')): True, str(('Option 2', '_end_')): True}, scope=Scope.settings,
         help="Shows if each step of the graph is correct with true or false",
@@ -106,7 +107,7 @@ class MyXBlock(XBlock):
 
 
     #Resposta desse bloco
-    answerSteps = String(
+    answerSteps = List(
         default=None, scope=Scope.user_state,
         help="Student's steps until the final answer",
     )
