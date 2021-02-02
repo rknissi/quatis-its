@@ -25,18 +25,18 @@ class MyXBlock(XBlock):
     fs = Filesystem(help="File system", scope=Scope.user_state_summary)  # pylint: disable=invalid-name
 
     problemGraph = Dict(
-        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.settings,
+        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
         help="The problem graph itself",
     )
 
     problemGraphStates = Dict(
-        default={'Option 1': True, 'Option 2': True}, scope=Scope.settings,
+        default={'Option 1': True, 'Option 2': True}, scope=Scope.user_state_summary,
         help="Shows if each node of the graph is correct with true or false",
     )
     
 
     problemGraphStatesSteps = Dict(
-        default={str(('_start_', 'Option 1')): True, str(('Option 1', 'Option 2')): True, str(('Option 2', '_end_')): True}, scope=Scope.settings,
+        default={str(('_start_', 'Option 1')): True, str(('Option 1', 'Option 2')): True, str(('Option 2', '_end_')): True}, scope=Scope.user_state_summary,
         help="Shows if each step of the graph is correct with true or false",
     )
 
