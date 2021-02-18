@@ -39,69 +39,71 @@ class MyXBlock(XBlock):
         default={str(('_start_', 'Option 1')): True, str(('Option 1', 'Option 2')): True, str(('Option 2', '_end_')): True}, scope=Scope.user_state_summary,
         help="Shows if each step of the graph is correct with true or false",
     )
+    
 
+    #Dados fixos
     problemTitle = String(
-        default="Title", scope=Scope.settings,
+        default="Title", scope=Scope.content,
         help="Title of the problem",
     )
 
     problemDescription = String(
-        default="Description test of the problem", scope=Scope.settings,
+        default="Description test of the problem", scope=Scope.content,
         help="Description of the problem",
     )
 
     problemCorrectRadioAnswer = String(
-        default="Option 1", scope=Scope.settings,
+        default="Option 1", scope=Scope.content,
         help="Correct item of the problem",
     )
 
     problemCorrectSteps = Dict(
-        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.settings,
+        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.content,
         help="List of correct steps to the answer",
     )
 
     problemTipsToNextStep = Dict(
-        default={"Option 1": ["Dicaaaaas 1", "Dicaaaaaaa 2"], "Option 2": ["Tainted Love suaidiosadisasa bcsabcasbcascnasnc sancnsacnsn cbascbasbcsabcbascbas", "Uia"]}, scope=Scope.settings,
+        default={"Option 1": ["Dicaaaaas 1", "Dicaaaaaaa 2"], "Option 2": ["Tainted Love suaidiosadisasa bcsabcasbcascnasnc sancnsacnsn cbascbasbcsabcbascbas", "Uia"]}, scope=Scope.content,
         help="List of tips for each step of the correct answers",
     )
 
     problemDefaultHint = String(
-        default="Verifique se a resposta está correta", scope=Scope.settings,
+        default="Verifique se a resposta está correta", scope=Scope.content,
         help="If there is no available hint",
     )
 
     problemAnswer1 = String(
-        default="Option 1", scope=Scope.settings,
+        default="Option 1", scope=Scope.content,
         help="Item 1 of the problem",
     )
 
     problemAnswer2 = String(
-        default="Option 2", scope=Scope.settings,
+        default="Option 2", scope=Scope.content,
         help="Item 2 of the problem",
     )
 
     problemAnswer3 = String(
-        default="Option 3", scope=Scope.settings,
+        default="Option 3", scope=Scope.content,
         help="Item 3 of the problem",
     )
 
     problemAnswer4 = String(
-        default="Option 4", scope=Scope.settings,
+        default="Option 4", scope=Scope.content,
         help="Item 4 of the problem",
     )
 
     problemAnswer5 = String(
-        default="Option 5", scope=Scope.settings,
+        default="Option 5", scope=Scope.content,
         help="Item 5 of the problem",
     )
 
     problemSubject = String(
-        default="Subject", scope=Scope.settings,
+        default="Subject", scope=Scope.content,
         help="Subject of the problem",
     )
 
     problemTags = List(
-        default=["Tag1, Tag2, Tag3"], scope=Scope.settings,
+        default=["Tag1, Tag2, Tag3"], scope=Scope.content,
         help="Tags of the problem",
     )
 
@@ -151,6 +153,34 @@ class MyXBlock(XBlock):
 
     problem_view = student_view
 
+
+    def studio_view(self,context=None):
+
+        html=self.resource_string("static/html/myxblockEdit.html")
+
+        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,problemCorrectSteps=self.problemCorrectSteps,problemTipsToNextStep=self.problemTipsToNextStep,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
+        frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
+
+        frag.initialize_js('MyXBlockEdit')
+        return frag
+
+
+    @XBlock.json_handler
+    def submit_data(self,data,suffix=''):
+        self.problemTitle = data.get('problemTitle')
+        self.problemDescription =  data.get('problemDescription')
+        self.problemCorrectRadioAnswer = data.get('background1')
+        self.problemCorrectSteps = data.get('problemCorrectSteps')
+        self.problemTipsToNextStep = data.get('problemTipsToNextStep')
+        self.problemAnswer1 = data.get('problemAnswer1')
+        self.problemAnswer2 = data.get('problemAnswer2')
+        self.problemAnswer3 = data.get('problemAnswer3')
+        self.problemAnswer4 = data.get('problemAnswer4')
+        self.problemAnswer5 = data.get('problemAnswer5')
+        self.problemSubject = data.get('problemSubject')
+        self.problemTags = data.get('problemTags')
+
+        return {'result':'success'}
 
     @XBlock.json_handler
     def get_hint(self, data, suffix=''):
