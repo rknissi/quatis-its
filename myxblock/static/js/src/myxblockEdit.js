@@ -1,7 +1,8 @@
-function ModelViewerEdit(runtime, element) {
+function MyXBlockEdit(runtime, element) {
+
+  var handleUrl = runtime.handlerUrl(element, 'submit_data');
 
   $('#save_button', element).click(function(eventObject) {
-    var handlerUrl = runtime.handlerUrl(element, 'submit_data');
     var el = $(element);
     var data = {
       problemTitle: el.find('input[name=problemTitle]').val(),

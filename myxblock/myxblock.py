@@ -5,7 +5,7 @@ import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
-from xblock.reference.plugins import Filesystem
+import ast
 
 def levenshteinDistance(A, B):
     if(len(A) == 0):
@@ -16,13 +16,10 @@ def levenshteinDistance(A, B):
         return levenshteinDistance(A[1:], B[1:])
     return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
 
-@XBlock.needs('fs')
 class MyXBlock(XBlock):
     """
     TO-DO: document what your XBlock does.
     """
-
-    fs = Filesystem(help="File system", scope=Scope.user_state_summary)  # pylint: disable=invalid-name
 
     problemGraph = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
@@ -168,17 +165,17 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def submit_data(self,data,suffix=''):
         self.problemTitle = data.get('problemTitle')
-        self.problemDescription =  data.get('problemDescription')
-        self.problemCorrectRadioAnswer = data.get('background1')
-        self.problemCorrectSteps = data.get('problemCorrectSteps')
-        self.problemTipsToNextStep = data.get('problemTipsToNextStep')
+        self.problemDescription = data.get('problemDescription')
+        self.problemCorrectRadioAnswer = data.get('problemCorrectRadioAnswer')
+        self.problemCorrectSteps = ast.literal_eval(data.get('problemCorrectSteps'))
+        self.problemTipsToNextStep = ast.literal_eval(data.get('problemTipsToNextStep'))
         self.problemAnswer1 = data.get('problemAnswer1')
         self.problemAnswer2 = data.get('problemAnswer2')
         self.problemAnswer3 = data.get('problemAnswer3')
         self.problemAnswer4 = data.get('problemAnswer4')
         self.problemAnswer5 = data.get('problemAnswer5')
         self.problemSubject = data.get('problemSubject')
-        self.problemTags = data.get('problemTags')
+        self.problemTags = ast.literal_eval(data.get('problemTags'))
 
         return {'result':'success'}
 
