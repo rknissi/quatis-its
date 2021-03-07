@@ -38,6 +38,19 @@ function MyXBlock(runtime, element, data) {
         document.getElementById("answer5").value = value.answer5;
         var itsLabel5 = $("[for=" + $("#answer5").attr("id") + "]");
         itsLabel5.text(value.answer5);
+
+        if (value.alreadyAnswered == "True") {
+            $("#hintButton").css("background", "grey");
+            $("#answerButton").css("background", "grey");
+            $("#prevHint").css("background", "grey");
+            $("#nextHint").css("background", "grey");
+            document.getElementById('userInput').readOnly = true;
+            document.getElementById("hintButton").disabled = true;
+            document.getElementById("answerButton").disabled = true;
+            document.getElementById("nextHint").disabled = true;
+            document.getElementById("prevHint").disabled = true;
+            $(':radio:not(:checked)').attr('disabled', true);
+        }
     }
 
     function showHint(value) {
@@ -130,7 +143,7 @@ function MyXBlock(runtime, element, data) {
         $.ajax({
             type: "POST",
             url: send_answer,
-            data: JSON.stringify({answer: stepAnswer, radioAnswer: radioAnswer, repeatHint: lastStepHintRepeat, hintLine: lastStepForHint}),
+            data: JSON.stringify({answer: stepAnswer, radioAnswer: radioAnswer, repeatHint: lastStepHintRepeat, hintLine: lastStepForHint, studentId: studentId}),
             success: showResults
         });
     });

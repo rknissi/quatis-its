@@ -7,6 +7,31 @@ from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
 import ast
 
+
+#Step information
+minValue = -1
+maxValue = 1
+
+#Resolution values
+incorrectResolution = [-1, -0.75001]
+partiallyIncorrectResolution = [-0.75, -0.00001]
+partiallyCorrectResolution = [0, 0.74999]
+CorrectResolution = [0.75, 1]
+
+#Step values
+invalidStep = [-1, -0.80001]
+stronglyInvalidStep = [-0.8, -0.40001]
+possiblyInvalidStep = [-0.4, -0.00001]
+neutralStep = [0, 0]
+possiblyValidStep = [0.00001, 0.39999]
+stronglyValidStep = [0.4, 0.79999]
+validStep = [0.8, 1]
+
+#State values
+incorrectState = [-1, -0.7]
+stronglyInvalidStep = [-0.69999, 0.69999]
+possiblyInvalidStep = [0.7, 1]
+
 def levenshteinDistance(A, B):
     if(len(A) == 0):
         return len(B)
@@ -16,11 +41,16 @@ def levenshteinDistance(A, B):
         return levenshteinDistance(A[1:], B[1:])
     return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
 
-class MyXBlock(XBlock):
-    """
-    TO-DO: document what your XBlock does.
-    """
 
+class MyXBlock(XBlock):
+
+    #Se o aluno já fez o exercício
+    alreadyAnswered = Boolean(
+        default=False, scope=Scope.user_state,
+        help="If the student already answered the exercise",
+    )
+
+    #Dados dos alunos
     problemGraph = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
         help="The problem graph itself",
@@ -36,7 +66,29 @@ class MyXBlock(XBlock):
         default={str(('_start_', 'Option 1')): True, str(('Option 1', 'Option 2')): True, str(('Option 2', '_end_')): True}, scope=Scope.user_state_summary,
         help="Shows if each step of the graph is correct with true or false",
     )
-    
+
+    #Resoluções dos alunos
+
+    correctResolutions = List(
+        default=["id1"], scope=Scope.user_state_summary,
+        help="Ids of correct resolutions",
+    )
+
+    wrongResolutions = List(
+        default=["id2"], scope=Scope.user_state_summary,
+        help="Ids of incorrect resolutions",
+    )
+
+    #Posso até separar em 2, um só para os estados e outro só para os passos
+    studentResolutionsStates = Dict(
+        default={'id1':["Tag1", "Tag2", "Tag3"]}, scope=Scope.user_state_summary,
+        help="Ids for each student states",
+    )
+
+    studentResolutionsSteps = Dict(
+        default={'id1':[str(('_start_', 'Option 1')), str(('Option 1', 'Option 2')), str(('Option 2', '_end_'))]}, scope=Scope.user_state_summary,
+        help="Id for each student steps",
+    )
 
     #Dados fixos
     problemTitle = String(
@@ -179,6 +231,8 @@ class MyXBlock(XBlock):
 
         return {'result':'success'}
 
+    #Sistema que mostra quais dicas até o primeiro passo errado
+    #Qual das dicas isso aqui é?
     @XBlock.json_handler
     def get_hint(self, data, suffix=''):
         answerArray = data['answer'].split('\n')
@@ -260,14 +314,14 @@ class MyXBlock(XBlock):
         return {"hint": hintText, "stepHint": stepText, "hintList": hintList, "currentStep": currentStep, "hintLine": data['hintLine']}
 
 
-    # TO-DO: change this handler to perform your own actions.  You may need more
-    # than one handler, or you may not need any handlers at all.
+    #Envia a resposta final
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
         """
         An example handler, which increments the data.
         """
 
+        #Inicialização e coleta dos dados inicial
         answerArray = data['answer'].split('\n')
 
         if '' in answerArray:
@@ -286,7 +340,10 @@ class MyXBlock(XBlock):
         lastElement = None
         actualElement = None
 
+        self.studentResolutionsStates[data['studentId']] = answerArray
+        self.studentResolutionsSteps[data['studentId']] = list()
 
+        #Verifica se a resposta está correta
         for step in answerArray:
             if (currentStep == 0):
                 if (step in self.problemCorrectSteps['_start_']):
@@ -313,6 +370,8 @@ class MyXBlock(XBlock):
         lastElement = '_start_'
         isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
 
+        #Aqui ficaria o updateCG, mas sem a parte do evaluation
+        #Salva os estados e os passos do cadastro
         for step in answerArray:
             if (lastElement not in self.problemGraph):
                 self.problemGraph[lastElement] = [step]
@@ -326,6 +385,7 @@ class MyXBlock(XBlock):
                     self.problemGraphStates[step] = False                
                 if (str((lastElement, step)) not in self.problemGraphStatesSteps):
                     self.problemGraphStatesSteps[str((lastElement, step))] = False
+            self.studentResolutionsSteps[data['studentId']].append(str((lastElement, step)))
             lastElement = step
 
         finalElement = '_end_'
@@ -338,19 +398,65 @@ class MyXBlock(XBlock):
         else:
             if (str((lastElement, finalElement)) not in self.problemGraphStatesSteps):
                 self.problemGraphStatesSteps[str((lastElement, finalElement))] = False
+        self.studentResolutionsSteps[data['studentId']].append(str((lastElement, finalElement)))
 
-        
+        #Fim da parte do updateCG
+
+        self.alreadyAnswered = True
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
-            return {"answer": "Incorreto!"}
+            return {"answer": "Incorreto!", "teste1": self.studentResolutionsSteps, "reste2": self.studentResolutionsStates}
 
+    def corretudeResolucao(resolutionId):
+        stateNumber = len(studentResolutionsStates[resolutionId])
+        stepNumber = len(studentResolutionsStep[resolutionId])
+    
+        stateValue = 0
+        for state in studentResolutionsStates[resolutionId]:
+            stateValue = stateValue + corretudeEstado(state)
+    
+        stepValue = 0
+        for step in studentResolutionsSteps[resolutionId]:
+            stepValue = stepValue + validadePasso(step)
+    
+        return (1/2*stateNumber) * (stateValue) + (1/2*stepNumber) * (stepValue)
+    
+    def possuiEstado(state, resolutionId):
+        return int(state in studentResolutionsStates[resolutionId])
+    
+    def possuiEstadoConjunto(state, resolutionIds):
+        value = 0
+        for id in resolutionIds:
+            value = value +  possuiEstado(state, id)
+        return value
+    
+    def corretudeEstado(state):
+        correctValue = possuiEstadoConjunto(state, correctResolutions)
+        incorrectValue = possuiEstadoConjunto(state, incorrectResolutions)
+    
+        return (correctValue-incorrectValue)/(correctValue + incorrectValue)
+    
+    def possuiPasso(step, resolutionId):
+        return int(str((step[0], step[1])) in studentResolutionsSteps[resolutionId])
+    
+    def possuiPassoConjunto(step, resolutionIds):
+        value = 0
+        for id in resolutionIds:
+            value = value +  possuiPasso(step, id)
+        return value
+    
+    def validadePasso(step):
+        correctValue = possuiPassoConjunto(step, correctResolutions)
+        incorrectValue = possuiPassoConjunto(step, incorrectResolutions)
+    
+        return (correctValue-incorrectValue)/(correctValue + incorrectValue)
 
     @XBlock.json_handler
     def initial_data(self, data, suffix=''):
         return {"title": self.problemTitle, "description": self.problemDescription, 
         "answer1": self.problemAnswer1, "answer2": self.problemAnswer2, "answer3": self.problemAnswer3, "answer4": self.problemAnswer4, "answer5": self.problemAnswer5,
-        "subject": self.problemSubject, "tags": self.problemTags}
+        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered)}
 
 
     # TO-DO: change this to create the scenarios you'd like to see in the
