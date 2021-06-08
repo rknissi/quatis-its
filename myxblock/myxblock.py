@@ -406,7 +406,7 @@ class MyXBlock(XBlock):
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
-            return {"answer": "Incorreto!", "teste1": self.studentResolutionsSteps, "reste2": self.studentResolutionsStates}
+            return {"answer": "Incorreto!"}
 
     def corretudeResolucao(resolutionId):
         stateNumber = len(studentResolutionsStates[resolutionId])
@@ -421,6 +421,26 @@ class MyXBlock(XBlock):
             stepValue = stepValue + validadePasso(step)
     
         return (1/2*stateNumber) * (stateValue) + (1/2*stepNumber) * (stepValue)
+
+    def possuiEstadoGrafo(state):
+        for resolution in studentResolutionsStates:
+            if state in resolution:
+                return True
+        return False
+    
+    def getStepsWhereStartsWith(state):
+        stepList = []
+        for step in self.problemGraphStatesSteps:
+            if eval(step)[0] == state:
+                stepList.append(eval(step))
+        return stepList
+
+    def getStepsWhereEndsWith(state):
+        stepList = []
+        for step in self.problemGraphStatesSteps:
+            if eval(step)[1] == state:
+                stepList.append(eval(step))
+        return stepList
     
     def possuiEstado(state, resolutionId):
         return int(state in studentResolutionsStates[resolutionId])
@@ -451,6 +471,50 @@ class MyXBlock(XBlock):
         incorrectValue = possuiPassoConjunto(step, incorrectResolutions)
     
         return (correctValue-incorrectValue)/(correctValue + incorrectValue)
+
+    #def minimumFeedback(states):
+    #    previousState = None
+    #    nextState = None
+    #    for i in range(len(states) - 1):
+    #        if (i != len(states) - 1):
+    #            nextState = states[i+1]
+    #        else:
+    #            nextState = None
+
+    #        if possuiEstadoGrafo(states[i]):
+    #            for step in getStepsWhereEndsWith(states[i]):
+    #                if step[0] == previousState:
+    #                    #Atualizar a corretude do previousState
+    #                    corretudeEstado(step[0])
+    #                else:
+    #                    for step2 in getStepsWhereStartsWith(step[0]):
+    #                        if step2[1] != states[i]:
+    #                            #Solicitar informações da validade dos passos:
+    #                    
+    #        else:
+    #            if previousState == None and nextState == None:
+    #                continue
+    #            if (previousState != None):
+    #                #Atualizar a corretude do previousState
+
+    #                for step in getStepsWhereStartsWith(previousState):
+    #                    if step[1] != states[i]:
+    #                        #Solicitar informações da validade desses passos
+    #                        #Solicitar corretude dos estados destinos desses passos
+    #                        corretudeEstado(step[1])
+    #            if (nextState != None):
+    #                #Atualizar a corretude do nextState
+
+    #                for step in getStepsWhereStartsWith(previousState):
+    #                    if step[0] != states[i]:
+    #                        #Solicitar informações da validade desses passos
+    #                        #Solicitar corretudo dos estados origem desses passos
+    #                        corretudeEstado(step[0])
+
+
+    #        previousState = states[i]
+
+
 
     @XBlock.json_handler
     def initial_data(self, data, suffix=''):
