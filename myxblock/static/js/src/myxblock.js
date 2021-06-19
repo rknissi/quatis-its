@@ -3,8 +3,8 @@ function MyXBlock(runtime, element, data) {
 
     var hints = [];
     var actualHint = -1;
-    var lastStepForHint = -1;
-    var lastStepHintRepeat = 0;
+    var currentWrongElementLine = -1;
+    var currentWrongElementHintCounter = 0;
 
     function defineValues(value) {
         $('#question', element).text(value.title);
@@ -54,40 +54,52 @@ function MyXBlock(runtime, element, data) {
     }
 
     function showHint(value) {
-        $('#hint', element).append("\n" + value.hint);
-        hints.push(value.hint);
-        actualHint = hints.length - 1;
-        document.getElementById('hint').innerHTML = hints[actualHint];
+        if (value.status == 'OK') {
+            //Mostrar que a linha está OK, por agora fazer nada
+            $('#hint', element).append("\nTudo certo! Só vai");
+            hints.push("Tudo certo, só Vai!");
+            actualHint = hints.length - 1;
+            document.getElementById('hint').innerHTML = hints[actualHint];
+            currentWrongElementLine = -1;
+            currentWrongElementHintCounter = 0;
+        } else {
+            //Coloca a dica na pilha
+            $('#hint', element).append("\n" + value.hint);
+            hints.push(value.hint);
+            actualHint = hints.length - 1;
+            document.getElementById('hint').innerHTML = hints[actualHint];
 
-        if (value.stepHint != "") {
+            //Pega cada uma das respostas do usuário
             var lines = $('#userInput').val().split('\n');
-
-            endPos = 0;
-
+            var endPos = 0;
             for(var i = 0;i < lines.length;i++){
-                endPos += lines[i].length;
-                if (lines[i] == value.stepHint) {
-                    if (lastStepForHint == i) {
-                        lastStepHintRepeat++;
-                    } else {
-                        lastStepForHint = i;
-                        lastStepHintRepeat = 1;
-                    }
-                    tarea = document.getElementById("userInput");
+                if(value.wrongElement == lines[i]) {
+                    //Pega as posições e imprime
+                    endPos += lines[i].length; 
                     if  (i == 0) {
                         startPos = 0;
                     } else {
                         endPos += i;
                         startPos = endPos - lines[i].length;
                     }
+
+                    tarea = document.getElementById("userInput");
                     tarea.focus();
                     tarea.selectionStart = startPos;
                     tarea.selectionEnd = endPos;
-                    tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); // Gets selection
+                    tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); 
+
+                    if (currentWrongElementLine == i) {
+                        currentWrongElementHintCounter++;
+                    } else {
+                        currentWrongElementLine = i;
+                        currentWrongElementHintCounter = 1;
+                    }
+                } else {
+                    endPos += lines[i].length;
+                    continue;
                 }
             }
-        } else {
-            lastStepHintRepeat++;
         }
     }
 
@@ -111,7 +123,7 @@ function MyXBlock(runtime, element, data) {
 
 
     var send_answer = runtime.handlerUrl(element, 'send_answer');
-    var get_hint = runtime.handlerUrl(element, 'get_hint');
+    var get_hint_for_last_step = runtime.handlerUrl(element, 'get_hint_for_last_step');
     var getInitialData = runtime.handlerUrl(element, 'initial_data');
 
     $('#userInput').attr("rows", $('#userInput').val().split("\n").length+1||2);
@@ -126,24 +138,24 @@ function MyXBlock(runtime, element, data) {
     });
 
     $('#hintButton', element).click(function(eventObject) {
-        var stepAnswer = $(".userInput").val();
+        var userAnswer = $(".userInput").val();
 
         $.ajax({
             type: "POST",
-            url: get_hint,
-            data: JSON.stringify({answer: stepAnswer, repeatHint: lastStepHintRepeat, hintLine: lastStepForHint}),
+            url: get_hint_for_last_step,
+            data: JSON.stringify({userAnswer: userAnswer, currentWrongElementHintCounter: currentWrongElementHintCounter}),
             success: showHint
         });
     });
 
     $('#answerButton', element).click(function(eventObject) {
-        var stepAnswer = $(".userInput").val();
+        var userAnswer = $(".userInput").val();
         var radioAnswer = $("input:radio[name=radioAnswer]:checked").val()
 
         $.ajax({
             type: "POST",
             url: send_answer,
-            data: JSON.stringify({answer: stepAnswer, radioAnswer: radioAnswer, repeatHint: lastStepHintRepeat, hintLine: lastStepForHint, studentId: studentId}),
+            data: JSON.stringify({answer: userAnswer, radioAnswer: radioAnswer, studentId: studentId}),
             success: showResults
         });
     });

@@ -50,6 +50,12 @@ class MyXBlock(XBlock):
         help="If the student already answered the exercise",
     )
 
+    #ùltimo erro cometido pelo aluno`
+    lastWrongElement = String(
+        default="", scope=Scope.user_state,
+        help="Last wrong element from the student",
+    )
+
     #Dados dos alunos
     problemGraph = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
@@ -232,94 +238,85 @@ class MyXBlock(XBlock):
         return {'result':'success'}
 
     #Sistema que mostra quais dicas até o primeiro passo errado
-    #Qual das dicas isso aqui é?
+    #Aqui ele pega a primeira resposta errada, e coloca a dica da que mais se assemelha
+    #Feedback mínimo, sem dicas
+    def get_first_incorrect_answer (self, answerArray):
+
+        lastElement = "_start_"
+        wrongElement = None
+        wrongStep = 0
+
+    
+        #Ver até onde está certo
+        for step in answerArray:
+            if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
+                lastElement = step
+                wrongStep = wrongStep + 1
+                if  ("_end_" in self.problemCorrectSteps.get(step)):
+                    break
+                else:
+                    continue
+            else:
+                wrongElement = step
+                break
+
+        #Se null, então tudo certo
+        if (wrongElement == None):
+            return {"wrongElement": wrongElement, "wrongElementLine": -1}
+
+        return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectSteps.get(lastElement), "wrongElementLine": wrongStep}
+
+
+    #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
+    #TALVEZ COLOCAR ALGUMA COISA NOA TELA QUE MOSTRE QUE A LINHA ESTÁ CORRETA
+    #Sistema que mostra a dica até o primeiro passo que estiver errado
+    #Mostra um next-Step hint, mas desse passo que está errado (como colocar ele certo)
+    #Rodar após cada enter? Faria sentido
     @XBlock.json_handler
-    def get_hint(self, data, suffix=''):
-        answerArray = data['answer'].split('\n')
+    def get_hint_for_last_step(self, data, suffix=''):
+        answerArray = data['userAnswer'].split('\n')
 
         if '' in answerArray:
             answerArray =  list(filter(lambda value: value != '', answerArray))
 
-        hintList = None
-
-        currentStep = 0
-
-        lastElement = None
-        actualElement = None
+        result = self.get_first_incorrect_answer(answerArray)
+        
+        wrongElement = result.get("wrongElement")
 
         hintText = self.problemDefaultHint
-        stepText = ""
-    
+        hintList = None
 
-        #Ver até onde está certo
-        for step in answerArray:
-            if (currentStep == 0):
-                if (step in self.problemCorrectSteps['_start_']):
-                    if (self.problemCorrectSteps.get(step) != None):
-                        lastElement = step
-                        currentStep = currentStep + 1
-                        continue
-                else:
-                    actualElement = step
-                    break
-            else:
-                if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
-                    lastElement = step
-                    currentStep = currentStep + 1
-                    if  ("_end_" in self.problemCorrectSteps.get(step)):
-                        break
-                    else:
-                        continue
-                else:
-                    actualElement = step
-                    break
-        
-        if (lastElement == None):
-            possibleSteps = self.problemCorrectSteps.get("_start_")
-        else:
-            possibleSteps = self.problemCorrectSteps.get(lastElement)
-
-        #Pegar a dica do próximo passo
         minValue = float('inf')
-        choosenStep = None
-        if  (actualElement != None):
+        nextStep = None
+        if  (wrongElement != None):
+            possibleSteps = result.get("availableCorrectSteps")
             for step in possibleSteps:
-                actualValue = levenshteinDistance(actualElement, step)
+                actualValue = levenshteinDistance(wrongElement, step)
                 if(actualValue < minValue):
                     minValue = actualValue
-                    choosenStep = step
-        else:
-            choosenStep = lastElement
-            currentStep = currentStep - 1
+                    nextStep = step
 
-        if (self.problemTipsToNextStep.get(choosenStep) != None):
-            hintList = self.problemTipsToNextStep.get(choosenStep)
-        else:
-            hintList = self.problemTipsToNextStep.get(self.problemCorrectSteps.get("_start_")[0])
+            hintList = self.problemTipsToNextStep.get(nextStep)
 
         try:
-            if (data['hintLine'] != currentStep):
-                hintText = hintList[0]
+            #Então está tudo certo, pode dar um OK e seguir em frente
+            if (hintList == None):
+                return {"status": "OK"}
             else:
-                if (data['repeatHint'] < len(hintList)):
-                    hintText = hintList[data['repeatHint']]
+                if (wrongElement != self.lastWrongElement):
+                    hintText = hintList[0]
+                elif (data['currentWrongElementHintCounter'] < len(hintList)):
+                    hintText = hintList[data['currentWrongElementHintCounter']]
                 else:
                     hintText = hintList[-1]
-            if  (currentStep != -1):
-                stepText = answerArray[currentStep]
         except IndexError:
             hintText = self.problemDefaultHint
-            stepText = ""
-                
-        return {"hint": hintText, "stepHint": stepText, "hintList": hintList, "currentStep": currentStep, "hintLine": data['hintLine']}
-
+        self.lastWrongElement = wrongElement
+        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement}
 
     #Envia a resposta final
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
-        """
-        An example handler, which increments the data.
-        """
 
         #Inicialização e coleta dos dados inicial
         answerArray = data['answer'].split('\n')
@@ -338,7 +335,7 @@ class MyXBlock(XBlock):
         currentStep = 0
 
         lastElement = None
-        actualElement = None
+        wrongElement = None
 
         self.studentResolutionsStates[data['studentId']] = answerArray
         self.studentResolutionsSteps[data['studentId']] = list()
@@ -352,7 +349,7 @@ class MyXBlock(XBlock):
                         currentStep = currentStep + 1
                         continue
                 else:
-                    actualElement = step
+                    wrongElement = step
                     break
             else:
                 if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
@@ -364,7 +361,7 @@ class MyXBlock(XBlock):
                         currentStep = currentStep + 1
                         continue
                 else:
-                    actualElement = step
+                    wrongElement = step
                     break
 
         lastElement = '_start_'
