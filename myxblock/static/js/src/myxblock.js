@@ -55,11 +55,32 @@ function MyXBlock(runtime, element, data) {
 
     function showHint(value) {
         if (value.status == 'OK') {
+
+            //Tratar os cassos
+            //tenho nada e peço uma dica, e depois digito algo: vem de novo a primeira
+            //Tenho tudo certo, e apago para ter dica do último passo (faz sentido?)
+
             //Mostrar que a linha está OK, por agora fazer nada
-            $('#hint', element).append("\nTudo certo! Só vai");
-            hints.push("Tudo certo, só Vai!");
+            $('#hint', element).append("\n" + value.hint);
+            hints.push(value.hint);
             actualHint = hints.length - 1;
             document.getElementById('hint').innerHTML = hints[actualHint];
+
+            //Contar as dicas corretamente
+            for(var i = 0;i < lines.length;i++){
+                if(value.lastCorrectElement == lines[i]) {
+                    if (currentWrongElementLine == i) {
+                        currentWrongElementHintCounter++;
+                    } else {
+                        currentWrongElementLine = i + 1;
+                        currentWrongElementHintCounter = 1;
+                    }
+                } else {
+                    endPos += lines[i].length;
+                    continue;
+                }
+            }
+
             currentWrongElementLine = -1;
             currentWrongElementHintCounter = 0;
         } else {

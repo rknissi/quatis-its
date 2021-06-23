@@ -50,13 +50,19 @@ class MyXBlock(XBlock):
         help="If the student already answered the exercise",
     )
 
-    #ùltimo erro cometido pelo aluno`
+    #ùltimo erro cometido pelo aluno
     lastWrongElement = String(
         default="", scope=Scope.user_state,
         help="Last wrong element from the student",
     )
 
-    #Dados dos alunos
+    #ùltimo erro cometido pelo aluno (linha)
+    lastWrongElementLine = Integer(
+        default=0, scope=Scope.user_state,
+        help="Last wrong element from the student (line)",
+    )
+
+    #Dados do exercício
     problemGraph = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
         help="The problem graph itself",
@@ -240,7 +246,7 @@ class MyXBlock(XBlock):
     #Sistema que mostra quais dicas até o primeiro passo errado
     #Aqui ele pega a primeira resposta errada, e coloca a dica da que mais se assemelha
     #Feedback mínimo, sem dicas
-    def get_first_incorrect_answer (self, answerArray):
+    def getFirstIncorrectAnswer (self, answerArray):
 
         lastElement = "_start_"
         wrongElement = None
@@ -262,7 +268,7 @@ class MyXBlock(XBlock):
 
         #Se null, então tudo certo
         if (wrongElement == None):
-            return {"wrongElement": wrongElement, "wrongElementLine": -1}
+            return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
 
         return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectSteps.get(lastElement), "wrongElementLine": wrongStep}
 
@@ -279,9 +285,9 @@ class MyXBlock(XBlock):
         if '' in answerArray:
             answerArray =  list(filter(lambda value: value != '', answerArray))
 
-        result = self.get_first_incorrect_answer(answerArray)
+        possibleIncorrectAnswer = self.getFirstIncorrectAnswer(answerArray)
         
-        wrongElement = result.get("wrongElement")
+        wrongElement = possibleIncorrectAnswer.get("wrongElement")
 
         hintText = self.problemDefaultHint
         hintList = None
@@ -289,7 +295,7 @@ class MyXBlock(XBlock):
         minValue = float('inf')
         nextStep = None
         if  (wrongElement != None):
-            possibleSteps = result.get("availableCorrectSteps")
+            possibleSteps = possibleIncorrectAnswer.get("availableCorrectSteps")
             for step in possibleSteps:
                 actualValue = levenshteinDistance(wrongElement, step)
                 if(actualValue < minValue):
@@ -300,10 +306,31 @@ class MyXBlock(XBlock):
 
         try:
             #Então está tudo certo, pode dar um OK e seguir em frente
-            if (hintList == None):
-                return {"status": "OK"}
+            #MO passo está correto, mas agora é momento de mostrar a dica para o próximo passo.
+            if (wrongElement == None):
+                lastCorrectElement = possibleIncorrectAnswer.get("lastCorrectElement")
+                lastCorrectElementLine = possibleIncorrectAnswer.get("correctElementLine")
+                nextElement = self.problemCorrectSteps.get(lastCorrectElement)[0]
+                #Verificar se é o último passo, se for, sempre dar a dica padrão?
+                if (nextElement == "_end_"):
+                    hintText = self.problemDefaultHint
+                else:
+                    hintList = self.problemTipsToNextStep.get(nextElement)
+
+                    if (lastCorrectElementLine != self.lastWrongElementLine):
+                        hintText = hintList[0]
+                    elif (data['currentWrongElementHintCounter'] < len(hintList)):
+                        hintText = hintList[data['currentWrongElementHintCounter']]
+                    else:
+                        hintText = hintList[-1]
+                
+                    self.lastWrongElement = lastCorrectElement
+                    self.lastWrongElementLine = lastCorrectElementLine
+
+                return {"status": "OK", "hint": hintText, "lastCorrectElement": lastCorrectElement}
             else:
-                if (wrongElement != self.lastWrongElement):
+                wrongElementLine = possibleIncorrectAnswer.get("wrongElementLine")
+                if (wrongElementLine != self.lastWrongElementLine):
                     hintText = hintList[0]
                 elif (data['currentWrongElementHintCounter'] < len(hintList)):
                     hintText = hintList[data['currentWrongElementHintCounter']]
@@ -311,7 +338,9 @@ class MyXBlock(XBlock):
                     hintText = hintList[-1]
         except IndexError:
             hintText = self.problemDefaultHint
+
         self.lastWrongElement = wrongElement
+        self.lastWrongElementLine = wrongElementLine
         return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement}
 
     #Envia a resposta final
