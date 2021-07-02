@@ -62,7 +62,7 @@ class MyXBlock(XBlock):
         help="Last wrong element from the student (line)",
     )
 
-    #Dados do exercício
+    #Caminhos corretos do grafo
     problemGraph = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
         help="The problem graph itself",
@@ -118,14 +118,25 @@ class MyXBlock(XBlock):
         help="Correct item of the problem",
     )
 
-    problemCorrectSteps = Dict(
+    problemCorrectStates = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.content,
-        help="List of correct steps to the answer",
+        help="List of correct states to the answer",
     )
 
-    problemTipsToNextStep = Dict(
+    problemEquivalentStates = Dict(
+        default={'option1': 'Option 1', 'option2': "Option 2"}, scope=Scope.content,
+        help="For each entry, which step is equivalent to the original state representation",
+    )
+
+    problemTipsToNextState = Dict(
         default={"Option 1": ["Dicaaaaas 1", "Dicaaaaaaa 2"], "Option 2": ["Tainted Love suaidiosadisasa bcsabcasbcascnasnc sancnsacnsn cbascbasbcsabcbascbas", "Uia"]}, scope=Scope.content,
-        help="List of tips for each step of the correct answers",
+        help="List of tips for each state of the correct answers",
+    )
+
+    #Faz sentido isso?
+    errorSpecificFeedback = Dict(
+        default={"Option 3": ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
+        help="For each wrong step that the student uses, it will show a specific feedback",
     )
 
     problemDefaultHint = String(
@@ -219,7 +230,7 @@ class MyXBlock(XBlock):
 
         html=self.resource_string("static/html/myxblockEdit.html")
 
-        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,problemCorrectSteps=self.problemCorrectSteps,problemTipsToNextStep=self.problemTipsToNextStep,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
+        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,problemCorrectSteps=self.problemCorrectStates,problemTipsToNextStep=self.problemTipsToNextState,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
         frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
 
         frag.initialize_js('MyXBlockEdit')
@@ -231,8 +242,8 @@ class MyXBlock(XBlock):
         self.problemTitle = data.get('problemTitle')
         self.problemDescription = data.get('problemDescription')
         self.problemCorrectRadioAnswer = data.get('problemCorrectRadioAnswer')
-        self.problemCorrectSteps = ast.literal_eval(data.get('problemCorrectSteps'))
-        self.problemTipsToNextStep = ast.literal_eval(data.get('problemTipsToNextStep'))
+        self.problemCorrectStates = ast.literal_eval(data.get('problemCorrectSteps'))
+        self.problemTipsToNextState = ast.literal_eval(data.get('problemTipsToNextStep'))
         self.problemAnswer1 = data.get('problemAnswer1')
         self.problemAnswer2 = data.get('problemAnswer2')
         self.problemAnswer3 = data.get('problemAnswer3')
@@ -255,10 +266,10 @@ class MyXBlock(XBlock):
     
         #Ver até onde está certo
         for step in answerArray:
-            if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
+            if (step in self.problemCorrectStates.get(lastElement) and self.problemCorrectStates.get(step) != None):
                 lastElement = step
                 wrongStep = wrongStep + 1
-                if  ("_end_" in self.problemCorrectSteps.get(step)):
+                if  ("_end_" in self.problemCorrectStates.get(step)):
                     break
                 else:
                     continue
@@ -270,7 +281,7 @@ class MyXBlock(XBlock):
         if (wrongElement == None):
             return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
 
-        return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectSteps.get(lastElement), "wrongElementLine": wrongStep}
+        return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep}
 
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
@@ -302,7 +313,7 @@ class MyXBlock(XBlock):
                     minValue = actualValue
                     nextStep = step
 
-            hintList = self.problemTipsToNextStep.get(nextStep)
+            hintList = self.problemTipsToNextState.get(nextStep)
 
         try:
             #Então está tudo certo, pode dar um OK e seguir em frente
@@ -310,12 +321,12 @@ class MyXBlock(XBlock):
             if (wrongElement == None):
                 lastCorrectElement = possibleIncorrectAnswer.get("lastCorrectElement")
                 lastCorrectElementLine = possibleIncorrectAnswer.get("correctElementLine")
-                nextElement = self.problemCorrectSteps.get(lastCorrectElement)[0]
+                nextElement = self.problemCorrectStates.get(lastCorrectElement)[0]
                 #Verificar se é o último passo, se for, sempre dar a dica padrão?
                 if (nextElement == "_end_"):
                     hintText = self.problemDefaultHint
                 else:
-                    hintList = self.problemTipsToNextStep.get(nextElement)
+                    hintList = self.problemTipsToNextState.get(nextElement)
 
                     if (lastCorrectElementLine != self.lastWrongElementLine):
                         hintText = hintList[0]
@@ -372,8 +383,8 @@ class MyXBlock(XBlock):
         #Verifica se a resposta está correta
         for step in answerArray:
             if (currentStep == 0):
-                if (step in self.problemCorrectSteps['_start_']):
-                    if (self.problemCorrectSteps.get(step) != None):
+                if (step in self.problemCorrectStates['_start_']):
+                    if (self.problemCorrectStates.get(step) != None):
                         lastElement = step
                         currentStep = currentStep + 1
                         continue
@@ -381,8 +392,8 @@ class MyXBlock(XBlock):
                     wrongElement = step
                     break
             else:
-                if (step in self.problemCorrectSteps.get(lastElement) and self.problemCorrectSteps.get(step) != None):
-                    if  ("_end_" in self.problemCorrectSteps.get(step)):
+                if (step in self.problemCorrectStates.get(lastElement) and self.problemCorrectStates.get(step) != None):
+                    if  ("_end_" in self.problemCorrectStates.get(step)):
                         isStepsCorrect = True
                         break
                     else:
@@ -397,7 +408,7 @@ class MyXBlock(XBlock):
         isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
 
         #Aqui ficaria o updateCG, mas sem a parte do evaluation
-        #Salva os estados e os passos do cadastro
+        #Salva os passos, estados e também salva os passos feitos por cada aluno, de acordo com seu ID
         for step in answerArray:
             if (lastElement not in self.problemGraph):
                 self.problemGraph[lastElement] = [step]
