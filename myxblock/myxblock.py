@@ -1,5 +1,3 @@
-"""TO-DO: Write a description of what this XBlock is."""
-
 import json
 import pkg_resources
 from web_fragments.fragment import Fragment
@@ -9,14 +7,15 @@ import ast
 
 
 #Step information
-minValue = -1
-maxValue = 1
+correctnessMinValue = -1
+correctnessMaxValue = 1
 
 #Resolution values
 incorrectResolution = [-1, -0.75001]
 partiallyIncorrectResolution = [-0.75, -0.00001]
 partiallyCorrectResolution = [0, 0.74999]
-CorrectResolution = [0.75, 1]
+correctResolution = [0.75, 1]
+defaultResolutionValue = 0
 
 #Step values
 invalidStep = [-1, -0.80001]
@@ -26,11 +25,13 @@ neutralStep = [0, 0]
 possiblyValidStep = [0.00001, 0.39999]
 stronglyValidStep = [0.4, 0.79999]
 validStep = [0.8, 1]
+defaultStepValue = 0
 
 #State values
 incorrectState = [-1, -0.7]
-stronglyInvalidStep = [-0.69999, 0.69999]
-possiblyInvalidStep = [0.7, 1]
+unknownState = [-0.69999, 0.69999]
+correctState = [0.7, 1]
+defaultStateValue = 0
 
 def levenshteinDistance(A, B):
     if(len(A) == 0):
@@ -41,6 +42,11 @@ def levenshteinDistance(A, B):
         return levenshteinDistance(A[1:], B[1:])
     return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
 
+
+#Colinha:
+#Scope.user_state = Dado que varia de aluno para aluno
+#Scope.user_state_summary = Dado igual para todos os alunos
+#Scope.content = Dado imutável
 
 class MyXBlock(XBlock):
 
@@ -68,14 +74,14 @@ class MyXBlock(XBlock):
         help="The problem graph itself",
     )
 
-    problemGraphStates = Dict(
-        default={'Option 1': True, 'Option 2': True}, scope=Scope.user_state_summary,
+    problemGraphStatesCorrectness = Dict(
+        default={'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.user_state_summary,
         help="Shows if each node of the graph is correct with true or false",
     )
     
 
-    problemGraphStatesSteps = Dict(
-        default={str(('_start_', 'Option 1')): True, str(('Option 1', 'Option 2')): True, str(('Option 2', '_end_')): True}, scope=Scope.user_state_summary,
+    problemGraphStepsCorrectness = Dict(
+        default={str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}, scope=Scope.user_state_summary,
         help="Shows if each step of the graph is correct with true or false",
     )
 
@@ -93,13 +99,18 @@ class MyXBlock(XBlock):
 
     #Posso até separar em 2, um só para os estados e outro só para os passos
     studentResolutionsStates = Dict(
-        default={'id1':["Tag1", "Tag2", "Tag3"]}, scope=Scope.user_state_summary,
+        default={'id1':["Option 1", "Option 2"]}, scope=Scope.user_state_summary,
         help="Ids for each student states",
     )
 
     studentResolutionsSteps = Dict(
         default={'id1':[str(('_start_', 'Option 1')), str(('Option 1', 'Option 2')), str(('Option 2', '_end_'))]}, scope=Scope.user_state_summary,
         help="Id for each student steps",
+    )
+
+    studentResolutionsCorrectness = Dict(
+        default={'id1': defaultResolutionValue}, scope=Scope.user_state_summary,
+        help="If the student answer is correct",
     )
 
     #Dados fixos
@@ -382,6 +393,9 @@ class MyXBlock(XBlock):
 
         #Verifica se a resposta está correta
         for step in answerArray:
+            #Substitui o que existe na resposta do aluno pelos estados equivalentes cadastrados
+            if (step in self.problemEquivalentStates):
+                step = self.problemEquivalentStates[step]
             if (currentStep == 0):
                 if (step in self.problemCorrectStates['_start_']):
                     if (self.problemCorrectStates.get(step) != None):
@@ -407,34 +421,48 @@ class MyXBlock(XBlock):
         lastElement = '_start_'
         isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
 
+        #Vai ser booleano ou vai ser float?
+        #self.studentResolutionsCorrectness[data['studentId']] = isAnswerCorrect
+
         #Aqui ficaria o updateCG, mas sem a parte do evaluation
         #Salva os passos, estados e também salva os passos feitos por cada aluno, de acordo com seu ID
+        #COMENTADO OS PASSOS DE ATUALIZAÇÃO DE CORRETUDE, VAMOS FAZER DIREITO AGORA
+        #LEMBRAR DE FAZER O IF DE ÚLTINO ELEMENTO PARA NÃO FICAR FEIO
         for step in answerArray:
             if (lastElement not in self.problemGraph):
                 self.problemGraph[lastElement] = [step]
             elif (lastElement in self.problemGraph and step not in self.problemGraph[lastElement]):
                 self.problemGraph[lastElement].append(step)
+
+            #Colocar os valores certos depois
             if (isAnswerCorrect):
-                self.problemGraphStates[step] = True                
-                self.problemGraphStatesSteps[str((lastElement, step))] = True                
+                self.problemGraphStatesCorrectness[step] = defaultStateValue
+                self.problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
             else:
-                if (step not in self.problemGraphStates):
-                    self.problemGraphStates[step] = False                
-                if (str((lastElement, step)) not in self.problemGraphStatesSteps):
-                    self.problemGraphStatesSteps[str((lastElement, step))] = False
+                if (step not in self.problemGraphStatesCorrectness):
+                    self.problemGraphStatesCorrectness[step] = defaultStateValue
+                if (str((lastElement, step)) not in self.problemGraphStepsCorrectness):
+                    self.problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
+
+            ###
             self.studentResolutionsSteps[data['studentId']].append(str((lastElement, step)))
             lastElement = step
 
+        #Adicionar o caso do últio elemento com o _end_
         finalElement = '_end_'
         if (lastElement not in self.problemGraph):
             self.problemGraph[lastElement] = [finalElement]
         elif (lastElement in self.problemGraph and finalElement not in self.problemGraph[lastElement]):
             self.problemGraph[lastElement].append(finalElement)
+
+        #Colocar os valores certos depois
         if (isAnswerCorrect):
-            self.problemGraphStatesSteps[str((lastElement, finalElement))] = True                
+            self.problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
         else:
-            if (str((lastElement, finalElement)) not in self.problemGraphStatesSteps):
-                self.problemGraphStatesSteps[str((lastElement, finalElement))] = False
+            if (str((lastElement, finalElement)) not in self.problemGraphStepsCorrectness):
+                self.problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
+        ###
+
         self.studentResolutionsSteps[data['studentId']].append(str((lastElement, finalElement)))
 
         #Fim da parte do updateCG
@@ -443,69 +471,188 @@ class MyXBlock(XBlock):
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
-            return {"answer": "Incorreto!"}
+            return {"answer": "Incorreto!", "test": self.getWhichStatesAndStepsToGetMinimumFeedback(answerArray, 4)}
 
-    def corretudeResolucao(resolutionId):
-        stateNumber = len(studentResolutionsStates[resolutionId])
-        stepNumber = len(studentResolutionsStep[resolutionId])
+    def getWhichStatesAndStepsToGetMinimumFeedback(self, studentStates, amount) :
+
+        previousStudentState = '_start_'
+        nextStudentState = None
+
+        #Option 1, Option 3
+        #previous = _start_, studentState = Option 1, nextStudentStep = Option 3 (Fez nada)
+        #previous = Option 1, studentState = Option 3, nextStudentStep = _end_
+        statesAndStepsNeededInfo = {}
+
+        #for studentState in studentStates:
+        for i in range(len(studentStates)):
+
+            studentState = studentStates[i]
+            if i < len(studentStates) - 1:
+                nextStudentState = studentStates[i+1]
+            else:
+                nextStudentState = '_end_'
+
+            if studentState not in self.problemGraph:
+                #Pega os estados finais no qual tem esse estado inicial
+                if previousStudentState !=  '_start_' and previousStudentState in self.problemGraph:
+                    for nextStepFromPreviousStudentState in self.problemGraph[previousStudentState]:
+                        if nextStepFromPreviousStudentState != '_end_':
+                            self.insertStepIfCorrectnessIsValid(str((previousStudentState, nextStepFromPreviousStudentState)), statesAndStepsNeededInfo, amount)
+
+                #Pega os estados iniciais no qual tem esse estado final
+                if nextStudentState != '_end_' and nextStudentState in self.problemGraph:
+                    for beforeState in getSourceStatesFromDestinyState(nextStudentState):
+                        if beforeState != '_start_':
+                            self.insertStepIfCorrectnessIsValid(str((beforeState, nextStudentState)), statesAndStepsNeededInfo, amount)
+            else:
+                #Pega os estados finais no qual tem esse estado inicial
+                if previousStudentState !=  '_start_' and previousStudentState in self.problemGraph:
+                    #Pega os passos onde o estado final é diferente do feito pelo aluno
+                    for nextStepFromPreviousStudentState in self.problemGraph[previousStudentState]:
+                        if nextStepFromPreviousStudentState != studentState and nextStepFromPreviousStudentState != '_end_':
+                            self.insertStepIfCorrectnessIsValid(str((previousStudentState, nextStepFromPreviousStudentState)), statesAndStepsNeededInfo, amount)
+
+                    #Pega os passos onde o estado inicial é diferente do usado
+                    for beforeState in self.getSourceStatesFromDestinyState(studentState):
+                        if beforeState != previousStudentState and beforeState != '_start_':
+                            self.insertStepIfCorrectnessIsValid(str((beforeState, studentState)), statesAndStepsNeededInfo, amount)
+
+                    #Pega os passos alternativos, onde estado anterior e estado atual são diferentes dos usados
+                    alternativeSteps = []
+                    sourceStates = self.getSourceStatesFromDestinyState(studentState)
+                    for sourceState in sourceStates:
+                        if sourceState != previousStudentState and sourceState != '_start_':
+                            for nextState in self.problemGraph[sourceState]:
+                                if nextState != studentState and nextState != '_end_':
+                                    alternativeSteps.append(str((sourceState, nextState)))
+
+                    for step in alternativeSteps:
+                        self.insertStepIfCorrectnessIsValid(step, statesAndStepsNeededInfo, amount)
+
+                #Pega os estados iniciais no qual tem esse estado final
+                if nextStudentState != '_end_' and nextStudentState in self.problemGraph:
+                    #Casos onde o estado inicial é o atual, mas o final é diferente
+                    for nextStepFromStudentState in self.problemGraph[studentState]:
+                        if nextStepFromStudentState != nextStudentState and nextStepFromStudentState != '_end_':
+                            self.insertStepIfCorrectnessIsValid(str((studentState, nextStepFromStudentState)), statesAndStepsNeededInfo, amount)
+                    
+                    #Casos onde os estados iniciais são diferentes do estado atual, mas o estado final é o próximo estado
+                    for beforeState in self.getSourceStatesFromDestinyState(nextStudentState):
+                        if beforeState != studentState and beforeState != '_start_':
+                            self.insertStepIfCorrectnessIsValid(str((beforeState, nextStudentState)), statesAndStepsNeededInfo, amount)
+            
+                    #Pega os passos alternativos, onde os passo atual e o próximo são diferentes
+                    alternativeSteps = []
+                    sourceStates = self.getSourceStatesFromDestinyState(nextStudentState)
+                    for sourceState in sourceStates:
+                        if sourceState != studentState and sourceState != '_start_':
+                            for nextState in self.problemGraph[sourceState]:
+                                if nextState != nextStudentState and nextState != '_end_':
+                                    alternativeSteps.append(str((sourceState, nextState)))
+
+                    for step in alternativeSteps:
+                        self.insertStepIfCorrectnessIsValid(step, statesAndStepsNeededInfo, amount)
+
+            previousStudentState = studentState
+        return statesAndStepsNeededInfo
+
+    def getSourceStatesFromDestinyState(self, destinyState):
+        sourceStates = []
+        for step in self.problemGraph:
+            if destinyState in self.problemGraph[step]:
+                sourceStates.append(step)
+        return sourceStates
+
+
+    def insertStepIfCorrectnessIsValid(self, step, statesAndStepsNeededInfo, amount):
+        if step in statesAndStepsNeededInfo:
+            return
+
+        #Adiciona se achar um maior que o valor passado
+        for element in statesAndStepsNeededInfo:
+            if abs(self.problemGraphStepsCorrectness[step]) < abs(statesAndStepsNeededInfo[element]):
+                statesAndStepsNeededInfo[step] = self.problemGraphStepsCorrectness[step]
+
+        #Se tiver espaço na lista, adiciona
+        if len(statesAndStepsNeededInfo) < amount:
+            statesAndStepsNeededInfo[step] = self.problemGraphStepsCorrectness[step]
+
+
+        #Deixa o vetor com o número certo de elementos
+        if len(statesAndStepsNeededInfo) > amount:
+            highestValue = 0
+            highestElement = None
+            for element in statesAndStepsNeededInfo:
+                if abs(statesAndStepsNeededInfo[element]) > highestValue:
+                    highestValue = abs(statesAndStepsNeededInfo[element])
+                    highestElement = element
+
+            if highestElement != None:
+                statesAndStepsNeededInfo.pop(highestElement)
+
+
+        
+    def corretudeResolucao(resolutionId, self):
+        stateNumber = len(self.studentResolutionsStates[resolutionId])
+        stepNumber = len(self.studentResolutionsStep[resolutionId])
     
         stateValue = 0
-        for state in studentResolutionsStates[resolutionId]:
-            stateValue = stateValue + corretudeEstado(state)
+        for state in self.studentResolutionsStates[resolutionId]:
+            stateValue = stateValue + self.corretudeEstado(state)
     
         stepValue = 0
-        for step in studentResolutionsSteps[resolutionId]:
-            stepValue = stepValue + validadePasso(step)
+        for step in self.studentResolutionsSteps[resolutionId]:
+            stepValue = stepValue + self.validadePasso(step)
     
         return (1/2*stateNumber) * (stateValue) + (1/2*stepNumber) * (stepValue)
 
-    def possuiEstadoGrafo(state):
-        for resolution in studentResolutionsStates:
+    def possuiEstadoGrafo(state, self):
+        for resolution in self.studentResolutionsStates:
             if state in resolution:
                 return True
         return False
     
-    def getStepsWhereStartsWith(state):
+    def getStepsWhereStartsWith(state, self):
         stepList = []
         for step in self.problemGraphStatesSteps:
             if eval(step)[0] == state:
                 stepList.append(eval(step))
         return stepList
 
-    def getStepsWhereEndsWith(state):
+    def getStepsWhereEndsWith(state, self):
         stepList = []
         for step in self.problemGraphStatesSteps:
             if eval(step)[1] == state:
                 stepList.append(eval(step))
         return stepList
     
-    def possuiEstado(state, resolutionId):
-        return int(state in studentResolutionsStates[resolutionId])
+    def possuiEstado(state, resolutionId, self):
+        return int(state in self.studentResolutionsStates[resolutionId])
     
-    def possuiEstadoConjunto(state, resolutionIds):
+    def possuiEstadoConjunto(state, resolutionIds, self):
         value = 0
         for id in resolutionIds:
-            value = value +  possuiEstado(state, id)
+            value = value +  self.possuiEstado(state, id)
         return value
     
-    def corretudeEstado(state):
-        correctValue = possuiEstadoConjunto(state, correctResolutions)
-        incorrectValue = possuiEstadoConjunto(state, incorrectResolutions)
+    def corretudeEstado(state, self):
+        correctValue = self.possuiEstadoConjunto(state, self.correctResolutions)
+        incorrectValue = self.possuiEstadoConjunto(state, self.incorrectResolutions)
     
         return (correctValue-incorrectValue)/(correctValue + incorrectValue)
     
-    def possuiPasso(step, resolutionId):
-        return int(str((step[0], step[1])) in studentResolutionsSteps[resolutionId])
+    def possuiPasso(step, resolutionId, self):
+        return int(str((step[0], step[1])) in self.studentResolutionsSteps[resolutionId])
     
-    def possuiPassoConjunto(step, resolutionIds):
+    def possuiPassoConjunto(step, resolutionIds, self):
         value = 0
         for id in resolutionIds:
-            value = value +  possuiPasso(step, id)
+            value = value + self.possuiPasso(step, id)
         return value
     
-    def validadePasso(step):
-        correctValue = possuiPassoConjunto(step, correctResolutions)
-        incorrectValue = possuiPassoConjunto(step, incorrectResolutions)
+    def validadePasso(step, self):
+        correctValue = self.possuiPassoConjunto(step, self.correctResolutions)
+        incorrectValue = self.possuiPassoConjunto(step, self.incorrectResolutions)
     
         return (correctValue-incorrectValue)/(correctValue + incorrectValue)
 
