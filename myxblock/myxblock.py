@@ -1,3 +1,4 @@
+from array import array
 import json
 import pkg_resources
 from web_fragments.fragment import Fragment
@@ -145,8 +146,8 @@ class MyXBlock(XBlock):
     )
 
     #Faz sentido isso?
-    errorSpecificFeedback = Dict(
-        default={"Option 3": ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
+    errorSpecificFeedbackFromSteps = Dict(
+        default={"str(('Option 1', 'Option 3'))": ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
         help="For each wrong step that the student uses, it will show a specific feedback",
     )
 
@@ -471,16 +472,60 @@ class MyXBlock(XBlock):
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
-            return {"answer": "Incorreto!", "test": self.getWhichStatesAndStepsToGetMinimumFeedback(answerArray, 4)}
+            return {"answer": "Incorreto!", "test1": self.getErrorSpecificFeedbackStepsFromGraph(), "test2": self.getErrorSpecificFeedbackStepsFromStudentResolution(answerArray, 2)}
+    
+    def getErrorSpecificFeedbackStepsFromGraph(self):
+        steps = {}
+        for i in self.problemGraph:
+            for j in self.problemGraph[i]:
+                if self.problemGraphStepsCorrectness[str((i, j))] < stronglyInvalidStep[1]:
+                    if self.problemGraphStatesCorrectness[i] > correctState[0] and self.problemGraphStatesCorrectness[j] < incorrectState[1]:
+                        if i in steps:
+                            steps[i].append(j)
+                        else:
+                            steps[i] = [j]
+        return steps    
+
+    #Inicio igual, mas o fim não
+    def getErrorSpecificFeedbackStepsFromStudentResolution(self, studentStates, amount):
+        usefulRelatedSteps = {}
+        errorSpecificFeedbackSteps = self.getErrorSpecificFeedbackStepsFromGraph()
+
+        for i in range(len(studentStates) - 1):
+            for errorSpecificFeedbackSourceState in errorSpecificFeedbackSteps:
+                if studentStates[i] == errorSpecificFeedbackSourceState:
+                    for errorSpecificFeedbackDestinyState in errorSpecificFeedbackSteps[errorSpecificFeedbackSourceState]:
+                        errorSpecificStep = str((errorSpecificFeedbackSourceState, errorSpecificFeedbackDestinyState))
+                        studentStep = str((studentStates[i], studentStates[i+1]))
+                        if studentStates[i+1] != errorSpecificFeedbackDestinyState and self.problemGraphStepsCorrectness[studentStep] >= stronglyValidStep[0] and self.problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0] :
+                            if len(usefulRelatedSteps) < amount:
+                                usefulRelatedSteps[errorSpecificStep] = self.problemGraphStepsCorrectness[errorSpecificStep]
+                            else:
+                                for usefulRelatedStep in usefulRelatedSteps:
+                                    if usefulRelatedStep in self.errorSpecificFeedbackFromSteps:
+                                        usefulRelatedStepFeedbacks = self.errorSpecificFeedbackFromSteps[usefulRelatedStep]
+                                    else:
+                                        usefulRelatedStepFeedbacks = 0
+
+                                    if errorSpecificStep in self.errorSpecificFeedbackFromSteps:
+                                        errorSpecificStepFeedbacks = self.errorSpecificFeedbackFromSteps[errorSpecificStep]
+                                    else:
+                                        errorSpecificStepFeedbacks = 0
+
+                                    if usefulRelatedSteps[usefulRelatedStep] > self.problemGraphStepsCorrectness[errorSpecificStep] or usefulRelatedStepFeedbacks < errorSpecificStepFeedbacks:
+                                        usefulRelatedSteps.pop(usefulRelatedStep)
+                                        usefulRelatedSteps[errorSpecificStep] = self.problemGraphStepsCorrectness[errorSpecificStep]
+                        
+        return usefulRelatedSteps    
+
+
+
 
     def getWhichStatesAndStepsToGetMinimumFeedback(self, studentStates, amount) :
 
         previousStudentState = '_start_'
         nextStudentState = None
 
-        #Option 1, Option 3
-        #previous = _start_, studentState = Option 1, nextStudentStep = Option 3 (Fez nada)
-        #previous = Option 1, studentState = Option 3, nextStudentStep = _end_
         statesAndStepsNeededInfo = {}
 
         #for studentState in studentStates:
@@ -655,49 +700,6 @@ class MyXBlock(XBlock):
         incorrectValue = self.possuiPassoConjunto(step, self.incorrectResolutions)
     
         return (correctValue-incorrectValue)/(correctValue + incorrectValue)
-
-    #def minimumFeedback(states):
-    #    previousState = None
-    #    nextState = None
-    #    for i in range(len(states) - 1):
-    #        if (i != len(states) - 1):
-    #            nextState = states[i+1]
-    #        else:
-    #            nextState = None
-
-    #        if possuiEstadoGrafo(states[i]):
-    #            for step in getStepsWhereEndsWith(states[i]):
-    #                if step[0] == previousState:
-    #                    #Atualizar a corretude do previousState
-    #                    corretudeEstado(step[0])
-    #                else:
-    #                    for step2 in getStepsWhereStartsWith(step[0]):
-    #                        if step2[1] != states[i]:
-    #                            #Solicitar informações da validade dos passos:
-    #                    
-    #        else:
-    #            if previousState == None and nextState == None:
-    #                continue
-    #            if (previousState != None):
-    #                #Atualizar a corretude do previousState
-
-    #                for step in getStepsWhereStartsWith(previousState):
-    #                    if step[1] != states[i]:
-    #                        #Solicitar informações da validade desses passos
-    #                        #Solicitar corretude dos estados destinos desses passos
-    #                        corretudeEstado(step[1])
-    #            if (nextState != None):
-    #                #Atualizar a corretude do nextState
-
-    #                for step in getStepsWhereStartsWith(previousState):
-    #                    if step[0] != states[i]:
-    #                        #Solicitar informações da validade desses passos
-    #                        #Solicitar corretudo dos estados origem desses passos
-    #                        corretudeEstado(step[0])
-
-
-    #        previousState = states[i]
-
 
 
     @XBlock.json_handler
