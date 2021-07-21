@@ -145,10 +145,19 @@ class MyXBlock(XBlock):
         help="List of tips for each state of the correct answers",
     )
 
-    #Faz sentido isso?
     errorSpecificFeedbackFromSteps = Dict(
         default={"str(('Option 1', 'Option 3'))": ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
         help="For each wrong step that the student uses, it will show a specific feedback",
+    )
+
+    explanationFromSteps = Dict(
+        default={"str(('Option 1', 'Option 3'))": ["Explanation feedback 1", "Explanation Feedback 2"]}, scope=Scope.content,
+        help="For each correct step that the student uses, it will show a specific feedback",
+    )
+
+    hintFromSteps = Dict(
+        default={"str(('Option 1', 'Option 3'))": ["hint 1", "Hint 2"]}, scope=Scope.content,
+        help="For each correct step that the student uses, it will show a specific hint",
     )
 
     problemDefaultHint = String(
@@ -472,9 +481,93 @@ class MyXBlock(XBlock):
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
-            return {"answer": "Incorreto!", "test1": self.getErrorSpecificFeedbackStepsFromGraph(), "test2": self.getErrorSpecificFeedbackStepsFromStudentResolution(answerArray, 2)}
+            return {"answer": "Incorreto!", "test1": self.getExplanationOrHintStepsFromProblemGraph(), "test2": self.getHintStepFromStudentResolution(answerArray)}
+
+    def getExplanationOrHintStepsFromProblemGraph(self):
+        steps = {}
+        for i in self.problemGraph:
+            for j in self.problemGraph[i]:
+                if self.problemGraphStepsCorrectness[str((i, j))] >= stronglyValidStep[0]:
+                    if self.problemGraphStatesCorrectness[i] >= correctState[0] and self.problemGraphStatesCorrectness[j] >= correctState[0]:
+                        if i in steps:
+                            steps[i].append(j)
+                        else:
+                            steps[i] = [j]
+        return steps    
+
+    def getHintStepFromStudentResolution(self, studentStates):
+        chosenHintStep = None
+        chosenHintValue = None
+
+        hintSteps = self.getExplanationOrHintStepsFromProblemGraph()
+
+        for i in range(len(studentStates) - 1):
+            for hintStepFromGraph in hintSteps:
+                if studentStates[i] == hintStepFromGraph and self.problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
+                    for destinyHintStep in hintSteps[hintStepFromGraph]:
+                        if studentStates[i+1] == destinyHintStep and self.problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
+
+                            hintStep = str((hintStepFromGraph, destinyHintStep))
+                            if chosenHintStep == None:
+                                chosenHintStep = hintStep
+                                chosenHintValue = self.problemGraphStepsCorrectness[hintStep]
+                            else:
+                                if hintStep in self.hintFromSteps:
+                                    newHintFeedbacks = self.hintFromSteps[hintStep]
+                                else:
+                                    newHintFeedbacks = 0
+
+                                if chosenHintStep in self.explanationFromSteps:
+                                    chosenHintStepFeedbacks = self.explanationFromSteps[chosenHintStep]
+                                else:
+                                    chosenHintstepFeedbacks = 0
+
+                                if chosenHintValue < self.problemGraphStepsCorrectness[hintStep] or chosenHintStepFeedbacks < newHintFeedbacks:
+                                    chosenHintStep = hintStep
+                                    chosenHintValue = self.problemGraphStepsCorrectness[hintStep]
+        return chosenHintStep
+
+    def getExplanationStepsFromStudentResolution(self, studentStates, amount):
+        chosenExplanationSteps = {}
+        explanationSteps = self.getExplanationOrHintStepsFromProblemGraph()
+
+        for i in range(len(studentStates) - 1):
+            for explanationStep in explanationSteps:
+                if studentStates[i] == explanationStep and self.problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
+                    for destinyExplanationStep in explanationSteps[explanationStep]:
+                        if studentStates[i+1] == destinyExplanationStep and self.problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
+
+                            chosenExplanationStep = str((explanationStep, destinyExplanationStep))
+                            if len(chosenExplanationSteps) < amount:
+                                chosenExplanationSteps[chosenExplanationStep] = self.problemGraphStepsCorrectness[chosenExplanationStep]
+                            else:
+                                stepsToBeRemoved = []
+                                stepsToBeAdded = {}
+                                for step in chosenExplanationSteps:
+                                    if len(chosenExplanationSteps) - len(stepsToBeRemoved) >= amount:
+                                        if step in self.explanationFromSteps:
+                                            stepFeedbacks = self.explanationFromSteps[step]
+                                        else:
+                                            stepFeedbacks = 0
+
+                                        if chosenExplanationStep in self.explanationFromSteps:
+                                            chosenExplanationStepFeedbacks = self.explanationFromSteps[chosenExplanationStep]
+                                        else:
+                                            chosenExplanationStepFeedbacks = 0
+
+                                        if chosenExplanationSteps[step] < self.problemGraphStepsCorrectness[chosenExplanationStep] or stepFeedbacks < chosenExplanationStepFeedbacks:
+                                            stepsToBeRemoved.append(step)
+                                            stepsToBeAdded[chosenExplanationStep] = self.problemGraphStepsCorrectness[chosenExplanationStep]
+
+                                for step in stepsToBeRemoved:
+                                    chosenExplanationSteps.pop(step)
+
+                                for step in stepsToBeAdded:
+                                    chosenExplanationSteps[step] = stepsToBeAdded[step]
+
+        return chosenExplanationSteps    
     
-    def getErrorSpecificFeedbackStepsFromGraph(self):
+    def getErrorSpecificFeedbackStepsFromProblemGraph(self):
         steps = {}
         for i in self.problemGraph:
             for j in self.problemGraph[i]:
@@ -501,20 +594,30 @@ class MyXBlock(XBlock):
                             if len(usefulRelatedSteps) < amount:
                                 usefulRelatedSteps[errorSpecificStep] = self.problemGraphStepsCorrectness[errorSpecificStep]
                             else:
+                                stepsToBeRemoved = []
+                                stepsToBeAdded = {}
                                 for usefulRelatedStep in usefulRelatedSteps:
-                                    if usefulRelatedStep in self.errorSpecificFeedbackFromSteps:
-                                        usefulRelatedStepFeedbacks = self.errorSpecificFeedbackFromSteps[usefulRelatedStep]
-                                    else:
-                                        usefulRelatedStepFeedbacks = 0
+                                    if len(usefulRelatedSteps) - len(stepsToBeRemoved) >= amount:
+                                        if usefulRelatedStep in self.errorSpecificFeedbackFromSteps:
+                                            usefulRelatedStepFeedbacks = self.errorSpecificFeedbackFromSteps[usefulRelatedStep]
+                                        else:
+                                            usefulRelatedStepFeedbacks = 0
 
-                                    if errorSpecificStep in self.errorSpecificFeedbackFromSteps:
-                                        errorSpecificStepFeedbacks = self.errorSpecificFeedbackFromSteps[errorSpecificStep]
-                                    else:
-                                        errorSpecificStepFeedbacks = 0
+                                        if errorSpecificStep in self.errorSpecificFeedbackFromSteps:
+                                            errorSpecificStepFeedbacks = self.errorSpecificFeedbackFromSteps[errorSpecificStep]
+                                        else:
+                                            errorSpecificStepFeedbacks = 0
 
-                                    if usefulRelatedSteps[usefulRelatedStep] > self.problemGraphStepsCorrectness[errorSpecificStep] or usefulRelatedStepFeedbacks < errorSpecificStepFeedbacks:
-                                        usefulRelatedSteps.pop(usefulRelatedStep)
-                                        usefulRelatedSteps[errorSpecificStep] = self.problemGraphStepsCorrectness[errorSpecificStep]
+                                        if usefulRelatedSteps[usefulRelatedStep] > self.problemGraphStepsCorrectness[errorSpecificStep] or usefulRelatedStepFeedbacks < errorSpecificStepFeedbacks:
+                                            stepsToBeRemoved.append(usefulRelatedStep)
+                                            stepsToBeAdded[errorSpecificStep] = self.problemGraphStepsCorrectness[errorSpecificStep]
+
+                                for step in stepsToBeRemoved:
+                                    usefulRelatedSteps.pop(step)
+
+                                for step in stepsToBeAdded:
+                                    chosenExplanationSteps[step] = stepsToBeAdded[step]
+
                         
         return usefulRelatedSteps    
 
