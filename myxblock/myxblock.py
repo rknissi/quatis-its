@@ -1,11 +1,16 @@
 from array import array
 import json
+from re import I
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
-import ast
+import ast as astt
+import networkx as nx
+import matplotlib
+import matplotlib.pyplot as plt
 
+matplotlib.use('Agg')
 
 #Step information
 correctnessMinValue = -1
@@ -305,6 +310,92 @@ class MyXBlock(XBlock):
         return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep}
 
 
+    def createStudentGraphImage(self):
+
+        g = nx.DiGraph()
+        colorMap = []
+        addedNodes = []
+        edgeColor = []
+        nodeShape = []
+
+        for source in self.problemGraph:
+            for dest in self.problemGraph[source]:
+                if source == '_start_':
+                    if dest not in addedNodes:
+                        g.add_node(dest)
+                        addedNodes.append(dest)
+                        colorMap.append(self.getNodeColor(dest))
+                        nodeShape.append("s")
+                    else:
+                        colorMap[addedNodes.index(dest)] = self.getNodeColor(dest)
+                        nodeShape[addedNodes.index(dest)] = 's'
+                elif dest == '_end_':
+                    if source not in addedNodes:
+                        g.add_node(source)
+                        addedNodes.append(source)
+                        colorMap.append(self.getNodeColor(source))
+                        nodeShape.append("D")
+                    else:
+                        colorMap[addedNodes.index(source)] = self.getNodeColor(source)
+                        nodeShape[addedNodes.index(source)] = 'D'
+                else:
+                    if source not in addedNodes:
+                        g.add_node(source)
+                        addedNodes.append(source)
+                        colorMap.append(self.getNodeColor(source))
+                        nodeShape.append("o")
+                    if dest not in addedNodes:
+                        g.add_node(dest)
+                        addedNodes.append(dest)
+                        colorMap.append(self.getNodeColor(dest))
+                        nodeShape.append("o")
+                    
+                    g.add_edge(source,dest, length = 10)
+                    edgeColor.append(self.getEdgeColor(str((source, dest))))
+
+
+        f = plt.figure()
+        #nx.draw(g, with_labels=True, ax=f.add_subplot(111), node_color=colorMap, edge_color = edgeColor, node_shape = nodeShape)
+        nodePos = nx.layout.spring_layout(g)
+        nx.draw(g, with_labels=True, ax=f.add_subplot(111), node_color=colorMap, edge_color = edgeColor)
+        f.savefig("graph.png")
+        #G=nx.DiGraph()
+        #G.add_node(0)
+        #G.add_node(1)
+        #G.add_edge(0, 1)
+        #nx.draw(G, with_labels=True, font_weight='bold')
+
+        #plt.savefig("plot.png", dpi=1000)
+
+    def getEdgeColor(self, edge):
+
+        edgeValue = self.problemGraphStepsCorrectness[edge]
+        if edgeValue >= invalidStep[0] and edgeValue <= invalidStep[1]:
+            return "red"
+        if edgeValue >= stronglyInvalidStep[0] and edgeValue <= stronglyInvalidStep[1]:
+            return "tomato"
+        if edgeValue >= possiblyInvalidStep[0] and edgeValue <= possiblyInvalidStep[1]:
+            return "lightsalmon"
+        if edgeValue >= neutralStep[0] and edgeValue <= neutralStep[1]:
+            return "gold"
+        if edgeValue >= possiblyValidStep[0] and edgeValue <= possiblyValidStep[1]:
+            return  "yellowgreen"
+        if edgeValue >= stronglyValidStep[0] and edgeValue <= stronglyValidStep[1]:
+            return  "greenyellow"
+        if edgeValue >= validStep[0] and edgeValue <= validStep[1]:
+            return "lime"
+
+    def getNodeColor(self, node):
+
+        nodeValue = self.problemGraphStatesCorrectness[node]
+        if nodeValue >= incorrectState[0] and nodeValue <= incorrectState[1]:
+            return "lightcoral"
+        if nodeValue >= unknownState[0] and nodeValue <= unknownState[1]:
+            return "cornsilk"
+        if nodeValue >= correctState[0] and nodeValue <= correctState[1]:
+            return "skyblue"
+
+
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
     #TALVEZ COLOCAR ALGUMA COISA NOA TELA QUE MOSTRE QUE A LINHA ESTÁ CORRETA
     #Sistema que mostra a dica até o primeiro passo que estiver errado
@@ -312,6 +403,9 @@ class MyXBlock(XBlock):
     #Rodar após cada enter? Faria sentido
     @XBlock.json_handler
     def get_hint_for_last_step(self, data, suffix=''):
+
+        self.createStudentGraphImage()
+
         answerArray = data['userAnswer'].split('\n')
 
         if '' in answerArray:
@@ -481,7 +575,7 @@ class MyXBlock(XBlock):
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
-            return {"answer": "Incorreto!", "test1": self.getExplanationOrHintStepsFromProblemGraph(), "test2": self.getHintStepFromStudentResolution(answerArray)}
+            return {"answer": "Incorreto!"}
 
     def getExplanationOrHintStepsFromProblemGraph(self):
         steps = {}
