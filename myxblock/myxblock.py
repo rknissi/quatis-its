@@ -9,6 +9,9 @@ import ast as astt
 import networkx as nx
 import matplotlib
 import matplotlib.pyplot as plt
+from PIL import Image
+import io
+from base64 import encodebytes
 
 matplotlib.use('Agg')
 
@@ -309,6 +312,12 @@ class MyXBlock(XBlock):
 
         return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep}
 
+    def get_response_image(self):
+        pil_img = Image.open("/tmp/graph.png", mode='r') # reads the PIL image
+        byte_arr = io.BytesIO()
+        pil_img.save(byte_arr, format='png') # convert the PIL image to byte array
+        encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii') # encode as base64
+        return encoded_img
 
     def createStudentGraphImage(self):
 
@@ -322,50 +331,57 @@ class MyXBlock(XBlock):
             for dest in self.problemGraph[source]:
                 if source == '_start_':
                     if dest not in addedNodes:
-                        g.add_node(dest)
+                        g.add_node(dest, type="start")
                         addedNodes.append(dest)
                         colorMap.append(self.getNodeColor(dest))
                         nodeShape.append("s")
                     else:
                         colorMap[addedNodes.index(dest)] = self.getNodeColor(dest)
                         nodeShape[addedNodes.index(dest)] = 's'
+                        nx.set_node_attributes(g, {dest:"start"}, 'type')
                 elif dest == '_end_':
                     if source not in addedNodes:
-                        g.add_node(source)
+                        g.add_node(source, type="end")
                         addedNodes.append(source)
                         colorMap.append(self.getNodeColor(source))
                         nodeShape.append("D")
                     else:
                         colorMap[addedNodes.index(source)] = self.getNodeColor(source)
                         nodeShape[addedNodes.index(source)] = 'D'
+                        nx.set_node_attributes(g, {source:"end"}, 'type')
                 else:
                     if source not in addedNodes:
-                        g.add_node(source)
+                        g.add_node(source, type="middle")
                         addedNodes.append(source)
                         colorMap.append(self.getNodeColor(source))
                         nodeShape.append("o")
                     if dest not in addedNodes:
-                        g.add_node(dest)
+                        g.add_node(dest, type="middle")
                         addedNodes.append(dest)
                         colorMap.append(self.getNodeColor(dest))
                         nodeShape.append("o")
-                    
                     g.add_edge(source,dest, length = 10)
                     edgeColor.append(self.getEdgeColor(str((source, dest))))
 
 
         f = plt.figure()
-        #nx.draw(g, with_labels=True, ax=f.add_subplot(111), node_color=colorMap, edge_color = edgeColor, node_shape = nodeShape)
         nodePos = nx.layout.spring_layout(g)
-        nx.draw(g, with_labels=True, ax=f.add_subplot(111), node_color=colorMap, edge_color = edgeColor)
-        f.savefig("graph.png")
-        #G=nx.DiGraph()
-        #G.add_node(0)
-        #G.add_node(1)
-        #G.add_edge(0, 1)
-        #nx.draw(G, with_labels=True, font_weight='bold')
+        nx.draw(g, nodePos,with_labels=True, ax=f.add_subplot(111), node_color=colorMap, edge_color = edgeColor)
 
-        #plt.savefig("plot.png", dpi=1000)
+        startNodes = [x for x,y in g.nodes(data=True) if y["type"]=="start"]
+        startNodeColors = []
+        for node in startNodes:
+            startNodeColors.append(self.getNodeColor(node))
+        nx.draw_networkx_nodes(g,nodePos,node_shape = "s", nodelist =startNodes, node_color = startNodeColors)
+
+        endNodes = [x for x,y in g.nodes(data=True) if y["type"]=="end"]
+        endNodeColors = []
+        for node in endNodes:
+            endNodeColors.append(self.getNodeColor(node))
+        nx.draw_networkx_nodes(g,nodePos,node_shape = "D", nodelist =endNodes, node_color = endNodeColors)
+
+        f.savefig("/tmp/graph.png")
+        return self.get_response_image()
 
     def getEdgeColor(self, edge):
 
@@ -379,11 +395,11 @@ class MyXBlock(XBlock):
         if edgeValue >= neutralStep[0] and edgeValue <= neutralStep[1]:
             return "gold"
         if edgeValue >= possiblyValidStep[0] and edgeValue <= possiblyValidStep[1]:
-            return  "yellowgreen"
+            return  "olive"
         if edgeValue >= stronglyValidStep[0] and edgeValue <= stronglyValidStep[1]:
-            return  "greenyellow"
+            return  "yellowgreen"
         if edgeValue >= validStep[0] and edgeValue <= validStep[1]:
-            return "lime"
+            return "lawngreen"
 
     def getNodeColor(self, node):
 
@@ -391,10 +407,13 @@ class MyXBlock(XBlock):
         if nodeValue >= incorrectState[0] and nodeValue <= incorrectState[1]:
             return "lightcoral"
         if nodeValue >= unknownState[0] and nodeValue <= unknownState[1]:
-            return "cornsilk"
+            return "khaki"
         if nodeValue >= correctState[0] and nodeValue <= correctState[1]:
-            return "skyblue"
+            return "springgreen"
 
+    @XBlock.json_handler
+    def generate_graph(self, data, suffix=''):
+        return {"img": self.createStudentGraphImage()}
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
     #TALVEZ COLOCAR ALGUMA COISA NOA TELA QUE MOSTRE QUE A LINHA ESTÁ CORRETA
@@ -404,7 +423,6 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def get_hint_for_last_step(self, data, suffix=''):
 
-        self.createStudentGraphImage()
 
         answerArray = data['userAnswer'].split('\n')
 
@@ -453,7 +471,8 @@ class MyXBlock(XBlock):
                     self.lastWrongElement = lastCorrectElement
                     self.lastWrongElementLine = lastCorrectElementLine
 
-                return {"status": "OK", "hint": hintText, "lastCorrectElement": lastCorrectElement}
+                return {"status": "OK", "hint": hintText, "lastCorrectElement": lastCorrectElement, "teste": self.createStudentGraphImage()}
+        
             else:
                 wrongElementLine = possibleIncorrectAnswer.get("wrongElementLine")
                 if (wrongElementLine != self.lastWrongElementLine):
@@ -467,7 +486,7 @@ class MyXBlock(XBlock):
 
         self.lastWrongElement = wrongElement
         self.lastWrongElementLine = wrongElementLine
-        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement}
+        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "teste": self.createStudentGraphImage()}
 
     #Envia a resposta final
     @XBlock.json_handler

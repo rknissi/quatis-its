@@ -1,6 +1,7 @@
 function MyXBlockEdit(runtime, element) {
 
-  var handleUrl = runtime.handlerUrl(element, 'submit_data');
+  var submitDataUrl = runtime.handlerUrl(element, 'submit_data');
+  var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
 
   $('#save_button', element).click(function(eventObject) {
     var el = $(element);
@@ -22,13 +23,26 @@ function MyXBlockEdit(runtime, element) {
 
     $.ajax({
       type: "POST",
-      url: handleUrl,
+      url: submitDataUrl,
       data: JSON.stringify(data),
       success: function (data) {
           window.location.reload(false);
       }   
   });
 
+  });
+
+  $('#createGraph', element).click(function(eventObject) {
+    $.ajax({
+      type: "POST",
+      url: getGraphurl,
+      data: JSON.stringify({}),
+      success: function (data) {
+            let base64Img = new Image();
+            base64Img.src = "data:image/png;base64," + data.img;
+            document.querySelector(".graph").appendChild(base64Img);
+      }   
+  });
   });
 
   $('#cancel_button', element).click(function(eventObject) {
