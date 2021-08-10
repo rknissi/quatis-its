@@ -1,6 +1,7 @@
 from array import array
 import json
 from re import I
+from networkx.linalg.spectrum import normalized_laplacian_spectrum
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
@@ -311,6 +312,53 @@ class MyXBlock(XBlock):
             return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
 
         return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep}
+    
+    def getJsonFromProblemGraph(self):
+        nodeList = []
+        edgeList = []
+        addedNodes = []
+
+        for source in self.problemGraph:
+            for dest in self.problemGraph[source]:
+                if source == "_start_":
+                    nodeColor = self.getNodeColor(dest)
+                    if dest not in addedNodes:
+                        node = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}}
+                        nodeList.append(node)
+                        addedNodes.append(dest)
+                    else: 
+                        pos = addedNodes.index(dest)
+                        nodeList[pos] = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}}
+
+                    
+                elif dest == "_end_":
+                    nodeColor = self.getNodeColor(source)
+                    if source not in addedNodes:
+                        node = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black"}
+                        nodeList.append(node)
+                        addedNodes.append(source)
+                    else:
+                        pos = addedNodes.index(source)
+                        nodeList[pos] = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black"}
+
+                else:
+                    if source not in addedNodes:
+                        nodeColor = self.getNodeColor(source)
+                        node = {"id": source, "height": 50, "fill": nodeColor}
+                        nodeList.append(node)
+                        addedNodes.append(source)
+                    if dest not in addedNodes:
+                        nodeColor = self.getNodeColor(dest)
+                        node = {"id": dest, "height": 50, "fill": nodeColor}
+                        nodeList.append(node)
+                        addedNodes.append(dest)
+                edge = {"from": source, "to": dest, "stroke": self.getEdgeColor(str((source, dest)))}
+                edgeList.append(edge)
+
+        return {"nodes": nodeList, "edges": edgeList}
+                
+
+
 
     def get_response_image(self):
         pil_img = Image.open("/tmp/graph.png", mode='r') # reads the PIL image
@@ -387,33 +435,33 @@ class MyXBlock(XBlock):
 
         edgeValue = self.problemGraphStepsCorrectness[edge]
         if edgeValue >= invalidStep[0] and edgeValue <= invalidStep[1]:
-            return "red"
+            return "#FC0D1B"
         if edgeValue >= stronglyInvalidStep[0] and edgeValue <= stronglyInvalidStep[1]:
-            return "tomato"
+            return "#FC644D"
         if edgeValue >= possiblyInvalidStep[0] and edgeValue <= possiblyInvalidStep[1]:
-            return "lightsalmon"
+            return "#FDA07E"
         if edgeValue >= neutralStep[0] and edgeValue <= neutralStep[1]:
-            return "gold"
+            return "#FED530"
         if edgeValue >= possiblyValidStep[0] and edgeValue <= possiblyValidStep[1]:
-            return  "olive"
+            return  "#807F17"
         if edgeValue >= stronglyValidStep[0] and edgeValue <= stronglyValidStep[1]:
-            return  "yellowgreen"
+            return  "#9BCB40"
         if edgeValue >= validStep[0] and edgeValue <= validStep[1]:
-            return "lawngreen"
+            return "#81FA30"
 
     def getNodeColor(self, node):
 
         nodeValue = self.problemGraphStatesCorrectness[node]
         if nodeValue >= incorrectState[0] and nodeValue <= incorrectState[1]:
-            return "lightcoral"
+            return "#EE8182"
         if nodeValue >= unknownState[0] and nodeValue <= unknownState[1]:
-            return "khaki"
+            return "#F0E591"
         if nodeValue >= correctState[0] and nodeValue <= correctState[1]:
-            return "springgreen"
+            return "#2AFD84"
 
     @XBlock.json_handler
     def generate_graph(self, data, suffix=''):
-        return {"img": self.createStudentGraphImage()}
+        return {"teste": self.getJsonFromProblemGraph()}
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
     #TALVEZ COLOCAR ALGUMA COISA NOA TELA QUE MOSTRE QUE A LINHA ESTÁ CORRETA
@@ -471,7 +519,7 @@ class MyXBlock(XBlock):
                     self.lastWrongElement = lastCorrectElement
                     self.lastWrongElementLine = lastCorrectElementLine
 
-                return {"status": "OK", "hint": hintText, "lastCorrectElement": lastCorrectElement, "teste": self.createStudentGraphImage()}
+                return {"status": "OK", "hint": hintText, "lastCorrectElement": lastCorrectElement, "teste": self.getJsonFromProblemGraph()}
         
             else:
                 wrongElementLine = possibleIncorrectAnswer.get("wrongElementLine")
@@ -486,7 +534,7 @@ class MyXBlock(XBlock):
 
         self.lastWrongElement = wrongElement
         self.lastWrongElementLine = wrongElementLine
-        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "teste": self.createStudentGraphImage()}
+        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "teste": self.getJsonFromProblemGraph()}
 
     #Envia a resposta final
     @XBlock.json_handler

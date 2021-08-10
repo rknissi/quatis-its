@@ -54,6 +54,43 @@ function MyXBlock(runtime, element, data) {
     }
 
     function showHint(value) {
+
+          // create a chart from the loaded data
+          var chart = anychart.graph(value.teste);
+
+          // set the title
+          chart.title("Network Graph showing the battles in Game of Thrones");
+
+          // access nodes
+          var nodes = chart.nodes();
+
+          // set the size of nodes
+          nodes.normal().height(30);
+          nodes.hovered().height(45);
+          nodes.selected().height(45);
+
+          // set the stroke of nodes
+          nodes.normal().stroke(null);
+          nodes.hovered().stroke("#333333", 3);
+          nodes.selected().stroke("#333333", 3);
+
+          // enable the labels of nodes
+          chart.nodes().labels().enabled(true);
+
+          // configure the labels of nodes
+          chart.nodes().labels().format("{%id}");
+          chart.nodes().labels().fontSize(12);
+          chart.nodes().labels().fontWeight(600);
+
+          chart.edges().arrows({
+            enabled: true,
+            size: 15,
+            position: '50%'
+          });
+
+          // draw the chart
+          chart.container("graph").draw();
+
         if (value.status == 'OK') {
 
             //Tratar os cassos
