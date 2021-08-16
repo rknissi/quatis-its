@@ -114,7 +114,7 @@
       <span class="tip setting-help">Os textos dos tags da pergunta, como Problema ou Algebra </span>
     </li>
 
-  <div class="graph">
+  <div class="graph" id="graph" style="height: 600px; width: 90%;">
     <span class="xblock-editor-error-message"></span>
     <ul>
       <li class="action-item">
@@ -122,6 +122,69 @@
       </li>
     </ul>
   </div>
+
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="stateName">Nome do estado  </label>
+        <input class="input" name="stateName" id="stateName"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="stateCorrectness">Corretude do estado  </label>
+        <input class="input" name="stateCorrectness" id="stateCorrectness"  type="text" />
+        <p></p>
+        <button type="button" id='createState'>Adicionar como estado normal</button> 
+        <button type="button" id='createInitialState'>Adicionar como estado inicial</button> 
+        <button type="button" id='createFinalState'>Adicionar como estado final</button> 
+      </div>
+    </li>
+
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="sourceState">Passo fonte  </label>
+        <input class="input" name="sourceState" id="sourceState"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="destState">Passo destino  </label>
+        <input class="input" name="destState" id="destState"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="stepCorrectness">Corretude do passo  </label>
+        <input class="input" name="stepCorrectness" id="stepCorrectness"  type="text" />
+        <p></p>
+        <button type="button" id='createStep'>Adicionar passo</button> 
+      </div>
+    </li>
+    
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="editState">Qual estado?</label>
+        <input class="input" name="editState" id="editState" type="text" />
+        <p></p>
+        <label class="label setting-label" for="editStateValue">Valor/Corretude</label>
+        <input class="input" name="editStateValue" id="editStateValue"  type="text" />
+        <p></p>
+        <button type="button" id='changeStateValue'>Mudar valor</button> 
+        <button type="button" id='changeStateCorrectness'>Mudar corretude</button> 
+        <button type="button" id='removeState'>Remover</button> 
+        <p></p>
+        <button type="button" id='changeStateToNormal'>Tornar normal</button> 
+        <button type="button" id='changeStateToInitial'>Tornar inicial</button> 
+        <button type="button" id='changeStateToFinal'>Tornar final</button> 
+      </div>
+    </li>
+
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="editStepSource">Qual estado inicial?</label>
+        <input class="input" name="editStepSource" id="editStepSource"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="editStepDest">Qual estado final?</label>
+        <input class="input" name="editStepDest" id="editStepDest"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="editStepValue">Valor/Corretude</label>
+        <input class="input" name="editStepValue" id="editStepValue"  type="text" />
+        <p></p>
+        <button type="button" id='changeStepCorrectness'>Mudar corretude</button> 
+        <button type="button" id='removeStep'>Remover</button> 
+      </div>
+    </li>
 
   </ul>
   <div class="xblock-actions">

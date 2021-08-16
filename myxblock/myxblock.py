@@ -6,7 +6,7 @@ import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
-import ast as astt
+import ast 
 import networkx as nx
 import matplotlib
 import matplotlib.pyplot as plt
@@ -323,37 +323,38 @@ class MyXBlock(XBlock):
                 if source == "_start_":
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
-                        node = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}}
+                        node = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}, "correctness": self.problemGraphStatesCorrectness[dest]}
                         nodeList.append(node)
                         addedNodes.append(dest)
                     else: 
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}}
+                        nodeList[pos] = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}, "correctness": self.problemGraphStatesCorrectness[dest]}
 
                     
                 elif dest == "_end_":
                     nodeColor = self.getNodeColor(source)
                     if source not in addedNodes:
-                        node = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black"}
+                        node = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black", "correctness": self.problemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
                     else:
                         pos = addedNodes.index(source)
-                        nodeList[pos] = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black"}
+                        nodeList[pos] = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black", "correctness": self.problemGraphStatesCorrectness[source]}
 
                 else:
                     if source not in addedNodes:
                         nodeColor = self.getNodeColor(source)
-                        node = {"id": source, "height": 50, "fill": nodeColor}
+                        node = {"id": source, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
                     if dest not in addedNodes:
                         nodeColor = self.getNodeColor(dest)
-                        node = {"id": dest, "height": 50, "fill": nodeColor}
+                        node = {"id": dest, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
                         nodeList.append(node)
                         addedNodes.append(dest)
-                edge = {"from": source, "to": dest, "stroke": self.getEdgeColor(str((source, dest)))}
-                edgeList.append(edge)
+                    
+                    edge = {"from": source, "to": dest, "stroke": self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edgeList.append(edge)
 
         return {"nodes": nodeList, "edges": edgeList}
                 
