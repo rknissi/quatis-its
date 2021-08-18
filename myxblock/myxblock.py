@@ -266,6 +266,38 @@ class MyXBlock(XBlock):
         frag.initialize_js('MyXBlockEdit')
         return frag
 
+    @XBlock.json_handler
+    def submit_graph_data(self,data,suffix=''):
+
+        graphData = data['graphData']
+
+        self.problemGraph = {}
+        self.problemGraphStatesCorrectness = {}
+        self.problemGraphStepsCorrectness = {}
+
+        for edge in graphData['edges']:
+            if edge["from"] not in self.problemGraph:
+                self.problemGraph[edge["from"]] = [edge["to"]]
+            else:
+                self.problemGraph[edge["from"]].append(edge["to"])
+            self.problemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = edge["correctness"]
+
+        for node in graphData['nodes']:
+            self.problemGraphStatesCorrectness[node["id"]] = node["correctness"]
+            if "stroke" in node:
+                if node["stroke"] == "1 black":
+                    if node["id"] in self.problemGraph:
+                        self.problemGraph[node["id"]].append("_end_")
+                    else:
+                        self.problemGraph[node["id"]] = ["_end_"]
+                else:
+                    if "_start_" in self.problemGraph:
+                        self.problemGraph["_start_"].append(node["id"])
+                    else:
+                        self.problemGraph["_start_"] = [node["id"]]
+
+        return {'problemGraph': self.problemGraph, 'problemGraphStatesCorrectness': self.problemGraphStatesCorrectness, 'problemGraphStepsCorrectness': self.problemGraphStepsCorrectness}
+
 
     @XBlock.json_handler
     def submit_data(self,data,suffix=''):

@@ -7,6 +7,8 @@ function MyXBlock(runtime, element, data) {
     var currentWrongElementHintCounter = 0;
     var chart;
     var data;
+    
+    var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
 
     function defineValues(value) {
         $('#question', element).text(value.title);
@@ -163,9 +165,9 @@ function MyXBlock(runtime, element, data) {
     }
 
     function reloadGraph(data){
-        data.nodes = data.nodes.concat({"id": "Amor", "height": 50})
-        data.nodes = data.nodes.concat({"id": "Amor2", "height": 50})
-        data.edges = data.edges.concat({"from": "Amor", "to": "Amor2"})
+        data.nodes = data.nodes.concat({"id": "Amor", "height": 50, "correctness": 1})
+        data.nodes = data.nodes.concat({"id": "Amor2", "height": 50, "correctness": 1})
+        data.edges = data.edges.concat({"from": "Amor", "to": "Amor2", "correctness": 1})
 
         chart.edges().arrows({
             enabled: false
@@ -264,6 +266,22 @@ function MyXBlock(runtime, element, data) {
         }
         document.getElementById('hint').innerHTML = hints[actualHint];
         reloadGraph(data);
+
+
+        var body = {
+          graphData: data
+        };
+
+        $.ajax({
+          type: "POST",
+          url: submitGraphDataUrl,
+          data: JSON.stringify(body),
+          success: function (data) {
+            console.log(data)
+          }   
+      });
+
+
     });
 
     $('#nextHint', element).click(function(eventObject) {

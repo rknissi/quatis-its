@@ -2,6 +2,7 @@ function MyXBlockEdit(runtime, element) {
 
   var submitDataUrl = runtime.handlerUrl(element, 'submit_data');
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
+  var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
 
   var chart;
   var data;
@@ -215,6 +216,22 @@ function MyXBlockEdit(runtime, element) {
         if (nodeValue >= correctState[0] && nodeValue <= correctState[1])
             return "#2AFD84"
   }
+
+  $('#saveGraph', element).click(function(eventObject) {
+    var el = $(element);
+    var body = {
+      graphData: data
+    };
+
+    $.ajax({
+      type: "POST",
+      url: submitGraphDataUrl,
+      data: JSON.stringify(body),
+      success: function (data) {
+        console.log(data)
+      }   
+  });
+  });
 
 
   $('#createStep', element).click(function(eventObject) {
