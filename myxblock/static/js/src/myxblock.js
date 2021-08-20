@@ -58,42 +58,6 @@ function MyXBlock(runtime, element, data) {
     }
 
     function showHint(value) {
-
-        chart = anychart.graph(value.teste);
-        data = value.teste;
-
-        // set the title
-        chart.title("Network Graph showing the battles in Game of Thrones");
-
-        // access nodes
-        var nodes = chart.nodes();
-
-        // set the size of nodes
-        nodes.normal().height(30);
-        nodes.hovered().height(45);
-        nodes.selected().height(45);
-
-        // set the stroke of nodes
-        nodes.normal().stroke(null);
-        nodes.hovered().stroke("#333333", 3);
-        nodes.selected().stroke("#333333", 3);
-
-        // enable the labels of nodes
-        chart.nodes().labels().enabled(true);
-
-        // configure the labels of nodes
-        chart.nodes().labels().format("{%id}");
-        chart.nodes().labels().fontSize(12);
-        chart.nodes().labels().fontWeight(600);
-
-        chart.edges().arrows({
-            enabled: true,
-            size: 15
-        });
-
-        // draw the chart
-        chart.container("graph2").draw();
-
         if (value.status == 'OK') {
 
             //Tratar os cassos
@@ -164,40 +128,6 @@ function MyXBlock(runtime, element, data) {
         }
     }
 
-    function reloadGraph(data){
-        data.nodes = data.nodes.concat({"id": "Amor", "height": 50, "correctness": 1})
-        data.nodes = data.nodes.concat({"id": "Amor2", "height": 50, "correctness": 1})
-        data.edges = data.edges.concat({"from": "Amor", "to": "Amor2", "correctness": 1})
-
-        chart.edges().arrows({
-            enabled: false
-        });
-
-        chart.data(data);
-
-        chart.edges().arrows({
-            enabled: true,
-            size: 15
-        });
-
-        chart.data(data);
-
-    }
-
-    function addNode(node){
-        data.nodes = data.nodes.concat(node)
-
-        chart.data(data);
-
-    }
-
-    function addEdge(edge){
-        data.edges = data.edges.concat(edge)
-
-        chart.data(data);
-
-    }
-
     function showResults(value) {
         if(value.error) {
             alert(value.error);
@@ -265,23 +195,6 @@ function MyXBlock(runtime, element, data) {
             actualHint--;
         }
         document.getElementById('hint').innerHTML = hints[actualHint];
-        reloadGraph(data);
-
-
-        var body = {
-          graphData: data
-        };
-
-        $.ajax({
-          type: "POST",
-          url: submitGraphDataUrl,
-          data: JSON.stringify(body),
-          success: function (data) {
-            console.log(data)
-          }   
-      });
-
-
     });
 
     $('#nextHint', element).click(function(eventObject) {

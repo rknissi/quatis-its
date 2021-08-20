@@ -378,7 +378,7 @@ function MyXBlockEdit(runtime, element) {
         data = value.teste;
 
         // set the title
-        chart.title("Network Graph showing the battles in Game of Thrones");
+        chart.title("Grafo das escolhas dos estudantes");
 
         // access nodes
         var nodes = chart.nodes();

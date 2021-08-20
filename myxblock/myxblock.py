@@ -80,18 +80,18 @@ class MyXBlock(XBlock):
 
     #Caminhos corretos do grafo
     problemGraph = Dict(
-        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
+        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.content,
         help="The problem graph itself",
     )
 
     problemGraphStatesCorrectness = Dict(
-        default={'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.user_state_summary,
+        default={'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.content,
         help="Shows if each node of the graph is correct with true or false",
     )
     
 
     problemGraphStepsCorrectness = Dict(
-        default={str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}, scope=Scope.user_state_summary,
+        default={str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}, scope=Scope.content,
         help="Shows if each step of the graph is correct with true or false",
     )
 
@@ -269,21 +269,21 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
 
-        graphData = data['graphData']
+        graphData = data.get('graphData')
 
-        self.problemGraph = {}
-        self.problemGraphStatesCorrectness = {}
-        self.problemGraphStepsCorrectness = {}
+        self.problemGraph.clear()
+        self.problemGraphStatesCorrectness.clear()
+        self.problemGraphStepsCorrectness.clear()
 
         for edge in graphData['edges']:
             if edge["from"] not in self.problemGraph:
                 self.problemGraph[edge["from"]] = [edge["to"]]
             else:
                 self.problemGraph[edge["from"]].append(edge["to"])
-            self.problemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = edge["correctness"]
+            self.problemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = float(edge["correctness"])
 
         for node in graphData['nodes']:
-            self.problemGraphStatesCorrectness[node["id"]] = node["correctness"]
+            self.problemGraphStatesCorrectness[node["id"]] = float(node["correctness"])
             if "stroke" in node:
                 if node["stroke"] == "1 black":
                     if node["id"] in self.problemGraph:
@@ -295,6 +295,10 @@ class MyXBlock(XBlock):
                         self.problemGraph["_start_"].append(node["id"])
                     else:
                         self.problemGraph["_start_"] = [node["id"]]
+            else:
+                if node["id"] not in self.problemGraph:
+                    self.problemGraph[node["id"]] = []
+
 
         return {'problemGraph': self.problemGraph, 'problemGraphStatesCorrectness': self.problemGraphStatesCorrectness, 'problemGraphStepsCorrectness': self.problemGraphStepsCorrectness}
 
