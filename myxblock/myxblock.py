@@ -155,17 +155,17 @@ class MyXBlock(XBlock):
     )
 
     errorSpecificFeedbackFromSteps = Dict(
-        default={"str(('Option 1', 'Option 3'))": ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
+        default={str(('Option 1', 'Option 3')): ["Error Specific feedback 1", "Error Specific Feedback 2"], str(('X=500-2', 'X=498')): ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
         help="For each wrong step that the student uses, it will show a specific feedback",
     )
 
     explanationFromSteps = Dict(
-        default={"str(('Option 1', 'Option 3'))": ["Explanation feedback 1", "Explanation Feedback 2"]}, scope=Scope.content,
+        default={str(('Option 1', 'Option 3')): ["Explanation feedback 1", "Explanation Feedback 2"], str(('X=500-2', 'X=498')): ["Explanation feedback 1", "Explanation Feedback 2"]}, scope=Scope.content,
         help="For each correct step that the student uses, it will show a specific feedback",
     )
 
     hintFromSteps = Dict(
-        default={"str(('Option 1', 'Option 3'))": ["hint 1", "Hint 2"]}, scope=Scope.content,
+        default={str(('Option 1', 'Option 3')): ["hint 1", "Hint 2"], str(('X=500-2', 'X=498')): ["Hint feedback 1", "Hint Feedback 2"]}, scope=Scope.content,
         help="For each correct step that the student uses, it will show a specific hint",
     )
 
@@ -265,6 +265,47 @@ class MyXBlock(XBlock):
 
         frag.initialize_js('MyXBlockEdit')
         return frag
+
+    @XBlock.json_handler
+    def get_node_info(self,data,suffix=''):
+        return
+
+    @XBlock.json_handler
+    def get_edge_info(self,data,suffix=''):
+        step = str((data.get("from"), data.get("to")))
+        errorSpecificFeedbacks = None
+        explanations = None
+        hints = None
+
+        if step in self.errorSpecificFeedbackFromSteps:
+            errorSpecificFeedbacks = self.errorSpecificFeedbackFromSteps[step]
+        if step in self.explanationFromSteps:
+            explanations = self.explanationFromSteps[step]
+        if step in self.hintFromSteps:
+            hints = self.hintFromSteps[step]
+        
+        return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
+
+    @XBlock.json_handler
+    def submit_error_specific_feedback(self,data,suffix=''):
+        step = str((data.get("from"), data.get("to")))
+        self.errorSpecificFeedbackFromSteps[step] = data.get("errorSpecificFeedbacks")
+        
+        return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps}
+
+    @XBlock.json_handler
+    def submit_explanation(self,data,suffix=''):
+        step = str((data.get("from"), data.get("to")))
+        self.explanationFromSteps[step] = data.get("explanations")
+        
+        return {"explanations": self.explanationFromSteps}
+
+    @XBlock.json_handler
+    def submit_hint(self,data,suffix=''):
+        step = str((data.get("from"), data.get("to")))
+        self.hintFromSteps[step] = data.get("hints")
+        
+        return {"hints": self.hintFromSteps}
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):

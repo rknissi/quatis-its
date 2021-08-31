@@ -3,6 +3,10 @@ function MyXBlockEdit(runtime, element) {
   var submitDataUrl = runtime.handlerUrl(element, 'submit_data');
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
   var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
+  var getEdgeInfoUrl = runtime.handlerUrl(element, 'get_edge_info');
+  var submitErrorSpecificFeedbackUrl = runtime.handlerUrl(element, 'submit_error_specific_feedback');
+  var submitExplanationUrl = runtime.handlerUrl(element, 'submit_explanation');
+  var submitHintUrl = runtime.handlerUrl(element, 'submit_hint');
 
   var chart;
   var data;
@@ -45,65 +49,65 @@ function MyXBlockEdit(runtime, element) {
     chart.nodes().labels().fontWeight(600);
 
     chart.edges().arrows({
-        enabled: true,
-        size: 15
+      enabled: true,
+      size: 15
     });
 
     chart.container("graph").draw();
   }
 
   function removeNode(nodeName){
-      for (i = 0; i < data.nodes.length; ++i) {
-        if (nodeName === data.nodes[i].id) {
-          data.nodes.splice(i, 1);
-          removeEdgeWithNode(nodeName)
-          break;
-        }
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (nodeName === data.nodes[i].id) {
+        data.nodes.splice(i, 1);
+        removeEdgeWithNode(nodeName)
+        break;
+      }
     }
     reApplyConfig();
   }
 
   function changeNodeValue(nodeName, value){
-      for (i = 0; i < data.nodes.length; ++i) {
-        if (nodeName === data.nodes[i].id) {
-          nodeData = data.nodes[i];
-          data.nodes.splice(i, 1);
-          nodeData.id = value;
-          addNode(nodeData);
-          changeNodeNameInEdges(nodeName, value)
-          break;
-        }
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (nodeName === data.nodes[i].id) {
+        nodeData = data.nodes[i];
+        data.nodes.splice(i, 1);
+        nodeData.id = value;
+        addNode(nodeData);
+        changeNodeNameInEdges(nodeName, value)
+        break;
+      }
     }
     reApplyConfig();
   }
 
   function changeNodeNameInEdges(oldName, newName){
-      for (i = 0; i < data.edges.length; ++i) {
-        if (oldName === data.edges[i].from) {
-          edgeData = data.edges[i];
-          data.edges.splice(i, 1);
-          edgeData.from = newName;
-          addEdge(edgeData);
-        }
-        if (oldName === data.edges[i].to) {
-          edgeData = data.edges[i];
-          data.edges.splice(i, 1);
-          edgeData.to = newName;
-          addEdge(edgeData);
-        }
+    for (i = 0; i < data.edges.length; ++i) {
+      if (oldName === data.edges[i].from) {
+        edgeData = data.edges[i];
+        data.edges.splice(i, 1);
+        edgeData.from = newName;
+        addEdge(edgeData);
+      }
+      if (oldName === data.edges[i].to) {
+        edgeData = data.edges[i];
+        data.edges.splice(i, 1);
+        edgeData.to = newName;
+        addEdge(edgeData);
+      }
     }
     reApplyConfig();
   }
 
   function changeNodeToNormal(nodeName){
-      for (i = 0; i < data.nodes.length; ++i) {
-        if (nodeName === data.nodes[i].id) {
-          nodeData = data.nodes[i];
-          data.nodes.splice(i, 1);
-          nodeData.stroke = null;
-          addNode(nodeData);
-          break;
-        }
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (nodeName === data.nodes[i].id) {
+        nodeData = data.nodes[i];
+        data.nodes.splice(i, 1);
+        nodeData.stroke = null;
+        addNode(nodeData);
+        break;
+      }
     }
     reApplyConfig();
   }
@@ -192,29 +196,29 @@ function MyXBlockEdit(runtime, element) {
   }
 
   function getEdgeColor(edgeValue) {
-        if (edgeValue >= invalidStep[0] && edgeValue <= invalidStep[1]) 
-            return "#FC0D1B"
-        if (edgeValue >= stronglyInvalidStep[0] && edgeValue <= stronglyInvalidStep[1]) 
-            return "#FC644D"
-        if (edgeValue >= possiblyInvalidStep[0] && edgeValue <= possiblyInvalidStep[1])
-            return "#FDA07E"
-        if (edgeValue >= neutralStep[0] && edgeValue <= neutralStep[1])
-            return "#FED530"
-        if (edgeValue >= possiblyValidStep[0] && edgeValue <= possiblyValidStep[1])
-            return  "#807F17"
-        if (edgeValue >= stronglyValidStep[0] && edgeValue <= stronglyValidStep[1])
-            return  "#9BCB40"
-        if (edgeValue >= validStep[0] && edgeValue <= validStep[1])
-            return "#81FA30"
+    if (edgeValue >= invalidStep[0] && edgeValue <= invalidStep[1]) 
+        return "#FC0D1B"
+    if (edgeValue >= stronglyInvalidStep[0] && edgeValue <= stronglyInvalidStep[1]) 
+      return "#FC644D"
+    if (edgeValue >= possiblyInvalidStep[0] && edgeValue <= possiblyInvalidStep[1])
+      return "#FDA07E"
+    if (edgeValue >= neutralStep[0] && edgeValue <= neutralStep[1])
+      return "#FED530"
+    if (edgeValue >= possiblyValidStep[0] && edgeValue <= possiblyValidStep[1])
+      return  "#807F17"
+    if (edgeValue >= stronglyValidStep[0] && edgeValue <= stronglyValidStep[1])
+      return  "#9BCB40"
+    if (edgeValue >= validStep[0] && edgeValue <= validStep[1])
+      return "#81FA30"
   }
 
   function getNodeColor(nodeValue) {
-        if (nodeValue >= incorrectState[0] && nodeValue <= incorrectState[1])
-            return "#EE8182"
-        if (nodeValue >= unknownState[0] && nodeValue <= unknownState[1])
-            return "#F0E591"
-        if (nodeValue >= correctState[0] && nodeValue <= correctState[1])
-            return "#2AFD84"
+    if (nodeValue >= incorrectState[0] && nodeValue <= incorrectState[1])
+      return "#EE8182"
+    if (nodeValue >= unknownState[0] && nodeValue <= unknownState[1])
+      return "#F0E591"
+    if (nodeValue >= correctState[0] && nodeValue <= correctState[1])
+      return "#2AFD84"
   }
 
   $('#saveGraph', element).click(function(eventObject) {
@@ -230,7 +234,7 @@ function MyXBlockEdit(runtime, element) {
       success: function (data) {
         console.log(data)
       }   
-  });
+    });
   });
 
 
@@ -337,6 +341,60 @@ function MyXBlockEdit(runtime, element) {
     changeStepCorrectness(from, to, value)
   });
 
+  $('#saveErrorSpecificFeedback', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {
+      from: el.find('input[id=editStepSource]').val(),
+      to: el.find('input[id=editStepDest]').val(),
+      errorSpecificFeedbacks: el.find('input[name=stepErrorSpecificFeedbacks]').val().split(",")
+    };
+
+    $.ajax({
+      type: "POST",
+      url: submitErrorSpecificFeedbackUrl,
+      data: JSON.stringify(data),
+      success: function (data) {
+        console.log(data)
+      }   
+    });
+  });
+
+  $('#saveExplanations', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {
+      from: el.find('input[id=editStepSource]').val(),
+      to: el.find('input[id=editStepDest]').val(),
+      explanations: el.find('input[name=stepExplanations]').val().split(",")
+    };
+
+    $.ajax({
+      type: "POST",
+      url: submitExplanationUrl,
+      data: JSON.stringify(data),
+      success: function (data) {
+        console.log(data)
+      }   
+    });
+  });
+
+  $('#saveHints', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {
+      from: el.find('input[id=editStepSource]').val(),
+      to: el.find('input[id=editStepDest]').val(),
+      hints: el.find('input[name=stepHints]').val().split(",")
+    };
+
+    $.ajax({
+      type: "POST",
+      url: submitHintUrl,
+      data: JSON.stringify(data),
+      success: function (data) {
+        console.log(data)
+      }   
+    });
+  });
+
 
   $('#save_button', element).click(function(eventObject) {
     var el = $(element);
@@ -363,11 +421,21 @@ function MyXBlockEdit(runtime, element) {
       success: function (data) {
           window.location.reload(false);
       }   
+    });
   });
 
+  $('#closeGraphModal', element).click(function(eventObject) {
+    var modal = document.getElementById("graphModal");
+    modal.style.display = "none";
   });
 
   $('#createGraph', element).click(function(eventObject) {
+    document.getElementById("graph").innerHTML = "";
+
+    var modal = document.getElementById("graphModal");
+
+    modal.style.display = "block";
+
     $.ajax({
       type: "POST",
       url: getGraphurl,
@@ -406,11 +474,60 @@ function MyXBlockEdit(runtime, element) {
             size: 15
         });
 
-        // draw the chart
         chart.container("graph").draw();
 
+        chart.listen("click", function(e) {
+          var tag = e.domTarget.tag;
+          if (tag) {
+            if (tag.type === 'node') {
+              menu = document.getElementById("edgeMenu");
+              menu.style.display = "none";
+              for (var i = 0; i < data.nodes.length; i++) {
+                if (data.nodes[i].id === tag.id) {
+                  var menu = document.getElementById("nodeMenu");
+                  document.getElementById("editState").value = tag.id;
+                  document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                  menu.style.display = "block";
+                  break;
+                }
+              }
+            }
+            else if (tag.type === 'edge') {
+              var menu = document.getElementById("nodeMenu");
+              menu.style.display = "none";
+              edgePos = tag.id.split("_")[1];
+              var body = {
+                from: data.edges[edgePos].from,
+                to: data.edges[edgePos].to
+              };
+
+              $.ajax({
+                type: "POST",
+                url: getEdgeInfoUrl,
+                data: JSON.stringify(body),
+                success: function (edgeInfo) {
+                  document.getElementById("stepErrorSpecificFeedbacks").value = edgeInfo.errorSpecificFeedbacks;
+                  document.getElementById("stepExplanations").value = edgeInfo.explanations;
+                  document.getElementById("stepHints").value = edgeInfo.hints;
+                }   
+              });
+
+              document.getElementById("editStepSource").value = data.edges[edgePos].from;
+              document.getElementById("editStepDest").value = data.edges[edgePos].to;
+              document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
+
+              var menu = document.getElementById("edgeMenu");
+              menu.style.display = "block";
+            }
+          } else {
+            var menu = document.getElementById("nodeMenu");
+            menu.style.display = "none";
+            menu = document.getElementById("edgeMenu");
+            menu.style.display = "none";
+          }
+        });
       }   
-  });
+   });
   });
 
   $('#cancel_button', element).click(function(eventObject) {

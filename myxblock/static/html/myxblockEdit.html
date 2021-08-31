@@ -114,9 +114,6 @@
       <span class="tip setting-help">Os textos dos tags da pergunta, como Problema ou Algebra </span>
     </li>
 
-  <div class="graph" id="graph" style="height: 600px; width: 80%;">
-  </div>
-
   <div>
     <li class="action-item">
       <button type="button" id='createGraph'>Gerar grafo de conhecimento</button> 
@@ -124,37 +121,16 @@
     </li>
   </div>
 
+  <div id="graphModal" class="graphModal">
 
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="stateName">Nome do estado  </label>
-        <input class="input" name="stateName" id="stateName"  type="text" />
-        <p></p>
-        <label class="label setting-label" for="stateCorrectness">Corretude do estado  </label>
-        <input class="input" name="stateCorrectness" id="stateCorrectness"  type="text" />
-        <p></p>
-        <button type="button" id='createState'>Adicionar como estado normal</button> 
-        <button type="button" id='createInitialState'>Adicionar como estado inicial</button> 
-        <button type="button" id='createFinalState'>Adicionar como estado final</button> 
+    <div class="graphModalContent">
+      <span class="closeGraphModal" id="closeGraphModal">&times;</span>
+      <div class="graph" id="graph" style="height: 600px; width: 80%;">
       </div>
-    </li>
+    </div>
+    <button type="button" id='saveGraph'>Salvar o grafo na base</button> 
 
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="sourceState">Passo fonte  </label>
-        <input class="input" name="sourceState" id="sourceState"  type="text" />
-        <p></p>
-        <label class="label setting-label" for="destState">Passo destino  </label>
-        <input class="input" name="destState" id="destState"  type="text" />
-        <p></p>
-        <label class="label setting-label" for="stepCorrectness">Corretude do passo  </label>
-        <input class="input" name="stepCorrectness" id="stepCorrectness"  type="text" />
-        <p></p>
-        <button type="button" id='createStep'>Adicionar passo</button> 
-      </div>
-    </li>
-    
-    <li class="field comp-setting-entry is-set">
+    <div class="nodeMenu" id="nodeMenu">
       <div class="wrapper-comp-setting">
         <label class="label setting-label" for="editState">Qual estado?</label>
         <input class="input" name="editState" id="editState" type="text" />
@@ -170,9 +146,10 @@
         <button type="button" id='changeStateToInitial'>Tornar inicial</button> 
         <button type="button" id='changeStateToFinal'>Tornar final</button> 
       </div>
-    </li>
+    </div>
 
-    <li class="field comp-setting-entry is-set">
+
+    <div class="edgeMenu" id="edgeMenu">
       <div class="wrapper-comp-setting">
         <label class="label setting-label" for="editStepSource">Qual estado inicial?</label>
         <input class="input" name="editStepSource" id="editStepSource"  type="text" />
@@ -185,8 +162,57 @@
         <p></p>
         <button type="button" id='changeStepCorrectness'>Mudar corretude</button> 
         <button type="button" id='removeStep'>Remover</button> 
+        <p></p>
+
+        <label class="label setting-label" for="">Feedbacks de erro específico</label>
+        <input class="input" name="stepErrorSpecificFeedbacks" id="stepErrorSpecificFeedbacks"  type="text" />
+        <p></p>
+        <button type="button" id='saveErrorSpecificFeedback'>Salvar feedback do passo</button> 
+        <p></p>
+
+        <label class="label setting-label" for="">Explicações</label>
+        <input class="input" name="stepExplanations" id="stepExplanations"  type="text" />
+        <p></p>
+        <button type="button" id='saveExplanations'>Salvar explicações do passo</button> 
+        <p></p>
+
+        <label class="label setting-label" for="">Dicas</label>
+        <input class="input" name="stepHints" id="stepHints"  type="text" />
+        <p></p>
+        <button type="button" id='saveHints'>Salvar dicas do passo</button> 
+        <p></p>
       </div>
-    </li>
+    </div>
+
+    <div class="addMenu" id="addMenu">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="stateName">Nome do estado  </label>
+        <input class="input" name="stateName" id="stateName"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="stateCorrectness">Corretude do estado  </label>
+        <input class="input" name="stateCorrectness" id="stateCorrectness"  type="text" />
+        <p></p>
+        <button type="button" id='createState'>Adicionar como estado normal</button> 
+        <button type="button" id='createInitialState'>Adicionar como estado inicial</button> 
+        <button type="button" id='createFinalState'>Adicionar como estado final</button> 
+      </div>
+
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="sourceState">Passo fonte  </label>
+        <input class="input" name="sourceState" id="sourceState"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="destState">Passo destino  </label>
+        <input class="input" name="destState" id="destState"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="stepCorrectness">Corretude do passo  </label>
+        <input class="input" name="stepCorrectness" id="stepCorrectness"  type="text" />
+        <p></p>
+        <button type="button" id='createStep'>Adicionar passo</button> 
+      </div>
+    </div>
+    
+
+  </div>
 
   </ul>
   <div class="xblock-actions">
