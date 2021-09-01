@@ -3,12 +3,6 @@ function MyXBlock(runtime, element, data) {
 
     var hints = [];
     var actualHint = -1;
-    var currentWrongElementLine = -1;
-    var currentWrongElementHintCounter = 0;
-    var chart;
-    var data;
-    
-    var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
 
     function defineValues(value) {
         $('#question', element).text(value.title);
@@ -70,23 +64,6 @@ function MyXBlock(runtime, element, data) {
             actualHint = hints.length - 1;
             document.getElementById('hint').innerHTML = hints[actualHint];
 
-            //Contar as dicas corretamente
-            for(var i = 0;i < lines.length;i++){
-                if(value.lastCorrectElement == lines[i]) {
-                    if (currentWrongElementLine == i) {
-                        currentWrongElementHintCounter++;
-                    } else {
-                        currentWrongElementLine = i + 1;
-                        currentWrongElementHintCounter = 1;
-                    }
-                } else {
-                    endPos += lines[i].length;
-                    continue;
-                }
-            }
-
-            currentWrongElementLine = -1;
-            currentWrongElementHintCounter = 0;
         } else {
             //Coloca a dica na pilha
             $('#hint', element).append("\n" + value.hint);
@@ -114,12 +91,6 @@ function MyXBlock(runtime, element, data) {
                     tarea.selectionEnd = endPos;
                     tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); 
 
-                    if (currentWrongElementLine == i) {
-                        currentWrongElementHintCounter++;
-                    } else {
-                        currentWrongElementLine = i;
-                        currentWrongElementHintCounter = 1;
-                    }
                 } else {
                     endPos += lines[i].length;
                     continue;
@@ -168,7 +139,7 @@ function MyXBlock(runtime, element, data) {
         $.ajax({
             type: "POST",
             url: get_hint_for_last_step,
-            data: JSON.stringify({userAnswer: userAnswer, currentWrongElementHintCounter: currentWrongElementHintCounter}),
+            data: JSON.stringify({userAnswer: userAnswer}),
             success: showHint
         });
     });

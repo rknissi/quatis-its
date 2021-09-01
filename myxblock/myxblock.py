@@ -1,20 +1,11 @@
 from array import array
 import json
 from re import I
-from networkx.linalg.spectrum import normalized_laplacian_spectrum
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
 import ast 
-import networkx as nx
-import matplotlib
-import matplotlib.pyplot as plt
-from PIL import Image
-import io
-from base64 import encodebytes
-
-matplotlib.use('Agg')
 
 #Step information
 correctnessMinValue = -1
@@ -72,10 +63,10 @@ class MyXBlock(XBlock):
         help="Last wrong element from the student",
     )
 
-    #ùltimo erro cometido pelo aluno (linha)
-    lastWrongElementLine = Integer(
+    #Quantidade de erros
+    lastWrongElementCount = Integer(
         default=0, scope=Scope.user_state,
-        help="Last wrong element from the student (line)",
+        help="Last wrong element count from the student",
     )
 
     #Caminhos corretos do grafo
@@ -155,17 +146,17 @@ class MyXBlock(XBlock):
     )
 
     errorSpecificFeedbackFromSteps = Dict(
-        default={str(('Option 1', 'Option 3')): ["Error Specific feedback 1", "Error Specific Feedback 2"], str(('X=500-2', 'X=498')): ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
+        default={str(('Option 1', 'Option 2')): ["Error Specific feedback 1", "Error Specific Feedback 2"], str(('X=500-2', 'X=498')): ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
         help="For each wrong step that the student uses, it will show a specific feedback",
     )
 
     explanationFromSteps = Dict(
-        default={str(('Option 1', 'Option 3')): ["Explanation feedback 1", "Explanation Feedback 2"], str(('X=500-2', 'X=498')): ["Explanation feedback 1", "Explanation Feedback 2"]}, scope=Scope.content,
+        default={str(('Option 1', 'Option 2')): ["Explanation feedback 1", "Explanation Feedback 2"], str(('X=500-2', 'X=498')): ["Explanation feedback 1", "Explanation Feedback 2"]}, scope=Scope.content,
         help="For each correct step that the student uses, it will show a specific feedback",
     )
 
     hintFromSteps = Dict(
-        default={str(('Option 1', 'Option 3')): ["hint 1", "Hint 2"], str(('X=500-2', 'X=498')): ["Hint feedback 1", "Hint Feedback 2"]}, scope=Scope.content,
+        default={str(('_start_', 'Option 1')): ["Uiaaa", "hahaha"], str(('Option 1', 'Option 2')): ["hint 1", "Hint 2"], str(('X=500-2', 'X=498')): ["Hint feedback 1", "Hint Feedback 2"]}, scope=Scope.content,
         help="For each correct step that the student uses, it will show a specific hint",
     )
 
@@ -260,7 +251,7 @@ class MyXBlock(XBlock):
 
         html=self.resource_string("static/html/myxblockEdit.html")
 
-        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,problemCorrectSteps=self.problemCorrectStates,problemTipsToNextStep=self.problemTipsToNextState,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
+        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,problemCorrectSteps=self.problemCorrectStates,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
         frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
 
         frag.initialize_js('MyXBlockEdit')
@@ -350,7 +341,6 @@ class MyXBlock(XBlock):
         self.problemDescription = data.get('problemDescription')
         self.problemCorrectRadioAnswer = data.get('problemCorrectRadioAnswer')
         self.problemCorrectStates = ast.literal_eval(data.get('problemCorrectSteps'))
-        self.problemTipsToNextState = ast.literal_eval(data.get('problemTipsToNextStep'))
         self.problemAnswer1 = data.get('problemAnswer1')
         self.problemAnswer2 = data.get('problemAnswer2')
         self.problemAnswer3 = data.get('problemAnswer3')
@@ -388,7 +378,7 @@ class MyXBlock(XBlock):
         if (wrongElement == None):
             return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
 
-        return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep}
+        return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep, "lastCorrectElement": lastElement}
     
     def getJsonFromProblemGraph(self):
         nodeList = []
@@ -435,80 +425,6 @@ class MyXBlock(XBlock):
 
         return {"nodes": nodeList, "edges": edgeList}
                 
-
-
-
-    def get_response_image(self):
-        pil_img = Image.open("/tmp/graph.png", mode='r') # reads the PIL image
-        byte_arr = io.BytesIO()
-        pil_img.save(byte_arr, format='png') # convert the PIL image to byte array
-        encoded_img = encodebytes(byte_arr.getvalue()).decode('ascii') # encode as base64
-        return encoded_img
-
-    def createStudentGraphImage(self):
-
-        g = nx.DiGraph()
-        colorMap = []
-        addedNodes = []
-        edgeColor = []
-        nodeShape = []
-
-        for source in self.problemGraph:
-            for dest in self.problemGraph[source]:
-                if source == '_start_':
-                    if dest not in addedNodes:
-                        g.add_node(dest, type="start")
-                        addedNodes.append(dest)
-                        colorMap.append(self.getNodeColor(dest))
-                        nodeShape.append("s")
-                    else:
-                        colorMap[addedNodes.index(dest)] = self.getNodeColor(dest)
-                        nodeShape[addedNodes.index(dest)] = 's'
-                        nx.set_node_attributes(g, {dest:"start"}, 'type')
-                elif dest == '_end_':
-                    if source not in addedNodes:
-                        g.add_node(source, type="end")
-                        addedNodes.append(source)
-                        colorMap.append(self.getNodeColor(source))
-                        nodeShape.append("D")
-                    else:
-                        colorMap[addedNodes.index(source)] = self.getNodeColor(source)
-                        nodeShape[addedNodes.index(source)] = 'D'
-                        nx.set_node_attributes(g, {source:"end"}, 'type')
-                else:
-                    if source not in addedNodes:
-                        g.add_node(source, type="middle")
-                        addedNodes.append(source)
-                        colorMap.append(self.getNodeColor(source))
-                        nodeShape.append("o")
-                    if dest not in addedNodes:
-                        g.add_node(dest, type="middle")
-                        addedNodes.append(dest)
-                        colorMap.append(self.getNodeColor(dest))
-                        nodeShape.append("o")
-                    g.add_edge(source,dest, length = 10)
-                    edgeColor.append(self.getEdgeColor(str((source, dest))))
-
-
-        f = plt.figure()
-        nodePos = nx.layout.spring_layout(g)
-        nx.draw(g, nodePos,with_labels=True, ax=f.add_subplot(111), node_color=colorMap, edge_color = edgeColor)
-
-        startNodes = [x for x,y in g.nodes(data=True) if y["type"]=="start"]
-        startNodeColors = []
-        for node in startNodes:
-            startNodeColors.append(self.getNodeColor(node))
-        nx.draw_networkx_nodes(g,nodePos,node_shape = "s", nodelist =startNodes, node_color = startNodeColors)
-
-        endNodes = [x for x,y in g.nodes(data=True) if y["type"]=="end"]
-        endNodeColors = []
-        for node in endNodes:
-            endNodeColors.append(self.getNodeColor(node))
-        nx.draw_networkx_nodes(g,nodePos,node_shape = "D", nodelist =endNodes, node_color = endNodeColors)
-
-        f.savefig("/tmp/graph.png")
-        return self.get_response_image()
-
     def getEdgeColor(self, edge):
 
         edgeValue = self.problemGraphStepsCorrectness[edge]
@@ -563,56 +479,59 @@ class MyXBlock(XBlock):
         hintList = None
 
         minValue = float('inf')
-        nextStep = None
+        nextCorrectStep = None
         if  (wrongElement != None):
             possibleSteps = possibleIncorrectAnswer.get("availableCorrectSteps")
             for step in possibleSteps:
                 actualValue = levenshteinDistance(wrongElement, step)
                 if(actualValue < minValue):
                     minValue = actualValue
-                    nextStep = step
+                    nextCorrectStep = step
 
-            hintList = self.problemTipsToNextState.get(nextStep)
+            if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) in self.hintFromSteps):
+                hintList = self.hintFromSteps[str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))]
+            else:
+                hintList = [self.problemDefaultHint]
 
         try:
             #Então está tudo certo, pode dar um OK e seguir em frente
             #MO passo está correto, mas agora é momento de mostrar a dica para o próximo passo.
             if (wrongElement == None):
-                lastCorrectElement = possibleIncorrectAnswer.get("lastCorrectElement")
-                lastCorrectElementLine = possibleIncorrectAnswer.get("correctElementLine")
-                nextElement = self.problemCorrectStates.get(lastCorrectElement)[0]
+                nextElement = self.problemCorrectStates.get(possibleIncorrectAnswer.get("lastCorrectElement"))[0]
                 #Verificar se é o último passo, se for, sempre dar a dica padrão?
                 if (nextElement == "_end_"):
                     hintText = self.problemDefaultHint
                 else:
-                    hintList = self.problemTipsToNextState.get(nextElement)
+                    if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement)) in self.hintFromSteps):
+                        hintList = self.hintFromSteps[str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))]
+                    else:
+                        hintList = [self.problemDefaultHint]
 
-                    if (lastCorrectElementLine != self.lastWrongElementLine):
+                    if (self.lastWrongElement != str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))):
+                        self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))
+                        self.lastWrongElementCount = 1
                         hintText = hintList[0]
-                    elif (data['currentWrongElementHintCounter'] < len(hintList)):
-                        hintText = hintList[data['currentWrongElementHintCounter']]
+                    elif (self.lastWrongElementCount < len(hintList)):
+                        hintText = hintList[self.lastWrongElementCount]
+                        self.lastWrongElementCount = self.lastWrongElementCount + 1
                     else:
                         hintText = hintList[-1]
                 
-                    self.lastWrongElement = lastCorrectElement
-                    self.lastWrongElementLine = lastCorrectElementLine
-
-                return {"status": "OK", "hint": hintText, "lastCorrectElement": lastCorrectElement, "teste": self.getJsonFromProblemGraph()}
-        
+                return {"status": "OK", "hint": hintText, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement")}
             else:
-                wrongElementLine = possibleIncorrectAnswer.get("wrongElementLine")
-                if (wrongElementLine != self.lastWrongElementLine):
+                if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) != self.lastWrongElement):
+                    self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))
+                    self.lastWrongElementCount = 1
                     hintText = hintList[0]
-                elif (data['currentWrongElementHintCounter'] < len(hintList)):
-                    hintText = hintList[data['currentWrongElementHintCounter']]
+                elif (self.lastWrongElementCount < len(hintList)):
+                    hintText = hintList[self.lastWrongElementCount]
+                    self.lastWrongElementCount = self.lastWrongElementCount + 1
                 else:
                     hintText = hintList[-1]
         except IndexError:
             hintText = self.problemDefaultHint
 
-        self.lastWrongElement = wrongElement
-        self.lastWrongElementLine = wrongElementLine
-        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "teste": self.getJsonFromProblemGraph()}
+        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement}
 
     #Envia a resposta final
     @XBlock.json_handler
