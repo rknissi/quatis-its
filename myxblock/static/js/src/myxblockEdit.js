@@ -54,6 +54,61 @@ function MyXBlockEdit(runtime, element) {
     });
 
     chart.container("graph").draw();
+
+
+    chart.listen("click", function(e) {
+      var tag = e.domTarget.tag;
+      var nodeMenu = document.getElementById("nodeMenu");
+      var edgeMenu = document.getElementById("edgeMenu");
+      var addMenu = document.getElementById("addMenu");
+      
+      if (tag) {
+        if (tag.type === 'node') {
+          edgeMenu.style.display = "none";
+          addMenu.style.display = "none";
+          for (var i = 0; i < data.nodes.length; i++) {
+            if (data.nodes[i].id === tag.id) {
+              document.getElementById("editState").value = tag.id;
+              document.getElementById("editStateValue").value = data.nodes[i].correctness;
+              nodeMenu.style.display = "block";
+              break;
+            }
+          }
+        }
+        else if (tag.type === 'edge') {
+          nodeMenu.style.display = "none";
+          addMenu.style.display = "none";
+          edgePos = tag.id.split("_")[1];
+          var body = {
+            from: data.edges[edgePos].from,
+            to: data.edges[edgePos].to
+          };
+
+          $.ajax({
+            type: "POST",
+            url: getEdgeInfoUrl,
+            data: JSON.stringify(body),
+            success: function (edgeInfo) {
+              document.getElementById("stepErrorSpecificFeedbacks").value = edgeInfo.errorSpecificFeedbacks;
+              document.getElementById("stepExplanations").value = edgeInfo.explanations;
+              document.getElementById("stepHints").value = edgeInfo.hints;
+            }   
+          });
+
+          document.getElementById("editStepSource").value = data.edges[edgePos].from;
+          document.getElementById("editStepDest").value = data.edges[edgePos].to;
+          document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
+
+          edgeMenu.style.display = "block";
+        }
+      } else {
+        addMenu.style.display = "block";
+        nodeMenu.style.display = "none";
+        edgeMenu.style.display = "none";
+      }
+    });
+
+
   }
 
   function removeNode(nodeName){
@@ -232,7 +287,9 @@ function MyXBlockEdit(runtime, element) {
       url: submitGraphDataUrl,
       data: JSON.stringify(body),
       success: function (data) {
-        console.log(data)
+        var modal = document.getElementById("graphModal");
+        modal.style.display = "none";
+        alert("Grafo salvo com sucesso!");
       }   
     });
   });
@@ -354,7 +411,7 @@ function MyXBlockEdit(runtime, element) {
       url: submitErrorSpecificFeedbackUrl,
       data: JSON.stringify(data),
       success: function (data) {
-        console.log(data)
+        alert("feedbacks salvos com sucesso!");
       }   
     });
   });
@@ -372,7 +429,7 @@ function MyXBlockEdit(runtime, element) {
       url: submitExplanationUrl,
       data: JSON.stringify(data),
       success: function (data) {
-        console.log(data)
+        alert("Explicações salvas com sucesso!");
       }   
     });
   });
@@ -390,7 +447,7 @@ function MyXBlockEdit(runtime, element) {
       url: submitHintUrl,
       data: JSON.stringify(data),
       success: function (data) {
-        console.log(data)
+        alert("Dicas salvas com sucesso!");
       }   
     });
   });
@@ -478,23 +535,26 @@ function MyXBlockEdit(runtime, element) {
 
         chart.listen("click", function(e) {
           var tag = e.domTarget.tag;
+          var nodeMenu = document.getElementById("nodeMenu");
+          var edgeMenu = document.getElementById("edgeMenu");
+          var addMenu = document.getElementById("addMenu");
+          
           if (tag) {
             if (tag.type === 'node') {
-              menu = document.getElementById("edgeMenu");
-              menu.style.display = "none";
+              edgeMenu.style.display = "none";
+              addMenu.style.display = "none";
               for (var i = 0; i < data.nodes.length; i++) {
                 if (data.nodes[i].id === tag.id) {
-                  var menu = document.getElementById("nodeMenu");
                   document.getElementById("editState").value = tag.id;
                   document.getElementById("editStateValue").value = data.nodes[i].correctness;
-                  menu.style.display = "block";
+                  nodeMenu.style.display = "block";
                   break;
                 }
               }
             }
             else if (tag.type === 'edge') {
-              var menu = document.getElementById("nodeMenu");
-              menu.style.display = "none";
+              nodeMenu.style.display = "none";
+              addMenu.style.display = "none";
               edgePos = tag.id.split("_")[1];
               var body = {
                 from: data.edges[edgePos].from,
@@ -516,16 +576,15 @@ function MyXBlockEdit(runtime, element) {
               document.getElementById("editStepDest").value = data.edges[edgePos].to;
               document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
 
-              var menu = document.getElementById("edgeMenu");
-              menu.style.display = "block";
+              edgeMenu.style.display = "block";
             }
           } else {
-            var menu = document.getElementById("nodeMenu");
-            menu.style.display = "none";
-            menu = document.getElementById("edgeMenu");
-            menu.style.display = "none";
+            addMenu.style.display = "block";
+            nodeMenu.style.display = "none";
+            edgeMenu.style.display = "none";
           }
         });
+
       }   
    });
   });

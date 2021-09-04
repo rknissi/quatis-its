@@ -131,7 +131,8 @@
     margin: auto;
     padding: 20px;
     border: 1px solid #888;
-    width: 80%;
+    width: 50%;
+    float: left;
     overflow: auto; /* Enable scroll if needed */
 }
 
@@ -140,6 +141,8 @@
     background-color: #fefefe;
     padding: 20px;
     border: 1px solid #888;
+    width: 40%;
+    float: right;
 }
 
 .edgeMenu {
@@ -147,13 +150,24 @@
     background-color: #fefefe;
     padding: 20px;
     border: 1px solid #888;
+    width: 40%;
+    float: right;
 }
 
 .addMenu {
     background-color: #fefefe;
     padding: 20px;
     border: 1px solid #888;
-    overflow: auto; /* Enable scroll if needed */
+    width: 40%;
+    float: right;
+}
+
+#saveGraph {
+    float: right;
+}
+
+.inputLong {
+    width: 100% !important;
 }
 
 .closeGraphModal {

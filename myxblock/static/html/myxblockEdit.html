@@ -109,7 +109,6 @@
   <div>
     <li class="action-item">
       <button type="button" id='createGraph'>Gerar grafo de conhecimento</button> 
-      <button type="button" id='saveGraph'>Salvar o grafo na base</button> 
     </li>
   </div>
 
@@ -120,7 +119,6 @@
       <div class="graph" id="graph" style="height: 600px; width: 80%;">
       </div>
     </div>
-    <button type="button" id='saveGraph'>Salvar o grafo na base</button> 
 
     <div class="nodeMenu" id="nodeMenu">
       <div class="wrapper-comp-setting">
@@ -149,7 +147,7 @@
         <label class="label setting-label" for="editStepDest">Qual estado final?</label>
         <input class="input" name="editStepDest" id="editStepDest"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editStepValue">Valor/Corretude</label>
+        <label class="label setting-label" for="editStepValue">Corretude</label>
         <input class="input" name="editStepValue" id="editStepValue"  type="text" />
         <p></p>
         <button type="button" id='changeStepCorrectness'>Mudar corretude</button> 
@@ -157,19 +155,19 @@
         <p></p>
 
         <label class="label setting-label" for="">Feedbacks de erro específico</label>
-        <input class="input" name="stepErrorSpecificFeedbacks" id="stepErrorSpecificFeedbacks"  type="text" />
+        <input class="inputLong" name="stepErrorSpecificFeedbacks" id="stepErrorSpecificFeedbacks"  type="text" />
         <p></p>
         <button type="button" id='saveErrorSpecificFeedback'>Salvar feedback do passo</button> 
         <p></p>
 
         <label class="label setting-label" for="">Explicações</label>
-        <input class="input" name="stepExplanations" id="stepExplanations"  type="text" />
+        <input class="inputLong" name="stepExplanations" id="stepExplanations"  type="text" />
         <p></p>
         <button type="button" id='saveExplanations'>Salvar explicações do passo</button> 
         <p></p>
 
         <label class="label setting-label" for="">Dicas</label>
-        <input class="input" name="stepHints" id="stepHints"  type="text" />
+        <input class="inputLong" name="stepHints" id="stepHints"  type="text" />
         <p></p>
         <button type="button" id='saveHints'>Salvar dicas do passo</button> 
         <p></p>
@@ -202,6 +200,7 @@
         <button type="button" id='createStep'>Adicionar passo</button> 
       </div>
     </div>
+    <button type="button" id='saveGraph'>Salvar o grafo na base</button> 
     
 
   </div>
