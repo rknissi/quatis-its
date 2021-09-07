@@ -128,13 +128,18 @@
         <label class="label setting-label" for="editStateValue">Valor/Corretude</label>
         <input class="input" name="editStateValue" id="editStateValue"  type="text" />
         <p></p>
-        <button type="button" id='changeStateValue'>Mudar valor</button> 
-        <button type="button" id='changeStateCorrectness'>Mudar corretude</button> 
-        <button type="button" id='removeState'>Remover</button> 
+
+        <label class="label setting-label" for="stateType">Tipo do estado  </label>
+        <select name="changeStateType" id="changeStateType">
+          <option selected="selected" value="normalState">Normal</option>
+          <option value="initialState">Inicial</option>
+          <option value="finalState">Final</option>
+        </select>
         <p></p>
-        <button type="button" id='changeStateToNormal'>Tornar normal</button> 
-        <button type="button" id='changeStateToInitial'>Tornar inicial</button> 
-        <button type="button" id='changeStateToFinal'>Tornar final</button> 
+
+        <button type="button" id='changeStateToNormal'>Atualizar estado</button> 
+        <button type="button" id='removeState'>Remover</button> 
+        <button type="button" id='changeStateValue'>Mudar valor</button> 
       </div>
     </div>
 
@@ -157,19 +162,15 @@
         <label class="label setting-label" for="">Feedbacks de erro específico</label>
         <input class="inputLong" name="stepErrorSpecificFeedbacks" id="stepErrorSpecificFeedbacks"  type="text" />
         <p></p>
-        <button type="button" id='saveErrorSpecificFeedback'>Salvar feedback do passo</button> 
-        <p></p>
 
         <label class="label setting-label" for="">Explicações</label>
         <input class="inputLong" name="stepExplanations" id="stepExplanations"  type="text" />
-        <p></p>
-        <button type="button" id='saveExplanations'>Salvar explicações do passo</button> 
         <p></p>
 
         <label class="label setting-label" for="">Dicas</label>
         <input class="inputLong" name="stepHints" id="stepHints"  type="text" />
         <p></p>
-        <button type="button" id='saveHints'>Salvar dicas do passo</button> 
+        <button type="button" id='saveEdgeInfo'>Salvar dados</button> 
         <p></p>
       </div>
     </div>
@@ -182,9 +183,15 @@
         <label class="label setting-label" for="stateCorrectness">Corretude do estado  </label>
         <input class="input" name="stateCorrectness" id="stateCorrectness"  type="text" />
         <p></p>
-        <button type="button" id='createState'>Adicionar como estado normal</button> 
-        <button type="button" id='createInitialState'>Adicionar como estado inicial</button> 
-        <button type="button" id='createFinalState'>Adicionar como estado final</button> 
+        <label class="label setting-label" for="stateType">Tipo do estado  </label>
+        <select name="addStateType" id="addStateType">
+          <option selected="selected" value="normalState">Normal</option>
+          <option value="initialState">Inicial</option>
+          <option value="finalState">Final</option>
+        </select>
+        <p></p>
+        <button type="button" id='createState'>Criar o estado</button> 
+
       </div>
 
       <div class="wrapper-comp-setting">
@@ -200,8 +207,6 @@
         <button type="button" id='createStep'>Adicionar passo</button> 
       </div>
     </div>
-    <button type="button" id='saveGraph'>Salvar o grafo na base</button> 
-    
 
   </div>
 

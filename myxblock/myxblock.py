@@ -278,25 +278,13 @@ class MyXBlock(XBlock):
         return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
 
     @XBlock.json_handler
-    def submit_error_specific_feedback(self,data,suffix=''):
+    def submit_edge_info(self,data,suffix=''):
         step = str((data.get("from"), data.get("to")))
         self.errorSpecificFeedbackFromSteps[step] = data.get("errorSpecificFeedbacks")
-        
-        return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps}
-
-    @XBlock.json_handler
-    def submit_explanation(self,data,suffix=''):
-        step = str((data.get("from"), data.get("to")))
+        self.hintFromSteps[step] = data.get("hints")
         self.explanationFromSteps[step] = data.get("explanations")
         
-        return {"explanations": self.explanationFromSteps}
-
-    @XBlock.json_handler
-    def submit_hint(self,data,suffix=''):
-        step = str((data.get("from"), data.get("to")))
-        self.hintFromSteps[step] = data.get("hints")
-        
-        return {"hints": self.hintFromSteps}
+        return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps, "explanations": self.explanationFromSteps, "hints": self.hintFromSteps}
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):

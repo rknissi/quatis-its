@@ -4,9 +4,7 @@ function MyXBlockEdit(runtime, element) {
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
   var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
   var getEdgeInfoUrl = runtime.handlerUrl(element, 'get_edge_info');
-  var submitErrorSpecificFeedbackUrl = runtime.handlerUrl(element, 'submit_error_specific_feedback');
-  var submitExplanationUrl = runtime.handlerUrl(element, 'submit_explanation');
-  var submitHintUrl = runtime.handlerUrl(element, 'submit_hint');
+  var submitEdgeInfoUrl = runtime.handlerUrl(element, 'submit_edge_info');
 
   var chart;
   var data;
@@ -25,6 +23,8 @@ function MyXBlockEdit(runtime, element) {
 
 
   function reApplyConfig() {
+    saveGraph();
+
     document.getElementById("graph").innerHTML = "";
 
     chart = anychart.graph(data);
@@ -55,7 +55,6 @@ function MyXBlockEdit(runtime, element) {
 
     chart.container("graph").draw();
 
-
     chart.listen("click", function(e) {
       var tag = e.domTarget.tag;
       var nodeMenu = document.getElementById("nodeMenu");
@@ -70,6 +69,17 @@ function MyXBlockEdit(runtime, element) {
             if (data.nodes[i].id === tag.id) {
               document.getElementById("editState").value = tag.id;
               document.getElementById("editStateValue").value = data.nodes[i].correctness;
+              if (data.nodes[i].stroke) {
+                if (data.nodes[i].stroke === "1 black") {
+                  document.getElementById('changeStateType').value = 'finalState';
+                } else {
+                  document.getElementById('changeStateType').value = 'initialState';
+                }
+
+              } else {
+                document.getElementById('changeStateType').value = 'normalState';
+              }
+
               nodeMenu.style.display = "block";
               break;
             }
@@ -242,12 +252,10 @@ function MyXBlockEdit(runtime, element) {
 
   function addNode(node){
     data.nodes = data.nodes.concat(node)
-    reApplyConfig();
   }
 
   function addEdge(edge){
     data.edges = data.edges.concat(edge)
-    reApplyConfig();
   }
 
   function getEdgeColor(edgeValue) {
@@ -276,8 +284,7 @@ function MyXBlockEdit(runtime, element) {
       return "#2AFD84"
   }
 
-  $('#saveGraph', element).click(function(eventObject) {
-    var el = $(element);
+  function saveGraph() {
     var body = {
       graphData: data
     };
@@ -287,12 +294,9 @@ function MyXBlockEdit(runtime, element) {
       url: submitGraphDataUrl,
       data: JSON.stringify(body),
       success: function (data) {
-        var modal = document.getElementById("graphModal");
-        modal.style.display = "none";
-        alert("Grafo salvo com sucesso!");
       }   
     });
-  });
+  }
 
 
   $('#createStep', element).click(function(eventObject) {
@@ -303,45 +307,47 @@ function MyXBlockEdit(runtime, element) {
       stroke: getEdgeColor(el.find('input[id=stepCorrectness]').val()),
       correctness: el.find('input[id=stepCorrectness]').val()
     };
-    addEdge(data)
+    addEdge(data);
+    reApplyConfig();
   });
 
 
   $('#createState', element).click(function(eventObject) {
     var el = $(element);
-    var data = {
-      id: el.find('input[id=stateName]').val(),
-      height: "50",
-      fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
-      correctness: el.find('input[id=stateCorrectness]').val()
-    };
-    addNode(data)
-  });
 
-  $('#createInitialState', element).click(function(eventObject) {
-    var el = $(element);
-    var data = {
-      id: el.find('input[id=stateName]').val(),
-      height: "50",
-      fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
-      stroke: {"color": "black", "dash": "5 5"},
-      correctness: el.find('input[id=stateCorrectness]').val()
-    };
-    addNode(data)
-  });
+    var dropDown = document.getElementById("addStateType");
+    var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
+    var strokeType;
 
-  $('#createFinalState', element).click(function(eventObject) {
-    var el = $(element);
-    var data = {
-      id: el.find('input[id=stateName]').val(),
-      height: "50",
-      fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
-      stroke: "1 black",
-      correctness: el.find('input[id=stateCorrectness]').val()
-    };
-    addNode(data)
-  });
+    if (dropDownValue === 'initialState') {
+        strokeType = {"color": "black", "dash": "5 5"}
+    } else if (dropDownValue === 'finalState') {
+        strokeType = '1 black';
+    }
 
+    var data;
+
+    if (dropDownValue === 'normalState') {
+      data = {
+        id: el.find('input[id=stateName]').val(),
+        height: "50",
+        fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
+        correctness: el.find('input[id=stateCorrectness]').val(),
+        type: dropDownValue
+      };
+    } else {
+      data = {
+        id: el.find('input[id=stateName]').val(),
+        height: "50",
+        fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
+        correctness: el.find('input[id=stateCorrectness]').val(),
+        stroke: strokeType,
+        type: dropDownValue
+      };
+    }
+    addNode(data)
+    reApplyConfig();
+  });
 
   $('#removeState', element).click(function(eventObject) {
     var el = $(element);
@@ -357,31 +363,32 @@ function MyXBlockEdit(runtime, element) {
   });
 
 
-  $('#changeStateValue', element).click(function(eventObject) {
-    var el = $(element);
-    var id = el.find('input[id=editState]').val()
-    var value = el.find('input[id=editStateValue]').val()
-    changeNodeValue(id, value)
-  });
+  //$('#changeStateValue', element).click(function(eventObject) {
+  //  var el = $(element);
+  //  var id = el.find('input[id=editState]').val()
+  //  var value = el.find('input[id=editStateValue]').val()
+  //  changeNodeValue(id, value)
+  //});
 
   $('#changeStateToNormal', element).click(function(eventObject) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
-    changeNodeToNormal(id)
-  });
+    var value = el.find('input[id=editStateValue]').val()
 
-  $('#changeStateToInitial', element).click(function(eventObject) {
-    var el = $(element);
-    var id = el.find('input[id=editState]').val()
-    changeNodeToInitial(id)
-  });
+    var dropDown = document.getElementById("changeStateType");
+    var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
 
-  $('#changeStateToFinal', element).click(function(eventObject) {
-    var el = $(element);
-    var id = el.find('input[id=editState]').val()
-    changeNodeToFinal(id);
-  });
+    changeNodeCorrectness(id, value)
+    if (dropDownValue === 'normalState') {
+      changeNodeToNormal(id)
+    } else if (dropDownValue === 'initialState') {
+      changeNodeToInitial(id)
+    } else if (dropDownValue === 'finalState') {
+      changeNodeToFinal(id);
+    }
 
+
+  });
 
   $('#changeStateCorrectness', element).click(function(eventObject) {
     var el = $(element);
@@ -398,56 +405,23 @@ function MyXBlockEdit(runtime, element) {
     changeStepCorrectness(from, to, value)
   });
 
-  $('#saveErrorSpecificFeedback', element).click(function(eventObject) {
+
+  $('#saveEdgeInfo', element).click(function(eventObject) {
     var el = $(element);
     var data = {
       from: el.find('input[id=editStepSource]').val(),
       to: el.find('input[id=editStepDest]').val(),
-      errorSpecificFeedbacks: el.find('input[name=stepErrorSpecificFeedbacks]').val().split(",")
-    };
-
-    $.ajax({
-      type: "POST",
-      url: submitErrorSpecificFeedbackUrl,
-      data: JSON.stringify(data),
-      success: function (data) {
-        alert("feedbacks salvos com sucesso!");
-      }   
-    });
-  });
-
-  $('#saveExplanations', element).click(function(eventObject) {
-    var el = $(element);
-    var data = {
-      from: el.find('input[id=editStepSource]').val(),
-      to: el.find('input[id=editStepDest]').val(),
-      explanations: el.find('input[name=stepExplanations]').val().split(",")
-    };
-
-    $.ajax({
-      type: "POST",
-      url: submitExplanationUrl,
-      data: JSON.stringify(data),
-      success: function (data) {
-        alert("Explicações salvas com sucesso!");
-      }   
-    });
-  });
-
-  $('#saveHints', element).click(function(eventObject) {
-    var el = $(element);
-    var data = {
-      from: el.find('input[id=editStepSource]').val(),
-      to: el.find('input[id=editStepDest]').val(),
+      errorSpecificFeedbacks: el.find('input[name=stepErrorSpecificFeedbacks]').val().split(","),
+      explanations: el.find('input[name=stepExplanations]').val().split(","),
       hints: el.find('input[name=stepHints]').val().split(",")
     };
 
     $.ajax({
       type: "POST",
-      url: submitHintUrl,
+      url: submitEdgeInfoUrl,
       data: JSON.stringify(data),
       success: function (data) {
-        alert("Dicas salvas com sucesso!");
+        alert("Dados salvos com sucesso!");
       }   
     });
   });
@@ -547,6 +521,17 @@ function MyXBlockEdit(runtime, element) {
                 if (data.nodes[i].id === tag.id) {
                   document.getElementById("editState").value = tag.id;
                   document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                  if (data.nodes[i].stroke) {
+                    if (data.nodes[i].stroke === "1 black") {
+                      document.getElementById('changeStateType').value = 'finalState';
+                    } else {
+                      document.getElementById('changeStateType').value = 'initialState';
+                    }
+
+                  } else {
+                    document.getElementById('changeStateType').value = 'normalState';
+                  }
+
                   nodeMenu.style.display = "block";
                   break;
                 }
