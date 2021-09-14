@@ -76,7 +76,7 @@ class MyXBlock(XBlock):
     )
 
     problemGraphStatesCorrectness = Dict(
-        default={'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.content,
+        default={'_start_': correctState[1], 'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.content,
         help="Shows if each node of the graph is correct with true or false",
     )
     
@@ -311,10 +311,8 @@ class MyXBlock(XBlock):
                     else:
                         self.problemGraph[node["id"]] = ["_end_"]
                 else:
-                    if "_start_" in self.problemGraph:
-                        self.problemGraph["_start_"].append(node["id"])
-                    else:
-                        self.problemGraph["_start_"] = [node["id"]]
+                    if "_start_" not in self.problemGraph:
+                        self.problemGraph["_start_"] = []
             else:
                 if node["id"] not in self.problemGraph:
                     self.problemGraph[node["id"]] = []
@@ -376,14 +374,24 @@ class MyXBlock(XBlock):
         for source in self.problemGraph:
             for dest in self.problemGraph[source]:
                 if source == "_start_":
+                    nodeColor = self.getNodeColor(source)
+
+                    if source not in addedNodes:
+                        node = {"id": source, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}, "correctness": self.problemGraphStatesCorrectness[source]}
+                        nodeList.append(node)
+                        addedNodes.append(source)
+
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
-                        node = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        node = {"id": dest, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
                         nodeList.append(node)
                         addedNodes.append(dest)
                     else: 
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        nodeList[pos] = {"id": dest, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+
+                    edge = {"from": source, "to": dest, "stroke": self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edgeList.append(edge)
 
                     
                 elif dest == "_end_":

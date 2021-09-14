@@ -118,7 +118,6 @@ function MyXBlockEdit(runtime, element) {
       }
     });
 
-
   }
 
   function removeNode(nodeName){
