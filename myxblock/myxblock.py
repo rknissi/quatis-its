@@ -34,6 +34,14 @@ unknownState = [-0.69999, 0.69999]
 correctState = [0.7, 1]
 defaultStateValue = 0
 
+#VisualGraphProperties
+defaultArrowStroke = "3 "
+initialNodeShape = "square"
+finalNodeShape = "diamond"
+defaultNodeHeight = 20
+initialNodeStroke = {"color": "black", "dash": "5 5"}
+finalNodeStroke = "1 black"
+
 def levenshteinDistance(A, B):
     if(len(A) == 0):
         return len(B)
@@ -305,7 +313,7 @@ class MyXBlock(XBlock):
         for node in graphData['nodes']:
             self.problemGraphStatesCorrectness[node["id"]] = float(node["correctness"])
             if "stroke" in node:
-                if node["stroke"] == "1 black":
+                if node["stroke"] == finalNodeStroke:
                     if node["id"] in self.problemGraph:
                         self.problemGraph[node["id"]].append("_end_")
                     else:
@@ -377,46 +385,46 @@ class MyXBlock(XBlock):
                     nodeColor = self.getNodeColor(source)
 
                     if source not in addedNodes:
-                        node = {"id": source, "height": 50, "fill": nodeColor, "stroke": {"color": "black", "dash": "5 5"}, "correctness": self.problemGraphStatesCorrectness[source]}
+                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
 
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
-                        node = {"id": dest, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
                         nodeList.append(node)
                         addedNodes.append(dest)
                     else: 
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        nodeList[pos] = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
 
-                    edge = {"from": source, "to": dest, "stroke": self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
                     edgeList.append(edge)
 
                     
                 elif dest == "_end_":
                     nodeColor = self.getNodeColor(source)
                     if source not in addedNodes:
-                        node = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black", "correctness": self.problemGraphStatesCorrectness[source]}
+                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
                     else:
                         pos = addedNodes.index(source)
-                        nodeList[pos] = {"id": source, "height": 50, "fill": nodeColor, "stroke": "1 black", "correctness": self.problemGraphStatesCorrectness[source]}
+                        nodeList[pos] = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
 
                 else:
                     if source not in addedNodes:
                         nodeColor = self.getNodeColor(source)
-                        node = {"id": source, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[source]}
+                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
                     if dest not in addedNodes:
                         nodeColor = self.getNodeColor(dest)
-                        node = {"id": dest, "height": 50, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
                         nodeList.append(node)
                         addedNodes.append(dest)
                     
-                    edge = {"from": source, "to": dest, "stroke": self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
                     edgeList.append(edge)
 
         return {"nodes": nodeList, "edges": edgeList}

@@ -22,6 +22,19 @@ function MyXBlockEdit(runtime, element) {
   var correctState = [0.7, 1]
 
 
+  var defaultArrowStroke = "3 ";
+  var defaultArrowSize = 5;
+  var defaultFontSize = 5;
+  var defaultNodeHeight = 20;
+
+  var normalNodeShape = "circle";
+  var initialNodeShape = "square";
+  var finalNodeShape = "diamond";
+  var initialNodeStroke = {"color": "black", "dash": "5 5"};
+  var finalNodeStroke = "1 black";
+  var normalNodeStroke = null
+
+
   function reApplyConfig() {
     saveGraph();
 
@@ -45,13 +58,15 @@ function MyXBlockEdit(runtime, element) {
 
     // configure the labels of nodes
     chart.nodes().labels().format("{%id}");
-    chart.nodes().labels().fontSize(12);
+    chart.nodes().labels().fontSize(defaultFontSize);
     chart.nodes().labels().fontWeight(600);
 
     chart.edges().arrows({
       enabled: true,
-      size: 15
+      size: defaultArrowSize
     });
+    chart.interactivity().scrollOnMouseWheel(false);
+    chart.interactivity().zoomOnMouseWheel(false);
 
     chart.container("graph").draw();
 
@@ -70,7 +85,7 @@ function MyXBlockEdit(runtime, element) {
               document.getElementById("editState").value = tag.id;
               document.getElementById("editStateValue").value = data.nodes[i].correctness;
               if (data.nodes[i].stroke) {
-                if (data.nodes[i].stroke === "1 black") {
+                if (data.nodes[i].stroke === finalNodeStroke) {
                   document.getElementById('changeStateType').value = 'finalState';
                 } else {
                   document.getElementById('changeStateType').value = 'initialState';
@@ -168,7 +183,8 @@ function MyXBlockEdit(runtime, element) {
       if (nodeName === data.nodes[i].id) {
         nodeData = data.nodes[i];
         data.nodes.splice(i, 1);
-        nodeData.stroke = null;
+        nodeData.stroke = normalNodeStroke;
+        nodeData.shape = normalNodeShape;
         addNode(nodeData);
         break;
       }
@@ -181,7 +197,8 @@ function MyXBlockEdit(runtime, element) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
           data.nodes.splice(i, 1);
-          nodeData.stroke = {"color": "black", "dash": "5 5"};
+          nodeData.stroke = initialNodeStroke;
+          nodeData.shape = initialNodeShape;
           addNode(nodeData);
           break;
         }
@@ -194,7 +211,8 @@ function MyXBlockEdit(runtime, element) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
           data.nodes.splice(i, 1);
-          nodeData.stroke = "1 black";
+          nodeData.stroke = finalNodeStroke
+          nodeData.shape = finalNodeShape;
           addNode(nodeData);
           break;
         }
@@ -222,7 +240,7 @@ function MyXBlockEdit(runtime, element) {
           edgeData = data.edges[i];
           data.edges.splice(i, 1);
           edgeData.correctness = value;
-          edgeData.stroke = getEdgeColor(value);
+          edgeData.stroke = defaultArrowSize + getEdgeColor(value);
           addEdge(edgeData);
           break;
         }
@@ -303,7 +321,7 @@ function MyXBlockEdit(runtime, element) {
     var data = {
       from: el.find('input[id=sourceState]').val(),
       to: el.find('input[id=destState]').val(),
-      stroke: getEdgeColor(el.find('input[id=stepCorrectness]').val()),
+      stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()),
       correctness: el.find('input[id=stepCorrectness]').val()
     };
     addEdge(data);
@@ -317,11 +335,14 @@ function MyXBlockEdit(runtime, element) {
     var dropDown = document.getElementById("addStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
     var strokeType;
+    var shapeType;
 
     if (dropDownValue === 'initialState') {
-        strokeType = {"color": "black", "dash": "5 5"}
+        strokeType = initialNodeStroke;
+        shapeType = initialNodeShape;
     } else if (dropDownValue === 'finalState') {
-        strokeType = '1 black';
+        strokeType = finalNodeStroke;
+        shapeType = finalNodeShape;
     }
 
     var data;
@@ -329,7 +350,7 @@ function MyXBlockEdit(runtime, element) {
     if (dropDownValue === 'normalState') {
       data = {
         id: el.find('input[id=stateName]').val(),
-        height: "50",
+        height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
         type: dropDownValue
@@ -337,10 +358,11 @@ function MyXBlockEdit(runtime, element) {
     } else {
       data = {
         id: el.find('input[id=stateName]').val(),
-        height: "50",
+        height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
         stroke: strokeType,
+        shape: shapeType,
         type: dropDownValue
       };
     }
@@ -496,13 +518,16 @@ function MyXBlockEdit(runtime, element) {
 
         // configure the labels of nodes
         chart.nodes().labels().format("{%id}");
-        chart.nodes().labels().fontSize(12);
+        chart.nodes().labels().fontSize(defaultFontSize);
         chart.nodes().labels().fontWeight(600);
 
         chart.edges().arrows({
             enabled: true,
-            size: 15
+            size: defaultArrowSize
         });
+
+        chart.interactivity().scrollOnMouseWheel(false);
+        chart.interactivity().zoomOnMouseWheel(false);
 
         chart.container("graph").draw();
 
