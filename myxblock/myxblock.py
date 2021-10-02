@@ -4,7 +4,9 @@ from re import I
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
-from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict
+from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
+from django.core.files.storage import default_storage
+from django.db import models
 import ast 
 
 #Step information
@@ -79,19 +81,45 @@ class MyXBlock(XBlock):
 
     #Caminhos corretos do grafo
     problemGraph = Dict(
+        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.user_state_summary,
+        help="The problem graph itself",
+    )
+
+    editorProblemGraph = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.content,
         help="The problem graph itself",
     )
 
     problemGraphStatesCorrectness = Dict(
+        default={'_start_': correctState[1], 'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.user_state_summary,
+        help="Shows if each node of the graph is correct with true or false",
+    )
+
+    editorProblemGraphStatesCorrectness = Dict(
         default={'_start_': correctState[1], 'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.content,
         help="Shows if each node of the graph is correct with true or false",
     )
     
 
     problemGraphStepsCorrectness = Dict(
+        default={str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}, scope=Scope.user_state_summary,
+        help="Shows if each step of the graph is correct with true or false",
+    )
+
+    editorProblemGraphStepsCorrectness = Dict(
         default={str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}, scope=Scope.content,
         help="Shows if each step of the graph is correct with true or false",
+    )
+
+
+    problemVersion = Integer(
+        default=1, scope=Scope.user_state_summary,
+        help="Version of the problem graph",
+    )
+
+    editorProblemVersion = Integer(
+        default=1, scope=Scope.content,
+        help="Version of the student graph",
     )
 
     #Resoluções dos alunos
@@ -107,19 +135,19 @@ class MyXBlock(XBlock):
     )
 
     #Posso até separar em 2, um só para os estados e outro só para os passos
-    studentResolutionsStates = Dict(
-        default={'id1':["Option 1", "Option 2"]}, scope=Scope.user_state_summary,
-        help="Ids for each student states",
+    studentResolutionsStates = List(
+        default=["Option 1", "Option 2"], scope=Scope.user_state,
+        help="States used by this student",
     )
 
-    studentResolutionsSteps = Dict(
-        default={'id1':[str(('_start_', 'Option 1')), str(('Option 1', 'Option 2')), str(('Option 2', '_end_'))]}, scope=Scope.user_state_summary,
-        help="Id for each student steps",
+    studentResolutionsSteps = List(
+        default=[str(('_start_', 'Option 1')), str(('Option 1', 'Option 2')), str(('Option 2', '_end_'))], scope=Scope.user_state,
+        help="States used by this student",
     )
 
-    studentResolutionsCorrectness = Dict(
-        default={'id1': defaultResolutionValue}, scope=Scope.user_state_summary,
-        help="If the student answer is correct",
+    studentResolutionsCorrectness = Float(
+        default=defaultResolutionValue, scope=Scope.user_state,
+        help="Resolution correctness by the student",
     )
 
     #Dados fixos
@@ -254,7 +282,6 @@ class MyXBlock(XBlock):
 
     problem_view = student_view
 
-
     def studio_view(self,context=None):
 
         html=self.resource_string("static/html/myxblockEdit.html")
@@ -294,39 +321,56 @@ class MyXBlock(XBlock):
         
         return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps, "explanations": self.explanationFromSteps, "hints": self.hintFromSteps}
 
+    def updateProblemGraph(self):
+        if (self.problemVersion < self.editorProblemVersion):
+            self.problemVersion = self.editorProblemVersion
+            self.problemGraph = self.editorProblemGraph
+            self.problemGraphStatesCorrectness = self.editorProblemGraphStatesCorrectness
+            self.problemGraphStepsCorrectness = self.editorProblemGraphStepsCorrectness
+
+    def updateEditorProblemGraph(self):
+        if (self.problemVersion > self.editorProblemVersion):
+            self.editorProblemVersion = self.problemVersion
+            self.editorProblemGraph = self.problemGraph
+            self.editorProblemGraphStatesCorrectness = self.problemGraphStatesCorrectness
+            self.editorProblemGraphStepsCorrectness = self.problemGraphStepsCorrectness
+
+
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
 
         graphData = data.get('graphData')
 
-        self.problemGraph.clear()
-        self.problemGraphStatesCorrectness.clear()
-        self.problemGraphStepsCorrectness.clear()
+        self.editorProblemVersion = self.editorProblemVersion + 1
+
+        self.editorProblemGraph.clear()
+        self.editorProblemGraphStatesCorrectness.clear()
+        self.editorProblemGraphStepsCorrectness.clear()
 
         for edge in graphData['edges']:
-            if edge["from"] not in self.problemGraph:
-                self.problemGraph[edge["from"]] = [edge["to"]]
+            if edge["from"] not in self.editorProblemGraph:
+                self.editorProblemGraph[edge["from"]] = [edge["to"]]
             else:
-                self.problemGraph[edge["from"]].append(edge["to"])
-            self.problemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = float(edge["correctness"])
+                self.editorProblemGraph[edge["from"]].append(edge["to"])
+            self.editorProblemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = float(edge["correctness"])
 
         for node in graphData['nodes']:
-            self.problemGraphStatesCorrectness[node["id"]] = float(node["correctness"])
+            self.editorProblemGraphStatesCorrectness[node["id"]] = float(node["correctness"])
             if "stroke" in node:
                 if node["stroke"] == finalNodeStroke:
-                    if node["id"] in self.problemGraph:
-                        self.problemGraph[node["id"]].append("_end_")
+                    if node["id"] in self.editorProblemGraph:
+                        self.editorProblemGraph[node["id"]].append("_end_")
                     else:
-                        self.problemGraph[node["id"]] = ["_end_"]
+                        self.editorProblemGraph[node["id"]] = ["_end_"]
                 else:
-                    if "_start_" not in self.problemGraph:
-                        self.problemGraph["_start_"] = []
+                    if "_start_" not in self.editorProblemGraph:
+                        self.editorProblemGraph["_start_"] = []
             else:
-                if node["id"] not in self.problemGraph:
-                    self.problemGraph[node["id"]] = []
+                if node["id"] not in self.editorProblemGraph:
+                    self.editorProblemGraph[node["id"]] = []
 
 
-        return {'problemGraph': self.problemGraph, 'problemGraphStatesCorrectness': self.problemGraphStatesCorrectness, 'problemGraphStepsCorrectness': self.problemGraphStepsCorrectness}
+        return {'problemGraph': self.editorProblemGraph, 'problemGraphStatesCorrectness': self.editorProblemGraphStatesCorrectness, 'problemGraphStepsCorrectness': self.editorProblemGraphStepsCorrectness}
 
 
     @XBlock.json_handler
@@ -375,63 +419,64 @@ class MyXBlock(XBlock):
         return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep, "lastCorrectElement": lastElement}
     
     def getJsonFromProblemGraph(self):
+        self.updateEditorProblemGraph()
         nodeList = []
         edgeList = []
         addedNodes = []
 
-        for source in self.problemGraph:
-            for dest in self.problemGraph[source]:
+        for source in self.editorProblemGraph:
+            for dest in self.editorProblemGraph[source]:
                 if source == "_start_":
                     nodeColor = self.getNodeColor(source)
 
                     if source not in addedNodes:
-                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
+                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": self.editorProblemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
 
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
-                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.editorProblemGraphStatesCorrectness[dest]}
                         nodeList.append(node)
                         addedNodes.append(dest)
                     else: 
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        nodeList[pos] = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.editorProblemGraphStatesCorrectness[dest]}
 
-                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.editorProblemGraphStepsCorrectness[str((source, dest))]}
                     edgeList.append(edge)
 
                     
                 elif dest == "_end_":
                     nodeColor = self.getNodeColor(source)
                     if source not in addedNodes:
-                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
+                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.editorProblemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
                     else:
                         pos = addedNodes.index(source)
-                        nodeList[pos] = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
+                        nodeList[pos] = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.editorProblemGraphStatesCorrectness[source]}
 
                 else:
                     if source not in addedNodes:
                         nodeColor = self.getNodeColor(source)
-                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[source]}
+                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.editorProblemGraphStatesCorrectness[source]}
                         nodeList.append(node)
                         addedNodes.append(source)
                     if dest not in addedNodes:
                         nodeColor = self.getNodeColor(dest)
-                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.editorProblemGraphStatesCorrectness[dest]}
                         nodeList.append(node)
                         addedNodes.append(dest)
                     
-                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.editorProblemGraphStepsCorrectness[str((source, dest))]}
                     edgeList.append(edge)
 
-        return {"nodes": nodeList, "edges": edgeList}
+        return {"nodes": nodeList, "edges": edgeList, "teste": self.problemVersion, "teste2": self.editorProblemVersion, "teste3": self.problemGraph}
                 
     def getEdgeColor(self, edge):
 
-        edgeValue = self.problemGraphStepsCorrectness[edge]
+        edgeValue = self.editorProblemGraphStepsCorrectness[edge]
         if edgeValue >= invalidStep[0] and edgeValue <= invalidStep[1]:
             return "#FC0D1B"
         if edgeValue >= stronglyInvalidStep[0] and edgeValue <= stronglyInvalidStep[1]:
@@ -449,7 +494,7 @@ class MyXBlock(XBlock):
 
     def getNodeColor(self, node):
 
-        nodeValue = self.problemGraphStatesCorrectness[node]
+        nodeValue = self.editorProblemGraphStatesCorrectness[node]
         if nodeValue >= incorrectState[0] and nodeValue <= incorrectState[1]:
             return "#EE8182"
         if nodeValue >= unknownState[0] and nodeValue <= unknownState[1]:
@@ -540,7 +585,9 @@ class MyXBlock(XBlock):
     #Envia a resposta final
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
+        self.updateProblemGraph()
 
+        self.problemVersion = self.problemVersion + 1
         #Inicialização e coleta dos dados inicial
         answerArray = data['answer'].split('\n')
 
@@ -560,8 +607,8 @@ class MyXBlock(XBlock):
         lastElement = None
         wrongElement = None
 
-        self.studentResolutionsStates[data['studentId']] = answerArray
-        self.studentResolutionsSteps[data['studentId']] = list()
+        self.studentResolutionsStates = answerArray
+        self.studentResolutionsSteps = list()
 
         #Verifica se a resposta está correta
         for step in answerArray:
@@ -617,7 +664,7 @@ class MyXBlock(XBlock):
                     self.problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
 
             ###
-            self.studentResolutionsSteps[data['studentId']].append(str((lastElement, step)))
+            self.studentResolutionsSteps.append(str((lastElement, step)))
             lastElement = step
 
         #Adicionar o caso do últio elemento com o _end_
@@ -635,11 +682,11 @@ class MyXBlock(XBlock):
                 self.problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
         ###
 
-        self.studentResolutionsSteps[data['studentId']].append(str((lastElement, finalElement)))
+        self.studentResolutionsSteps.append(str((lastElement, finalElement)))
 
         #Fim da parte do updateCG
 
-        self.alreadyAnswered = True
+        #self.alreadyAnswered = True
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
@@ -903,15 +950,15 @@ class MyXBlock(XBlock):
 
         
     def corretudeResolucao(resolutionId, self):
-        stateNumber = len(self.studentResolutionsStates[resolutionId])
-        stepNumber = len(self.studentResolutionsStep[resolutionId])
+        stateNumber = len(self.studentResolutionsStates)
+        stepNumber = len(self.studentResolutionsStep)
     
         stateValue = 0
-        for state in self.studentResolutionsStates[resolutionId]:
+        for state in self.studentResolutionsStates:
             stateValue = stateValue + self.corretudeEstado(state)
     
         stepValue = 0
-        for step in self.studentResolutionsSteps[resolutionId]:
+        for step in self.studentResolutionsSteps:
             stepValue = stepValue + self.validadePasso(step)
     
         return (1/2*stateNumber) * (stateValue) + (1/2*stepNumber) * (stepValue)
@@ -937,7 +984,7 @@ class MyXBlock(XBlock):
         return stepList
     
     def possuiEstado(state, resolutionId, self):
-        return int(state in self.studentResolutionsStates[resolutionId])
+        return int(state in self.studentResolutionsStates)
     
     def possuiEstadoConjunto(state, resolutionIds, self):
         value = 0
@@ -952,7 +999,7 @@ class MyXBlock(XBlock):
         return (correctValue-incorrectValue)/(correctValue + incorrectValue)
     
     def possuiPasso(step, resolutionId, self):
-        return int(str((step[0], step[1])) in self.studentResolutionsSteps[resolutionId])
+        return int(str((step[0], step[1])) in self.studentResolutionsSteps)
     
     def possuiPassoConjunto(step, resolutionIds, self):
         value = 0
@@ -971,7 +1018,7 @@ class MyXBlock(XBlock):
     def initial_data(self, data, suffix=''):
         return {"title": self.problemTitle, "description": self.problemDescription, 
         "answer1": self.problemAnswer1, "answer2": self.problemAnswer2, "answer3": self.problemAnswer3, "answer4": self.problemAnswer4, "answer5": self.problemAnswer5,
-        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered)}
+        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered), "teste": self.problemVersion, "teste2": self.editorProblemVersion, "teste3": self.editorProblemGraph}
 
 
     # TO-DO: change this to create the scenarios you'd like to see in the

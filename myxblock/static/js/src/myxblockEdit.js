@@ -23,8 +23,8 @@ function MyXBlockEdit(runtime, element) {
 
 
   var defaultArrowStroke = "3 ";
-  var defaultArrowSize = 5;
-  var defaultFontSize = 5;
+  var defaultArrowSize = 10;
+  var defaultFontSize = 10;
   var defaultNodeHeight = 20;
 
   var normalNodeShape = "circle";
@@ -39,6 +39,20 @@ function MyXBlockEdit(runtime, element) {
     saveGraph();
 
     document.getElementById("graph").innerHTML = "";
+    var nodeData = chart.toJson().chart.graphData.nodes
+
+    //var oldNodePositions = new Map();
+    for (i = 0; i < nodeData.length; ++i) {
+      //oldNodePositions.set(nodeData[i].id, [nodeData[i].x, nodeData[i].y])
+      for (j = 0; j < data.nodes.length; ++j) {
+        if (nodeData[i].id === data.nodes[j].id) {
+          data.nodes[j].x = nodeData[i].x;
+          data.nodes[j].y = nodeData[i].y;
+          break
+        }
+      }
+    }
+
 
     chart = anychart.graph(data);
     var nodes = chart.nodes();
@@ -67,6 +81,8 @@ function MyXBlockEdit(runtime, element) {
     });
     chart.interactivity().scrollOnMouseWheel(false);
     chart.interactivity().zoomOnMouseWheel(false);
+
+    chart.layout().type("fixed");
 
     chart.container("graph").draw();
 
@@ -353,6 +369,8 @@ function MyXBlockEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
+        x: 0,
+        y: 0,
         type: dropDownValue
       };
     } else {
@@ -363,6 +381,8 @@ function MyXBlockEdit(runtime, element) {
         correctness: el.find('input[id=stateCorrectness]').val(),
         stroke: strokeType,
         shape: shapeType,
+        x: 0,
+        y: 0,
         type: dropDownValue
       };
     }

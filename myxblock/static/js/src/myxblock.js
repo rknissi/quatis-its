@@ -151,7 +151,7 @@ function MyXBlock(runtime, element, data) {
         $.ajax({
             type: "POST",
             url: send_answer,
-            data: JSON.stringify({answer: userAnswer, radioAnswer: radioAnswer, studentId: studentId}),
+            data: JSON.stringify({answer: userAnswer, radioAnswer: radioAnswer}),
             success: showResults
         });
     });
