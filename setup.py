@@ -4,7 +4,7 @@ from __future__ import absolute_import
 
 import os
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 
 def package_data(pkg, roots):
@@ -28,9 +28,8 @@ setup(
     version='0.1',
     description='myxblock XBlock',   # TODO: write a better description.
     license='UNKNOWN',          # TODO: choose a license: 'AGPL v3' and 'Apache 2.0' are popular.
-    packages=[
-        'myxblock',
-    ],
+    #packages=find_packages(include=['myxblock*', 'studentGraph*'], exclude=['*.test', '*.tests']),
+    packages=find_packages(include=['myxblock*'], exclude=['*.test', '*.tests']),
     install_requires=[
         'XBlock',
     ],

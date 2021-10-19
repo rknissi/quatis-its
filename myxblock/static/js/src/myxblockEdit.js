@@ -36,14 +36,10 @@ function MyXBlockEdit(runtime, element) {
 
 
   function reApplyConfig() {
-    saveGraph();
-
     document.getElementById("graph").innerHTML = "";
     var nodeData = chart.toJson().chart.graphData.nodes
 
-    //var oldNodePositions = new Map();
     for (i = 0; i < nodeData.length; ++i) {
-      //oldNodePositions.set(nodeData[i].id, [nodeData[i].x, nodeData[i].y])
       for (j = 0; j < data.nodes.length; ++j) {
         if (nodeData[i].id === data.nodes[j].id) {
           data.nodes[j].x = nodeData[i].x;
@@ -53,6 +49,7 @@ function MyXBlockEdit(runtime, element) {
       }
     }
 
+    saveGraph();
 
     chart = anychart.graph(data);
     var nodes = chart.nodes();
@@ -497,6 +494,7 @@ function MyXBlockEdit(runtime, element) {
   });
 
   $('#closeGraphModal', element).click(function(eventObject) {
+    reApplyConfig();
     var modal = document.getElementById("graphModal");
     modal.style.display = "none";
   });
@@ -550,6 +548,9 @@ function MyXBlockEdit(runtime, element) {
         chart.interactivity().zoomOnMouseWheel(false);
 
         chart.container("graph").draw();
+        if(value.teste.fixedPos) {
+          chart.layout().type("fixed");
+        }
 
         chart.listen("click", function(e) {
           var tag = e.domTarget.tag;
