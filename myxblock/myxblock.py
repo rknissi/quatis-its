@@ -8,6 +8,8 @@ from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Floa
 from django.core.files.storage import default_storage
 import ast 
 #from .studentGraph import models
+from .studentGraph.graph import StudentGraphGen
+from .studentGraph.models import Question
 
 from django.utils import timezone
 
@@ -535,9 +537,10 @@ class MyXBlock(XBlock):
             return "#2AFD84"
 
     @XBlock.json_handler
-    def generate_graph(selfauthor, data, suffix=''):
-        #q = Question(question_text="What's new?", pub_date=timezone.now())
-        #q.save()
+    def generate_graph(self, data, suffix=''):
+        q = Question(question_text="What's new?", pub_date=timezone.now())
+        q.save()
+        StudentGraphGen.test()
         return {"teste": self.getJsonFromProblemGraph()}
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
