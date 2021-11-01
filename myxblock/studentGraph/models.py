@@ -11,10 +11,10 @@ class Question(models.Model):
 		app_label  = 'studentGraph'
 
 class Problem(models.Model):
-	graph = models.CharField(max_length=21843)
-	nodePosition = models.CharField(max_length=21843)
-	stateCorrectness = models.CharField(max_length=21843)
-	stepCorrectness = models.CharField(max_length=21843)
+	graph = models.TextField()
+	nodePosition = models.TextField()
+	stateCorrectness = models.TextField()
+	stepCorrectness = models.TextField()
 
 	class Meta:
 		app_label  = 'studentGraph'

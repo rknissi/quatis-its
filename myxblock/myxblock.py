@@ -7,7 +7,6 @@ from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 from django.core.files.storage import default_storage
 import ast 
-#from .studentGraph import models
 from .studentGraph.graph import StudentGraphGen
 from .studentGraph.models import Question, Problem
 
@@ -48,14 +47,15 @@ defaultNodeHeight = 20
 initialNodeStroke = {"color": "black", "dash": "5 5"}
 finalNodeStroke = "1 black"
 
+problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
+problemGraphNodePositionsDefault = {}  
+problemGraphStatesCorrectnessDefault = {'_start_': correctState[1], 'Option 1': defaultStateValue, 'Option 2': defaultStateValue}
+problemGraphStepsCorrectnessDefault = {str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}
 
-problemGraph = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
-
-problemGraphNodePositions = {}
-
-problemGraphStatesCorrectness = {'_start_': correctState[1], 'Option 1': defaultStateValue, 'Option 2': defaultStateValue}
-
-problemGraphStepsCorrectness = {str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}
+problemGraph = problemGraphDefault
+problemGraphNodePositions = problemGraphNodePositionsDefault
+problemGraphStatesCorrectness = problemGraphStatesCorrectnessDefault
+problemGraphStepsCorrectness = problemGraphStepsCorrectnessDefault
 
 def levenshteinDistance(A, B):
     if(len(A) == 0):
@@ -315,60 +315,77 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
 
+        self.clearGraphData()
+
         graphData = data.get('graphData')
 
-        self.problemGraph.clear()
-        self.problemGraphStatesCorrectness.clear()
-        self.problemGraphStepsCorrectness.clear()
-
         for edge in graphData['edges']:
-            if edge["from"] not in self.problemGraph:
-                self.problemGraph[edge["from"]] = [edge["to"]]
+            if edge["from"] not in problemGraph:
+                problemGraph[edge["from"]] = [edge["to"]]
             else:
-                self.problemGraph[edge["from"]].append(edge["to"])
-            self.problemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = float(edge["correctness"])
+                problemGraph[edge["from"]].append(edge["to"])
+            problemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = float(edge["correctness"])
 
         for node in graphData['nodes']:
-            self.problemGraphNodePositions[node["id"]] = {"x": node["x"], "y": node["y"]}
-            self.problemGraphStatesCorrectness[node["id"]] = float(node["correctness"])
+            problemGraphNodePositions[node["id"]] = {"x": node["x"], "y": node["y"]}
+            problemGraphStatesCorrectness[node["id"]] = float(node["correctness"])
             if "stroke" in node:
                 if node["stroke"] == finalNodeStroke:
-                    if node["id"] in self.problemGraph:
-                        self.problemGraph[node["id"]].append("_end_")
+                    if node["id"] in problemGraph:
+                        problemGraph[node["id"]].append("_end_")
                     else:
-                        self.problemGraph[node["id"]] = ["_end_"]
+                        problemGraph[node["id"]] = ["_end_"]
                 else:
-                    if "_start_" not in self.problemGraph:
-                        self.problemGraph["_start_"] = []
+                    if "_start_" not in problemGraph:
+                        problemGraph["_start_"] = []
             else:
-                if node["id"] not in self.problemGraph:
-                    self.problemGraph[node["id"]] = []
+                if node["id"] not in problemGraph:
+                    problemGraph[node["id"]] = []
 
+        self.saveGraphData()
 
-        return {'problemGraph': self.problemGraph, 'problemGraphStatesCorrectness': self.problemGraphStatesCorrectness, 'problemGraphStepsCorrectness': self.problemGraphStepsCorrectness, 'problemGraphNodePositions': self.problemGraphNodePositions}
+        return {'problemGraph': problemGraph, 'problemGraphStatesCorrectness': problemGraphStatesCorrectness, 'problemGraphStepsCorrectness': problemGraphStepsCorrectness, 'problemGraphNodePositions': problemGraphNodePositions}
+
+    def createInitialData(self):
+        if self.problemId == -1:
+            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault))
+            p.save()
+            self.problemId = p.id
 
     def loadGraphData(self):
-        if self.problemId == -1:
-            return
-        else:
+        global problemGraph
+        global problemGraphNodePositions
+        global problemGraphStatesCorrectness
+        global problemGraphStepsCorrectness
+        if self.problemId != -1:
             loadedProblem = Problem.objects.get(id=self.problemId)
-        problemGraph = loadedProblem.graph
-        problemGraphNodePositions = loadedProblem.nodePosition
-        problemGraphStatesCorrectness = loadedProblem.stateCorrectness
-        problemGraphStepsCorrectness = loadedProblem.stepCorrectness
+            problemGraph = ast.literal_eval(loadedProblem.graph)
+            problemGraphNodePositions = ast.literal_eval(loadedProblem.nodePosition)
+            problemGraphStatesCorrectness = ast.literal_eval(loadedProblem.stateCorrectness)
+            problemGraphStepsCorrectness = ast.literal_eval(loadedProblem.stepCorrectness)
 
     def saveGraphData(self):
         if self.problemId == -1:
-            p = Problem(graph = problemGraph, nodePosition = problemGraphNodePositions, stateCorrectness = problemGraphStatesCorrectness, stepCorrectness = problemGraphStepsCorrectness)
+            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault))
             p.save()
-            self.problemId = p
+            self.problemId = p.id
 
         else:
             loadedProblem = Problem.objects.get(id=self.problemId)
-            loadedProblem = Problem(graph = problemGraph, nodePosition = problemGraphNodePositions, stateCorrectness = problemGraphStatesCorrectness, stepCorrectness = problemGraphStepsCorrectness)
+            loadedProblem.graph = json.dumps(problemGraph)
+            loadedProblem.nodePosition = json.dumps(problemGraphNodePositions)
+            loadedProblem.stateCorrectness = json.dumps(problemGraphStatesCorrectness)
+            loadedProblem.stepCorrectness = json.dumps(problemGraphStepsCorrectness)
             loadedProblem.save()
 
+    def clearGraphData(self):
+        global problemGraph
+        global problemGraphStatesCorrectness
+        global problemGraphStepsCorrectness
 
+        problemGraph = {}
+        problemGraphStatesCorrectness = {}
+        problemGraphStepsCorrectness = {}
 
     @XBlock.json_handler
     def submit_data(self,data,suffix=''):
@@ -414,90 +431,93 @@ class MyXBlock(XBlock):
             return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
 
         return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep, "lastCorrectElement": lastElement}
-    
+
+
     def getJsonFromProblemGraph(self):
         nodeList = []
         edgeList = []
         addedNodes = []
         fixedPos = False
 
-        for source in self.problemGraph:
-            for dest in self.problemGraph[source]:
+        self.loadGraphData()
+
+        for source in problemGraph:
+            for dest in problemGraph[source]:
                 if source == "_start_":
                     nodeColor = self.getNodeColor(source)
 
                     if source not in addedNodes:
-                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
-                        if source in self.problemGraphNodePositions:
-                            node["x"] = self.problemGraphNodePositions[source]["x"]
-                            node["y"] = self.problemGraphNodePositions[source]["y"]
+                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": problemGraphStatesCorrectness[source]}
+                        if source in problemGraphNodePositions:
+                            node["x"] = problemGraphNodePositions[source]["x"]
+                            node["y"] = problemGraphNodePositions[source]["y"]
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(source)
 
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
-                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
-                        if dest in self.problemGraphNodePositions:
-                            node["x"] = self.problemGraphNodePositions[dest]["x"]
-                            node["y"] = self.problemGraphNodePositions[dest]["y"]
+                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[dest]}
+                        if dest in problemGraphNodePositions:
+                            node["x"] = problemGraphNodePositions[dest]["x"]
+                            node["y"] = problemGraphNodePositions[dest]["y"]
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(dest)
                     else: 
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
+                        nodeList[pos] = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[dest]}
 
-                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": problemGraphStepsCorrectness[str((source, dest))]}
                     edgeList.append(edge)
 
                     
                 elif dest == "_end_":
                     nodeColor = self.getNodeColor(source)
                     if source not in addedNodes:
-                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
-                        if source in self.problemGraphNodePositions:
-                            node["x"] = self.problemGraphNodePositions[source]["x"]
-                            node["y"] = self.problemGraphNodePositions[source]["y"]
+                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": problemGraphStatesCorrectness[source]}
+                        if source in problemGraphNodePositions:
+                            node["x"] = problemGraphNodePositions[source]["x"]
+                            node["y"] = problemGraphNodePositions[source]["y"]
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(source)
                     else:
                         pos = addedNodes.index(source)
-                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": self.problemGraphStatesCorrectness[source]}
-                        if source in self.problemGraphNodePositions:
-                            node["x"] = self.problemGraphNodePositions[source]["x"]
-                            node["y"] = self.problemGraphNodePositions[source]["y"]
+                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": problemGraphStatesCorrectness[source]}
+                        if source in problemGraphNodePositions:
+                            node["x"] = problemGraphNodePositions[source]["x"]
+                            node["y"] = problemGraphNodePositions[source]["y"]
                             fixedPos = True
                         nodeList[pos] = node
                 else:
                     if source not in addedNodes:
                         nodeColor = self.getNodeColor(source)
-                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[source]}
-                        if source in self.problemGraphNodePositions:
-                            node["x"] = self.problemGraphNodePositions[source]["x"]
-                            node["y"] = self.problemGraphNodePositions[source]["y"]
+                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[source]}
+                        if source in problemGraphNodePositions:
+                            node["x"] = problemGraphNodePositions[source]["x"]
+                            node["y"] = problemGraphNodePositions[source]["y"]
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(source)
                     if dest not in addedNodes:
                         nodeColor = self.getNodeColor(dest)
-                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": self.problemGraphStatesCorrectness[dest]}
-                        if dest in self.problemGraphNodePositions:
-                            node["x"] = self.problemGraphNodePositions[dest]["x"]
-                            node["y"] = self.problemGraphNodePositions[dest]["y"]
+                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[dest]}
+                        if dest in problemGraphNodePositions:
+                            node["x"] = problemGraphNodePositions[dest]["x"]
+                            node["y"] = problemGraphNodePositions[dest]["y"]
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(dest)
                     
-                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": self.problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": problemGraphStepsCorrectness[str((source, dest))]}
                     edgeList.append(edge)
 
         return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}
                 
     def getEdgeColor(self, edge):
 
-        edgeValue = self.problemGraphStepsCorrectness[edge]
+        edgeValue = problemGraphStepsCorrectness[edge]
         if edgeValue >= invalidStep[0] and edgeValue <= invalidStep[1]:
             return "#FC0D1B"
         if edgeValue >= stronglyInvalidStep[0] and edgeValue <= stronglyInvalidStep[1]:
@@ -515,7 +535,7 @@ class MyXBlock(XBlock):
 
     def getNodeColor(self, node):
 
-        nodeValue = self.problemGraphStatesCorrectness[node]
+        nodeValue = problemGraphStatesCorrectness[node]
         if nodeValue >= incorrectState[0] and nodeValue <= incorrectState[1]:
             return "#EE8182"
         if nodeValue >= unknownState[0] and nodeValue <= unknownState[1]:
@@ -525,12 +545,7 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def generate_graph(self, data, suffix=''):
-        self.saveGraphData()
-        #p = Problem(graph=self.problemGraph)
-        #p.save()
-        #q = Question(question_text="What's new?", pub_date=timezone.now())
-        #q.save()
-        #StudentGraphGen.test()
+        self.createInitialData()
         return {"teste": self.getJsonFromProblemGraph()}
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
@@ -612,6 +627,9 @@ class MyXBlock(XBlock):
     #Envia a resposta final
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
+
+        self.loadGraphData()
+
         #Inicialização e coleta dos dados inicial
         answerArray = data['answer'].split('\n')
 
@@ -672,20 +690,20 @@ class MyXBlock(XBlock):
         #COMENTADO OS PASSOS DE ATUALIZAÇÃO DE CORRETUDE, VAMOS FAZER DIREITO AGORA
         #LEMBRAR DE FAZER O IF DE ÚLTINO ELEMENTO PARA NÃO FICAR FEIO
         for step in answerArray:
-            if (lastElement not in self.problemGraph):
-                self.problemGraph[lastElement] = [step]
-            elif (lastElement in self.problemGraph and step not in self.problemGraph[lastElement]):
-                self.problemGraph[lastElement].append(step)
+            if (lastElement not in problemGraph):
+                problemGraph[lastElement] = [step]
+            elif (lastElement in problemGraph and step not in problemGraph[lastElement]):
+                problemGraph[lastElement].append(step)
 
             #Colocar os valores certos depois
             if (isAnswerCorrect):
-                self.problemGraphStatesCorrectness[step] = defaultStateValue
-                self.problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
+                problemGraphStatesCorrectness[step] = defaultStateValue
+                problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
             else:
-                if (step not in self.problemGraphStatesCorrectness):
-                    self.problemGraphStatesCorrectness[step] = defaultStateValue
-                if (str((lastElement, step)) not in self.problemGraphStepsCorrectness):
-                    self.problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
+                if (step not in problemGraphStatesCorrectness):
+                    problemGraphStatesCorrectness[step] = defaultStateValue
+                if (str((lastElement, step)) not in problemGraphStepsCorrectness):
+                    problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
 
             ###
             self.studentResolutionsSteps.append(str((lastElement, step)))
@@ -693,17 +711,17 @@ class MyXBlock(XBlock):
 
         #Adicionar o caso do últio elemento com o _end_
         finalElement = '_end_'
-        if (lastElement not in self.problemGraph):
-            self.problemGraph[lastElement] = [finalElement]
-        elif (lastElement in self.problemGraph and finalElement not in self.problemGraph[lastElement]):
-            self.problemGraph[lastElement].append(finalElement)
+        if (lastElement not in problemGraph):
+            problemGraph[lastElement] = [finalElement]
+        elif (lastElement in problemGraph and finalElement not in problemGraph[lastElement]):
+            problemGraph[lastElement].append(finalElement)
 
         #Colocar os valores certos depois
         if (isAnswerCorrect):
-            self.problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
+            problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
         else:
-            if (str((lastElement, finalElement)) not in self.problemGraphStepsCorrectness):
-                self.problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
+            if (str((lastElement, finalElement)) not in problemGraphStepsCorrectness):
+                problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
         ###
 
         self.studentResolutionsSteps.append(str((lastElement, finalElement)))
@@ -711,6 +729,9 @@ class MyXBlock(XBlock):
         #Fim da parte do updateCG
 
         #self.alreadyAnswered = True
+
+        self.saveGraphData()
+
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
@@ -718,10 +739,10 @@ class MyXBlock(XBlock):
 
     def getExplanationOrHintStepsFromProblemGraph(self):
         steps = {}
-        for i in self.problemGraph:
-            for j in self.problemGraph[i]:
-                if self.problemGraphStepsCorrectness[str((i, j))] >= stronglyValidStep[0]:
-                    if self.problemGraphStatesCorrectness[i] >= correctState[0] and self.problemGraphStatesCorrectness[j] >= correctState[0]:
+        for i in problemGraph:
+            for j in problemGraph[i]:
+                if problemGraphStepsCorrectness[str((i, j))] >= stronglyValidStep[0]:
+                    if problemGraphStatesCorrectness[i] >= correctState[0] and problemGraphStatesCorrectness[j] >= correctState[0]:
                         if i in steps:
                             steps[i].append(j)
                         else:
@@ -736,14 +757,14 @@ class MyXBlock(XBlock):
 
         for i in range(len(studentStates) - 1):
             for hintStepFromGraph in hintSteps:
-                if studentStates[i] == hintStepFromGraph and self.problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
+                if studentStates[i] == hintStepFromGraph and problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
                     for destinyHintStep in hintSteps[hintStepFromGraph]:
-                        if studentStates[i+1] == destinyHintStep and self.problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
+                        if studentStates[i+1] == destinyHintStep and problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
 
                             hintStep = str((hintStepFromGraph, destinyHintStep))
                             if chosenHintStep == None:
                                 chosenHintStep = hintStep
-                                chosenHintValue = self.problemGraphStepsCorrectness[hintStep]
+                                chosenHintValue = problemGraphStepsCorrectness[hintStep]
                             else:
                                 if hintStep in self.hintFromSteps:
                                     newHintFeedbacks = self.hintFromSteps[hintStep]
@@ -755,9 +776,9 @@ class MyXBlock(XBlock):
                                 else:
                                     chosenHintstepFeedbacks = 0
 
-                                if chosenHintValue < self.problemGraphStepsCorrectness[hintStep] or chosenHintStepFeedbacks < newHintFeedbacks:
+                                if chosenHintValue < problemGraphStepsCorrectness[hintStep] or chosenHintStepFeedbacks < newHintFeedbacks:
                                     chosenHintStep = hintStep
-                                    chosenHintValue = self.problemGraphStepsCorrectness[hintStep]
+                                    chosenHintValue = problemGraphStepsCorrectness[hintStep]
         return chosenHintStep
 
     def getExplanationStepsFromStudentResolution(self, studentStates, amount):
@@ -766,13 +787,13 @@ class MyXBlock(XBlock):
 
         for i in range(len(studentStates) - 1):
             for explanationStep in explanationSteps:
-                if studentStates[i] == explanationStep and self.problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
+                if studentStates[i] == explanationStep and problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
                     for destinyExplanationStep in explanationSteps[explanationStep]:
-                        if studentStates[i+1] == destinyExplanationStep and self.problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
+                        if studentStates[i+1] == destinyExplanationStep and problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
 
                             chosenExplanationStep = str((explanationStep, destinyExplanationStep))
                             if len(chosenExplanationSteps) < amount:
-                                chosenExplanationSteps[chosenExplanationStep] = self.problemGraphStepsCorrectness[chosenExplanationStep]
+                                chosenExplanationSteps[chosenExplanationStep] = problemGraphStepsCorrectness[chosenExplanationStep]
                             else:
                                 stepsToBeRemoved = []
                                 stepsToBeAdded = {}
@@ -788,9 +809,9 @@ class MyXBlock(XBlock):
                                         else:
                                             chosenExplanationStepFeedbacks = 0
 
-                                        if chosenExplanationSteps[step] < self.problemGraphStepsCorrectness[chosenExplanationStep] or stepFeedbacks < chosenExplanationStepFeedbacks:
+                                        if chosenExplanationSteps[step] < problemGraphStepsCorrectness[chosenExplanationStep] or stepFeedbacks < chosenExplanationStepFeedbacks:
                                             stepsToBeRemoved.append(step)
-                                            stepsToBeAdded[chosenExplanationStep] = self.problemGraphStepsCorrectness[chosenExplanationStep]
+                                            stepsToBeAdded[chosenExplanationStep] = problemGraphStepsCorrectness[chosenExplanationStep]
 
                                 for step in stepsToBeRemoved:
                                     chosenExplanationSteps.pop(step)
@@ -802,10 +823,10 @@ class MyXBlock(XBlock):
     
     def getErrorSpecificFeedbackStepsFromProblemGraph(self):
         steps = {}
-        for i in self.problemGraph:
-            for j in self.problemGraph[i]:
-                if self.problemGraphStepsCorrectness[str((i, j))] < stronglyInvalidStep[1]:
-                    if self.problemGraphStatesCorrectness[i] > correctState[0] and self.problemGraphStatesCorrectness[j] < incorrectState[1]:
+        for i in problemGraph:
+            for j in problemGraph[i]:
+                if problemGraphStepsCorrectness[str((i, j))] < stronglyInvalidStep[1]:
+                    if problemGraphStatesCorrectness[i] > correctState[0] and problemGraphStatesCorrectness[j] < incorrectState[1]:
                         if i in steps:
                             steps[i].append(j)
                         else:
@@ -823,9 +844,9 @@ class MyXBlock(XBlock):
                     for errorSpecificFeedbackDestinyState in errorSpecificFeedbackSteps[errorSpecificFeedbackSourceState]:
                         errorSpecificStep = str((errorSpecificFeedbackSourceState, errorSpecificFeedbackDestinyState))
                         studentStep = str((studentStates[i], studentStates[i+1]))
-                        if studentStates[i+1] != errorSpecificFeedbackDestinyState and self.problemGraphStepsCorrectness[studentStep] >= stronglyValidStep[0] and self.problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0] :
+                        if studentStates[i+1] != errorSpecificFeedbackDestinyState and problemGraphStepsCorrectness[studentStep] >= stronglyValidStep[0] and problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0] :
                             if len(usefulRelatedSteps) < amount:
-                                usefulRelatedSteps[errorSpecificStep] = self.problemGraphStepsCorrectness[errorSpecificStep]
+                                usefulRelatedSteps[errorSpecificStep] = problemGraphStepsCorrectness[errorSpecificStep]
                             else:
                                 stepsToBeRemoved = []
                                 stepsToBeAdded = {}
@@ -841,9 +862,9 @@ class MyXBlock(XBlock):
                                         else:
                                             errorSpecificStepFeedbacks = 0
 
-                                        if usefulRelatedSteps[usefulRelatedStep] > self.problemGraphStepsCorrectness[errorSpecificStep] or usefulRelatedStepFeedbacks < errorSpecificStepFeedbacks:
+                                        if usefulRelatedSteps[usefulRelatedStep] > problemGraphStepsCorrectness[errorSpecificStep] or usefulRelatedStepFeedbacks < errorSpecificStepFeedbacks:
                                             stepsToBeRemoved.append(usefulRelatedStep)
-                                            stepsToBeAdded[errorSpecificStep] = self.problemGraphStepsCorrectness[errorSpecificStep]
+                                            stepsToBeAdded[errorSpecificStep] = problemGraphStepsCorrectness[errorSpecificStep]
 
                                 for step in stepsToBeRemoved:
                                     usefulRelatedSteps.pop(step)
@@ -873,23 +894,23 @@ class MyXBlock(XBlock):
             else:
                 nextStudentState = '_end_'
 
-            if studentState not in self.problemGraph:
+            if studentState not in problemGraph:
                 #Pega os estados finais no qual tem esse estado inicial
-                if previousStudentState !=  '_start_' and previousStudentState in self.problemGraph:
-                    for nextStepFromPreviousStudentState in self.problemGraph[previousStudentState]:
+                if previousStudentState !=  '_start_' and previousStudentState in problemGraph:
+                    for nextStepFromPreviousStudentState in problemGraph[previousStudentState]:
                         if nextStepFromPreviousStudentState != '_end_':
                             self.insertStepIfCorrectnessIsValid(str((previousStudentState, nextStepFromPreviousStudentState)), statesAndStepsNeededInfo, amount)
 
                 #Pega os estados iniciais no qual tem esse estado final
-                if nextStudentState != '_end_' and nextStudentState in self.problemGraph:
+                if nextStudentState != '_end_' and nextStudentState in problemGraph:
                     for beforeState in getSourceStatesFromDestinyState(nextStudentState):
                         if beforeState != '_start_':
                             self.insertStepIfCorrectnessIsValid(str((beforeState, nextStudentState)), statesAndStepsNeededInfo, amount)
             else:
                 #Pega os estados finais no qual tem esse estado inicial
-                if previousStudentState !=  '_start_' and previousStudentState in self.problemGraph:
+                if previousStudentState !=  '_start_' and previousStudentState in problemGraph:
                     #Pega os passos onde o estado final é diferente do feito pelo aluno
-                    for nextStepFromPreviousStudentState in self.problemGraph[previousStudentState]:
+                    for nextStepFromPreviousStudentState in problemGraph[previousStudentState]:
                         if nextStepFromPreviousStudentState != studentState and nextStepFromPreviousStudentState != '_end_':
                             self.insertStepIfCorrectnessIsValid(str((previousStudentState, nextStepFromPreviousStudentState)), statesAndStepsNeededInfo, amount)
 
@@ -903,7 +924,7 @@ class MyXBlock(XBlock):
                     sourceStates = self.getSourceStatesFromDestinyState(studentState)
                     for sourceState in sourceStates:
                         if sourceState != previousStudentState and sourceState != '_start_':
-                            for nextState in self.problemGraph[sourceState]:
+                            for nextState in problemGraph[sourceState]:
                                 if nextState != studentState and nextState != '_end_':
                                     alternativeSteps.append(str((sourceState, nextState)))
 
@@ -911,9 +932,9 @@ class MyXBlock(XBlock):
                         self.insertStepIfCorrectnessIsValid(step, statesAndStepsNeededInfo, amount)
 
                 #Pega os estados iniciais no qual tem esse estado final
-                if nextStudentState != '_end_' and nextStudentState in self.problemGraph:
+                if nextStudentState != '_end_' and nextStudentState in problemGraph:
                     #Casos onde o estado inicial é o atual, mas o final é diferente
-                    for nextStepFromStudentState in self.problemGraph[studentState]:
+                    for nextStepFromStudentState in problemGraph[studentState]:
                         if nextStepFromStudentState != nextStudentState and nextStepFromStudentState != '_end_':
                             self.insertStepIfCorrectnessIsValid(str((studentState, nextStepFromStudentState)), statesAndStepsNeededInfo, amount)
                     
@@ -927,7 +948,7 @@ class MyXBlock(XBlock):
                     sourceStates = self.getSourceStatesFromDestinyState(nextStudentState)
                     for sourceState in sourceStates:
                         if sourceState != studentState and sourceState != '_start_':
-                            for nextState in self.problemGraph[sourceState]:
+                            for nextState in problemGraph[sourceState]:
                                 if nextState != nextStudentState and nextState != '_end_':
                                     alternativeSteps.append(str((sourceState, nextState)))
 
@@ -939,8 +960,8 @@ class MyXBlock(XBlock):
 
     def getSourceStatesFromDestinyState(self, destinyState):
         sourceStates = []
-        for step in self.problemGraph:
-            if destinyState in self.problemGraph[step]:
+        for step in problemGraph:
+            if destinyState in problemGraph[step]:
                 sourceStates.append(step)
         return sourceStates
 
@@ -951,12 +972,12 @@ class MyXBlock(XBlock):
 
         #Adiciona se achar um maior que o valor passado
         for element in statesAndStepsNeededInfo:
-            if abs(self.problemGraphStepsCorrectness[step]) < abs(statesAndStepsNeededInfo[element]):
-                statesAndStepsNeededInfo[step] = self.problemGraphStepsCorrectness[step]
+            if abs(problemGraphStepsCorrectness[step]) < abs(statesAndStepsNeededInfo[element]):
+                statesAndStepsNeededInfo[step] = problemGraphStepsCorrectness[step]
 
         #Se tiver espaço na lista, adiciona
         if len(statesAndStepsNeededInfo) < amount:
-            statesAndStepsNeededInfo[step] = self.problemGraphStepsCorrectness[step]
+            statesAndStepsNeededInfo[step] = problemGraphStepsCorrectness[step]
 
 
         #Deixa o vetor com o número certo de elementos
