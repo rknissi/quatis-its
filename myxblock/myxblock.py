@@ -9,7 +9,6 @@ from django.core.files.storage import default_storage
 import ast 
 from .studentGraph.graph import StudentGraphGen
 from .studentGraph.models import Question, Problem
-
 from django.utils import timezone
 
 #Step information
@@ -46,6 +45,8 @@ finalNodeShape = "diamond"
 defaultNodeHeight = 20
 initialNodeStroke = {"color": "black", "dash": "5 5"}
 finalNodeStroke = "1 black"
+graphHeight = 600
+graphWidthPercentage =  95
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
@@ -95,28 +96,6 @@ class MyXBlock(XBlock):
         default=-1, scope=Scope.content,
         help="Version",
     )
-
-    ##Caminhos corretos do grafo
-    #problemGraph = Dict(
-    #    default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.content,
-    #    help="The problem graph itself",
-    #)
-
-    #problemGraphNodePositions = Dict(
-    #    scope=Scope.content,
-    #    help="The problem graph nodes positions",
-    #)
-
-    #problemGraphStatesCorrectness = Dict(
-    #    default={'_start_': correctState[1], 'Option 1': defaultStateValue, 'Option 2': defaultStateValue}, scope=Scope.content,
-    #    help="Shows if each node of the graph is correct with true or false",
-    #)
-    
-
-    #problemGraphStepsCorrectness = Dict(
-    #    default={str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}, scope=Scope.user_state_summary,
-    #    help="Shows if each step of the graph is correct with true or false",
-    #)
 
     #Resoluções dos alunos
     correctResolutions = List(
@@ -287,6 +266,44 @@ class MyXBlock(XBlock):
         frag.initialize_js('MyXBlockEdit')
         return frag
 
+
+    def createGraphInitialPositions(self):
+        createPos = []
+        for node in problemGraph:
+            if node not in problemGraphNodePositions:
+                createPos.append(node)
+        
+        if createPos:
+            graphHeightPart = graphHeight/(len(createPos) * 3)
+            graphWidth = graphWidthPercentage/len(createPos)
+
+            for node in createPos:
+                level = 0
+                x = 0
+                y = 0
+
+                sourceNodes = self.getSourceStatesFromDestinyState(node)
+                while sourceNodes and "_start_" not in sourceNodes:
+                    level = level + 1
+                    sourceNodes = self.getSourceStatesFromDestinyState(sourceNodes[0])
+
+                y = (graphHeightPart + createPos.index(node)) * level
+                x = (graphWidth + createPos.index(node))
+
+                positions = self.avoidSamePosFromAnotherNode(x, y)
+                
+
+                problemGraphNodePositions[node] = {"x": positions.get("x"), "y": positions.get("y")}
+
+    def avoidSamePosFromAnotherNode(self, x, y):
+        for node in problemGraphNodePositions:
+            if (problemGraphNodePositions[node].get("x") == x and problemGraphNodePositions[node].get("y") == y):
+                x = x + 30
+                return self.avoidSamePosFromAnotherNode(x, y)
+
+        return {"x": x, "y": y}
+
+
     @XBlock.json_handler
     def get_edge_info(self,data,suffix=''):
         step = str((data.get("from"), data.get("to")))
@@ -311,6 +328,7 @@ class MyXBlock(XBlock):
         self.explanationFromSteps[step] = data.get("explanations")
         
         return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps, "explanations": self.explanationFromSteps, "hints": self.hintFromSteps}
+
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
@@ -440,6 +458,7 @@ class MyXBlock(XBlock):
         fixedPos = False
 
         self.loadGraphData()
+        self.createGraphInitialPositions()
 
         for source in problemGraph:
             for dest in problemGraph[source]:

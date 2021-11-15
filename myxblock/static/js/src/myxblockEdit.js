@@ -23,7 +23,7 @@ function MyXBlockEdit(runtime, element) {
 
 
   var defaultArrowStroke = "3 ";
-  var defaultArrowSize = 10;
+  var defaultArrowSize = 3;
   var defaultFontSize = 10;
   var defaultNodeHeight = 20;
 
@@ -53,6 +53,8 @@ function MyXBlockEdit(runtime, element) {
 
     chart = anychart.graph(data);
     var nodes = chart.nodes();
+
+    chart.title("Grafo das escolhas dos estudantes");
 
     // set the size of nodes
     nodes.normal().height(30);
@@ -253,7 +255,7 @@ function MyXBlockEdit(runtime, element) {
           edgeData = data.edges[i];
           data.edges.splice(i, 1);
           edgeData.correctness = value;
-          edgeData.stroke = defaultArrowSize + getEdgeColor(value);
+          edgeData.stroke = defaultArrowSize + " " + getEdgeColor(value);
           addEdge(edgeData);
           break;
         }
