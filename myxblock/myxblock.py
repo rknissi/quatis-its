@@ -45,8 +45,10 @@ finalNodeShape = "diamond"
 defaultNodeHeight = 20
 initialNodeStroke = {"color": "black", "dash": "5 5"}
 finalNodeStroke = "1 black"
-graphHeight = 600
-graphWidthPercentage =  95
+graphHeightDefaultValue = 60
+graphWidthDefaultValue = 0
+graphWidthExtraValue = 30
+graphNodeMinimumDistance = 30
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
@@ -274,8 +276,6 @@ class MyXBlock(XBlock):
                 createPos.append(node)
         
         if createPos:
-            graphHeightPart = graphHeight/(len(createPos) * 3)
-            graphWidth = graphWidthPercentage/len(createPos)
 
             for node in createPos:
                 level = 0
@@ -283,12 +283,17 @@ class MyXBlock(XBlock):
                 y = 0
 
                 sourceNodes = self.getSourceStatesFromDestinyState(node)
-                while sourceNodes and "_start_" not in sourceNodes:
+                initialSourceNodes = sourceNodes
+
+                while sourceNodes:
                     level = level + 1
                     sourceNodes = self.getSourceStatesFromDestinyState(sourceNodes[0])
 
-                y = (graphHeightPart + createPos.index(node)) * level
-                x = (graphWidth + createPos.index(node))
+                y = (graphHeightDefaultValue + createPos.index(node)) * level
+                if initialSourceNodes:
+                    x = problemGraphNodePositions[initialSourceNodes[0]].get("x")
+                else:
+                    x = graphWidthDefaultValue
 
                 positions = self.avoidSamePosFromAnotherNode(x, y)
                 
@@ -297,8 +302,8 @@ class MyXBlock(XBlock):
 
     def avoidSamePosFromAnotherNode(self, x, y):
         for node in problemGraphNodePositions:
-            if (problemGraphNodePositions[node].get("x") == x and problemGraphNodePositions[node].get("y") == y):
-                x = x + 30
+            if (abs(problemGraphNodePositions[node].get("x") - x) <= graphNodeMinimumDistance and abs(problemGraphNodePositions[node].get("y") - y) <= graphNodeMinimumDistance):
+                x = x + graphWidthExtraValue
                 return self.avoidSamePosFromAnotherNode(x, y)
 
         return {"x": x, "y": y}
