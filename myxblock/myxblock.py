@@ -7,8 +7,7 @@ from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 from django.core.files.storage import default_storage
 import ast 
-from .studentGraph.graph import StudentGraphGen
-from .studentGraph.models import Question, Problem
+from .studentGraph.models import Problem
 from django.utils import timezone
 
 #Step information
@@ -52,13 +51,17 @@ graphNodeMinimumDistance = 30
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
-problemGraphStatesCorrectnessDefault = {'_start_': correctState[1], 'Option 1': defaultStateValue, 'Option 2': defaultStateValue}
-problemGraphStepsCorrectnessDefault = {str(('_start_', 'Option 1')): defaultStepValue, str(('Option 1', 'Option 2')): defaultStepValue, str(('Option 2', '_end_')): defaultStepValue}
+problemGraphStatesCorrectnessDefault = {'_start_': correctState[1], 'Option 1': correctState[1], 'Option 2': correctState[1]}
+problemGraphStepsCorrectnessDefault = {str(('_start_', 'Option 1')): validStep[1], str(('Option 1', 'Option 2')): validStep[1], str(('Option 2', '_end_')): validStep[1]}
+allResolutionsDefault = []
 
 problemGraph = problemGraphDefault
 problemGraphNodePositions = problemGraphNodePositionsDefault
 problemGraphStatesCorrectness = problemGraphStatesCorrectnessDefault
 problemGraphStepsCorrectness = problemGraphStepsCorrectnessDefault
+allResolutions = allResolutionsDefault
+correctResolutions = allResolutionsDefault
+wrongResolutions = allResolutionsDefault
 
 def levenshteinDistance(A, B):
     if(len(A) == 0):
@@ -97,17 +100,6 @@ class MyXBlock(XBlock):
     problemId = Integer(
         default=-1, scope=Scope.content,
         help="Version",
-    )
-
-    #Resoluções dos alunos
-    correctResolutions = List(
-        default=["id1"], scope=Scope.user_state_summary,
-        help="Ids of correct resolutions",
-    )
-
-    wrongResolutions = List(
-        default=["id2"], scope=Scope.user_state_summary,
-        help="Ids of incorrect resolutions",
     )
 
     #Posso até separar em 2, um só para os estados e outro só para os passos
@@ -338,6 +330,7 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
 
+        self.loadGraphData()
         self.clearGraphData()
 
         graphData = data.get('graphData')
@@ -371,25 +364,33 @@ class MyXBlock(XBlock):
 
     def createInitialData(self):
         if self.problemId == -1:
-            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault))
+            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault), allStudentResolutions=json.dumps(allResolutions),allCorrectStudentResolutions=json.dumps(correctResolutions),allIncorrectStudentResolutions=json.dumps(wrongResolutions))
             p.save()
             self.problemId = p.id
 
     def loadGraphData(self):
+
         global problemGraph
         global problemGraphNodePositions
         global problemGraphStatesCorrectness
         global problemGraphStepsCorrectness
+        global allResolutions
+        global correctResolutions
+        global wrongResolutions
+
         if self.problemId != -1:
             loadedProblem = Problem.objects.get(id=self.problemId)
             problemGraph = ast.literal_eval(loadedProblem.graph)
             problemGraphNodePositions = ast.literal_eval(loadedProblem.nodePosition)
             problemGraphStatesCorrectness = ast.literal_eval(loadedProblem.stateCorrectness)
             problemGraphStepsCorrectness = ast.literal_eval(loadedProblem.stepCorrectness)
+            allResolutions = ast.literal_eval(loadedProblem.allStudentResolutions)
+            correctResolutions = ast.literal_eval(loadedProblem.allCorrectStudentResolutions)
+            wrongResolutions = ast.literal_eval(loadedProblem.allIncorrectStudentResolutions)
 
     def saveGraphData(self):
         if self.problemId == -1:
-            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault))
+            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault), allStudentResolutions=json.dumps(allResolutions), allCorrectStudentResolutions=json.dumps(correctResolutions), allIncorrectStudentResolutions=json.dumps(wrongResolutions))
             p.save()
             self.problemId = p.id
 
@@ -399,16 +400,21 @@ class MyXBlock(XBlock):
             loadedProblem.nodePosition = json.dumps(problemGraphNodePositions)
             loadedProblem.stateCorrectness = json.dumps(problemGraphStatesCorrectness)
             loadedProblem.stepCorrectness = json.dumps(problemGraphStepsCorrectness)
+            loadedProblem.allStudentResolutions = json.dumps(allResolutions)
+            loadedProblem.allCorrectStudentResolutions = json.dumps(correctResolutions)
+            loadedProblem.allIncorrectStudentResolutions = json.dumps(wrongResolutions)
             loadedProblem.save()
 
     def clearGraphData(self):
         global problemGraph
         global problemGraphStatesCorrectness
         global problemGraphStepsCorrectness
+        global problemGraphNodePositions
 
         problemGraph = {}
         problemGraphStatesCorrectness = {}
         problemGraphStepsCorrectness = {}
+        problemGraphNodePositions = {}
 
     @XBlock.json_handler
     def submit_data(self,data,suffix=''):
@@ -754,6 +760,15 @@ class MyXBlock(XBlock):
 
         #self.alreadyAnswered = True
 
+        allResolutions.append(answerArray)
+
+        if isAnswerCorrect:
+            correctResolutions.append(answerArray)
+        else:
+            wrongResolutions.append(answerArray)
+
+        self.calculateValidityAndCorrectness(answerArray)
+
         self.saveGraphData()
 
         if isAnswerCorrect:
@@ -894,7 +909,7 @@ class MyXBlock(XBlock):
                                     usefulRelatedSteps.pop(step)
 
                                 for step in stepsToBeAdded:
-                                    chosenExplanationSteps[step] = stepsToBeAdded[step]
+                                    self.chosenExplanationSteps[step] = stepsToBeAdded[step]
 
                         
         return usefulRelatedSteps    
@@ -1018,69 +1033,82 @@ class MyXBlock(XBlock):
 
 
         
-    def corretudeResolucao(resolutionId, self):
-        stateNumber = len(self.studentResolutionsStates)
-        stepNumber = len(self.studentResolutionsStep)
-    
-        stateValue = 0
-        for state in self.studentResolutionsStates:
-            stateValue = stateValue + self.corretudeEstado(state)
-    
-        stepValue = 0
-        for step in self.studentResolutionsSteps:
-            stepValue = stepValue + self.validadePasso(step)
-    
-        return (1/2*stateNumber) * (stateValue) + (1/2*stepNumber) * (stepValue)
 
-    def possuiEstadoGrafo(state, self):
-        for resolution in self.studentResolutionsStates:
-            if state in resolution:
-                return True
-        return False
+    #def possuiEstadoGrafo(state, self):
+    #    for resolution in self.studentResolutionsStates:
+    #        if state in resolution:
+    #            return True
+    #    return False
     
-    def getStepsWhereStartsWith(state, self):
+    def getStepsWhereStartsWith(self, state):
         stepList = []
         for step in self.problemGraphStatesSteps:
             if eval(step)[0] == state:
                 stepList.append(eval(step))
         return stepList
 
-    def getStepsWhereEndsWith(state, self):
+    def getStepsWhereEndsWith(self, state):
         stepList = []
         for step in self.problemGraphStatesSteps:
             if eval(step)[1] == state:
                 stepList.append(eval(step))
         return stepList
+
+    def corretudeResolucao(self, resolution):
+        stateNumber = len(resolution)
+        stepNumber = stateNumber - 1
     
-    def possuiEstado(state, resolutionId, self):
-        return int(state in self.studentResolutionsStates)
+        stateValue = 0
+        stepValue = 0
+        previousState = None
+        for state in resolution:
+            stateValue = stateValue + self.corretudeEstado(state)
+            if previousState != None:
+                stepValue = stepValue + self.validadePasso(previousState, state)
+            previousState = state
     
-    def possuiEstadoConjunto(state, resolutionIds, self):
+        return (1/2*stateNumber) * (stateValue) + (1/2*stepNumber) * (stepValue)
+    
+    def possuiEstado(self, state, resolution):
+        return int(state in resolution)
+    
+    def possuiEstadoConjunto(self, state, resolutions):
         value = 0
-        for id in resolutionIds:
-            value = value +  self.possuiEstado(state, id)
+        for resolution in resolutions:
+            value = value + self.possuiEstado(state, resolution)
         return value
     
-    def corretudeEstado(state, self):
-        correctValue = self.possuiEstadoConjunto(state, self.correctResolutions)
-        incorrectValue = self.possuiEstadoConjunto(state, self.incorrectResolutions)
+    def corretudeEstado(self, state):
+        correctValue = self.possuiEstadoConjunto(state, correctResolutions)
+        incorrectValue = self.possuiEstadoConjunto(state, wrongResolutions)
     
         return (correctValue-incorrectValue)/(correctValue + incorrectValue)
     
-    def possuiPasso(step, resolutionId, self):
-        return int(str((step[0], step[1])) in self.studentResolutionsSteps)
-    
-    def possuiPassoConjunto(step, resolutionIds, self):
+    def possuiPassoConjunto(self, initialState, finalState, resolutions):
         value = 0
-        for id in resolutionIds:
-            value = value + self.possuiPasso(step, id)
+        for resolution in resolutions:
+            previousState = None
+            for state in resolution:
+                if state == finalState and previousState == initialState:
+                    value = value + 1
+                previousState = state
         return value
     
-    def validadePasso(step, self):
-        correctValue = self.possuiPassoConjunto(step, self.correctResolutions)
-        incorrectValue = self.possuiPassoConjunto(step, self.incorrectResolutions)
+    def validadePasso(self, initialState, finalState):
+        correctValue = self.possuiPassoConjunto(initialState, finalState, correctResolutions)
+        incorrectValue = self.possuiPassoConjunto(initialState, finalState, wrongResolutions)
     
         return (correctValue-incorrectValue)/(correctValue + incorrectValue)
+
+    def calculateValidityAndCorrectness(self, resolution):
+        previousState = None
+        for state in resolution:
+            problemGraphStatesCorrectness[state] = self.corretudeEstado(state)
+            if previousState != None:
+                problemGraphStepsCorrectness[str((previousState, state))] = self.validadePasso(previousState, state)
+            previousState = state
+
+        self.corretudeResolucao(resolution)
 
 
     @XBlock.json_handler

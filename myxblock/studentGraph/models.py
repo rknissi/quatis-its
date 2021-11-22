@@ -3,25 +3,22 @@ from __future__ import unicode_literals
 
 from django.db import models
 
-class Question(models.Model):
-	question_text = models.CharField(max_length=200)
-	pub_date = models.DateTimeField('date published')
-
-	class Meta:
-		app_label  = 'studentGraph'
-
 class Problem(models.Model):
 	graph = models.TextField()
 	nodePosition = models.TextField()
 	stateCorrectness = models.TextField()
 	stepCorrectness = models.TextField()
+	allStudentResolutions = models.TextField()
+	allCorrectStudentResolutions = models.TextField()
+	allIncorrectStudentResolutions = models.TextField()
 
 	class Meta:
 		app_label  = 'studentGraph'
 
-class Choice(models.Model):
-	choice_text = models.CharField(max_length=200)
-	votes = models.IntegerField(default=0)
-
-	class Meta:
-		app_label  = 'studentGraph'
+#class ProblemResolutions(models.Model):
+#	studentResolution = models.TextField()
+#	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
+#
+#
+#	class Meta:
+#		app_label  = 'studentGraphResolutions'
