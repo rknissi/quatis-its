@@ -1,14 +1,16 @@
 from array import array
 import json
 from re import I
+from django.db.models.fields import NOT_PROVIDED
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 from django.core.files.storage import default_storage
 import ast 
-from .studentGraph.models import Problem
+from .studentGraph.models import Problem, Node, Edge, Resolution
 from django.utils import timezone
+import uuid
 
 #Step information
 correctnessMinValue = -1
@@ -55,13 +57,12 @@ problemGraphStatesCorrectnessDefault = {'_start_': correctState[1], 'Option 1': 
 problemGraphStepsCorrectnessDefault = {str(('_start_', 'Option 1')): validStep[1], str(('Option 1', 'Option 2')): validStep[1], str(('Option 2', '_end_')): validStep[1]}
 allResolutionsDefault = []
 
-problemGraph = problemGraphDefault
-problemGraphNodePositions = problemGraphNodePositionsDefault
-problemGraphStatesCorrectness = problemGraphStatesCorrectnessDefault
-problemGraphStepsCorrectness = problemGraphStepsCorrectnessDefault
-allResolutions = allResolutionsDefault
-correctResolutions = allResolutionsDefault
-wrongResolutions = allResolutionsDefault
+problemGraphStates = []
+problemGraphSteps = []
+problemGraphResolutions = []
+
+#Ainda não salvando nada nessa variável
+allResolutionsNew = allResolutionsDefault
 
 def levenshteinDistance(A, B):
     if(len(A) == 0):
@@ -71,7 +72,6 @@ def levenshteinDistance(A, B):
     if (A[0] == B[0]):
         return levenshteinDistance(A[1:], B[1:])
     return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
-
 
 #Colinha:
 #Scope.user_state = Dado que varia de aluno para aluno
@@ -83,6 +83,11 @@ class MyXBlock(XBlock):
     alreadyAnswered = Boolean(
         default=False, scope=Scope.user_state,
         help="If the student already answered the exercise",
+    )
+
+    studentId = Boolean(
+        default=0, scope=Scope.user_state,
+        help="StudentId for the problem",
     )
 
     #ùltimo erro cometido pelo aluno
@@ -262,39 +267,45 @@ class MyXBlock(XBlock):
 
 
     def createGraphInitialPositions(self):
-        createPos = []
-        for node in problemGraph:
-            if node not in problemGraphNodePositions:
-                createPos.append(node)
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        createPos = Node.objects.filter(problem=loadedProblem, nodePositionX = -1, nodePositionY = -1)
         
         if createPos:
 
+            nodePosition = 0
             for node in createPos:
                 level = 0
                 x = 0
                 y = 0
 
-                sourceNodes = self.getSourceStatesFromDestinyState(node)
-                initialSourceNodes = sourceNodes
+                sourceNodesEdges = Edge.objects.filter(problem=loadedProblem, destNode = node)
+                initialSourceNodes = sourceNodesEdges
 
-                while sourceNodes:
+                while sourceNodesEdges.exists():
                     level = level + 1
-                    sourceNodes = self.getSourceStatesFromDestinyState(sourceNodes[0])
+                    sourceNodesEdges = Edge.objects.filter(problem=loadedProblem, destNode = sourceNodesEdges[0].sourceNode)
 
-                y = (graphHeightDefaultValue + createPos.index(node)) * level
-                if initialSourceNodes:
-                    x = problemGraphNodePositions[initialSourceNodes[0]].get("x")
+                y = (graphHeightDefaultValue + nodePosition) * level
+                if initialSourceNodes.exists():
+                    x = initialSourceNodes[0].sourceNode.nodePositionX
                 else:
                     x = graphWidthDefaultValue
 
                 positions = self.avoidSamePosFromAnotherNode(x, y)
                 
+                node.nodePositionX = positions.get("x")
+                node.nodePositionY = positions.get("y")
+                node.save()
 
-                problemGraphNodePositions[node] = {"x": positions.get("x"), "y": positions.get("y")}
+                nodePosition = nodePosition + 1
 
     def avoidSamePosFromAnotherNode(self, x, y):
-        for node in problemGraphNodePositions:
-            if (abs(problemGraphNodePositions[node].get("x") - x) <= graphNodeMinimumDistance and abs(problemGraphNodePositions[node].get("y") - y) <= graphNodeMinimumDistance):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allNodes = Node.objects.filter(problem=loadedProblem)
+
+        for node in allNodes:
+            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) <= graphNodeMinimumDistance):
                 x = x + graphWidthExtraValue
                 return self.avoidSamePosFromAnotherNode(x, y)
 
@@ -329,92 +340,100 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
-
-        self.loadGraphData()
-        self.clearGraphData()
+        #Não está 100%, como que iremos trartar os casos das resoluções já existentes?
 
         graphData = data.get('graphData')
 
-        for edge in graphData['edges']:
-            if edge["from"] not in problemGraph:
-                problemGraph[edge["from"]] = [edge["to"]]
-            else:
-                problemGraph[edge["from"]].append(edge["to"])
-            problemGraphStepsCorrectness[str(((edge["from"], edge["to"])))] = float(edge["correctness"])
+        loadedProblem = Problem.objects.get(id=self.problemId)
 
         for node in graphData['nodes']:
-            problemGraphNodePositions[node["id"]] = {"x": node["x"], "y": node["y"]}
-            problemGraphStatesCorrectness[node["id"]] = float(node["correctness"])
+            nodeModel = Node.objects.filter(problem=loadedProblem, title=node["id"])
+            if not nodeModel.exists():
+                n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"])
+                n1.save()
+            else:
+                nodeModel = Node.objects.get(problem=loadedProblem, title=node["id"])
+                nodeModel.correctness = float(node["correctness"])
+                nodeModel.nodePositionX = node["x"]
+                nodeModel.nodePositionY = node["y"]
+                nodeModel.save()
+            
             if "stroke" in node:
                 if node["stroke"] == finalNodeStroke:
-                    if node["id"] in problemGraph:
-                        problemGraph[node["id"]].append("_end_")
-                    else:
-                        problemGraph[node["id"]] = ["_end_"]
-                else:
-                    if "_start_" not in problemGraph:
-                        problemGraph["_start_"] = []
+                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=node["id"], destNode__title="_end_")
+                    if not edgeModel.exists():
+                        fromNode = Node.objects.get(problem=loadedProblem, title=node["id"])
+                        toNode = Node.objects.get(problem=loadedProblem, title="_end_")
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem)
+                        e1.save()
+                elif node["stroke"] == initialNodeStroke and node["id"] != "_start_":
+                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=node["id"])
+                    if not edgeModel.exists():
+                        fromNode = Node.objects.get(problem=loadedProblem, title="_start_")
+                        toNode = Node.objects.get(problem=loadedProblem, title=node["id"])
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem)
+                        e1.save()
+
+
+        for edge in graphData['edges']:
+            edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=edge["from"], destNode__title=edge["to"])
+            if not edgeModel.exists():
+                fromNode = Node.objects.get(problem=loadedProblem, title=edge["from"])
+                toNode = Node.objects.get(problem=loadedProblem, title=edge["to"])
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem)
+                e1.save()
             else:
-                if node["id"] not in problemGraph:
-                    problemGraph[node["id"]] = []
+                edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=edge["from"], destNode__title=edge["to"])
+                edgeModel.correctness = float(edge["correctness"])
+                edgeModel.save()
 
-        self.saveGraphData()
+        return {}
 
-        return {'problemGraph': problemGraph, 'problemGraphStatesCorrectness': problemGraphStatesCorrectness, 'problemGraphStepsCorrectness': problemGraphStepsCorrectness, 'problemGraphNodePositions': problemGraphNodePositions}
+    def createInitialEdgeData(self, nodeList, problemFK):
+        e1 = Edge(sourceNode=nodeList[0], destNode=nodeList[1], correctness=1, problem=problemFK)
+        e2 = Edge(sourceNode=nodeList[1], destNode=nodeList[2], correctness=1, problem=problemFK)
+        e3 = Edge(sourceNode=nodeList[2], destNode=nodeList[3], correctness=1, problem=problemFK)
+
+        e1.save()
+        e2.save()
+        e3.save()
+
+    def createInitialResolutionData(self, nodeList, problemFK):
+        idArray = []
+        for node in nodeList:
+            if node.title != "_start_" and node.title != "_end_":
+                idArray.append(node.id)
+
+        r1 = Resolution(nodeIdList=json.dumps(idArray), correctness=1, problem=problemFK)
+
+        r1.save()
+
+
+    def createInitialNodeData(self, problemFK):
+        n1 = Node(title="_start_", correctness=1, problem=problemFK)
+        n2 = Node(title="Option 1", correctness=1, problem=problemFK)
+        n3 = Node(title="Option 2", correctness=1, problem=problemFK)
+        n4 = Node(title="_end_", correctness=1, problem=problemFK)
+
+        n1.save()
+        n2.save()
+        n3.save()
+        n4.save()
+        
+        nodeList = [n1, n2, n3, n4]
+
+        self.createInitialEdgeData(nodeList, problemFK)
+        self.createInitialResolutionData(nodeList, problemFK)
+        
 
     def createInitialData(self):
         if self.problemId == -1:
-            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault), allStudentResolutions=json.dumps(allResolutions),allCorrectStudentResolutions=json.dumps(correctResolutions),allIncorrectStudentResolutions=json.dumps(wrongResolutions))
+            p = Problem(graph=json.dumps(problemGraphDefault))
             p.save()
             self.problemId = p.id
 
-    def loadGraphData(self):
+            self.createInitialNodeData(p)
 
-        global problemGraph
-        global problemGraphNodePositions
-        global problemGraphStatesCorrectness
-        global problemGraphStepsCorrectness
-        global allResolutions
-        global correctResolutions
-        global wrongResolutions
-
-        if self.problemId != -1:
-            loadedProblem = Problem.objects.get(id=self.problemId)
-            problemGraph = ast.literal_eval(loadedProblem.graph)
-            problemGraphNodePositions = ast.literal_eval(loadedProblem.nodePosition)
-            problemGraphStatesCorrectness = ast.literal_eval(loadedProblem.stateCorrectness)
-            problemGraphStepsCorrectness = ast.literal_eval(loadedProblem.stepCorrectness)
-            allResolutions = ast.literal_eval(loadedProblem.allStudentResolutions)
-            correctResolutions = ast.literal_eval(loadedProblem.allCorrectStudentResolutions)
-            wrongResolutions = ast.literal_eval(loadedProblem.allIncorrectStudentResolutions)
-
-    def saveGraphData(self):
-        if self.problemId == -1:
-            p = Problem(graph=json.dumps(problemGraphDefault), nodePosition=json.dumps(problemGraphNodePositionsDefault), stateCorrectness=json.dumps(problemGraphStatesCorrectnessDefault), stepCorrectness=json.dumps(problemGraphStepsCorrectnessDefault), allStudentResolutions=json.dumps(allResolutions), allCorrectStudentResolutions=json.dumps(correctResolutions), allIncorrectStudentResolutions=json.dumps(wrongResolutions))
-            p.save()
-            self.problemId = p.id
-
-        else:
-            loadedProblem = Problem.objects.get(id=self.problemId)
-            loadedProblem.graph = json.dumps(problemGraph)
-            loadedProblem.nodePosition = json.dumps(problemGraphNodePositions)
-            loadedProblem.stateCorrectness = json.dumps(problemGraphStatesCorrectness)
-            loadedProblem.stepCorrectness = json.dumps(problemGraphStepsCorrectness)
-            loadedProblem.allStudentResolutions = json.dumps(allResolutions)
-            loadedProblem.allCorrectStudentResolutions = json.dumps(correctResolutions)
-            loadedProblem.allIncorrectStudentResolutions = json.dumps(wrongResolutions)
-            loadedProblem.save()
-
-    def clearGraphData(self):
-        global problemGraph
-        global problemGraphStatesCorrectness
-        global problemGraphStepsCorrectness
-        global problemGraphNodePositions
-
-        problemGraph = {}
-        problemGraphStatesCorrectness = {}
-        problemGraphStepsCorrectness = {}
-        problemGraphNodePositions = {}
 
     @XBlock.json_handler
     def submit_data(self,data,suffix=''):
@@ -441,16 +460,19 @@ class MyXBlock(XBlock):
         wrongElement = None
         wrongStep = 0
 
-    
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        endNode = Node.objects.get(problem=loadedProblem, title="_end_")
         #Ver até onde está certo
         for step in answerArray:
-            if (step in self.problemCorrectStates.get(lastElement) and self.problemCorrectStates.get(step) != None):
+            lastNode = Node.objects.get(problem=loadedProblem, title=lastElement)
+            currentNode = Node.objects.filter(problem=loadedProblem, title=step)
+
+            if  currentNode.exists() and Edge.objects.filter(problem=loadedProblem, sourceNode = currentNode.first(), destNode=endNode).exists():
+                break
+
+            if currentNode.exists() and Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first()).exists() and currentNode.first().correctness >= correctState[0]:
                 lastElement = step
                 wrongStep = wrongStep + 1
-                if  ("_end_" in self.problemCorrectStates.get(step)):
-                    break
-                else:
-                    continue
             else:
                 wrongElement = step
                 break
@@ -459,7 +481,13 @@ class MyXBlock(XBlock):
         if (wrongElement == None):
             return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
 
-        return {"wrongElement": wrongElement, "availableCorrectSteps": self.problemCorrectStates.get(lastElement), "wrongElementLine": wrongStep, "lastCorrectElement": lastElement}
+        availableCorrectSteps = []
+        lastNode = Node.objects.get(problem=loadedProblem, title=lastElement)
+        nextElements = Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode)
+        for element in nextElements:
+            if element.destNode.correctness >= correctState[0]:
+                availableCorrectSteps.append(element.destNode.title)
+        return {"wrongElement": wrongElement, "availableCorrectSteps": availableCorrectSteps, "wrongElementLine": wrongStep, "lastCorrectElement": lastElement}
 
 
     def getJsonFromProblemGraph(self):
@@ -468,86 +496,90 @@ class MyXBlock(XBlock):
         addedNodes = []
         fixedPos = False
 
-        self.loadGraphData()
         self.createGraphInitialPositions()
 
-        for source in problemGraph:
-            for dest in problemGraph[source]:
-                if source == "_start_":
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allNodes = Node.objects.filter(problem=loadedProblem)
+
+        for source in allNodes:
+            edgeObjList = Edge.objects.filter(problem=loadedProblem, sourceNode = source)
+            for edgeObj in edgeObjList:
+                dest = edgeObj.destNode
+                if source.title == "_start_":
                     nodeColor = self.getNodeColor(source)
 
                     if source not in addedNodes:
-                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": problemGraphStatesCorrectness[source]}
-                        if source in problemGraphNodePositions:
-                            node["x"] = problemGraphNodePositions[source]["x"]
-                            node["y"] = problemGraphNodePositions[source]["y"]
+                        node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": source.correctness}
+                        if source.nodePositionX != -1 and source.nodePositionY != -1:
+                            node["x"] = source.nodePositionX
+                            node["y"] = source.nodePositionY
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(source)
 
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
-                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[dest]}
-                        if dest in problemGraphNodePositions:
-                            node["x"] = problemGraphNodePositions[dest]["x"]
-                            node["y"] = problemGraphNodePositions[dest]["y"]
+                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness}
+                        if dest.nodePositionX != -1 and dest.nodePositionY != -1:
+                            node["x"] = dest.nodePositionX
+                            node["y"] = dest.nodePositionY
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(dest)
                     else: 
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[dest]}
+                        nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness}
 
-                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
                     edgeList.append(edge)
 
                     
-                elif dest == "_end_":
+                elif dest.title == "_end_":
                     nodeColor = self.getNodeColor(source)
                     if source not in addedNodes:
-                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": problemGraphStatesCorrectness[source]}
-                        if source in problemGraphNodePositions:
-                            node["x"] = problemGraphNodePositions[source]["x"]
-                            node["y"] = problemGraphNodePositions[source]["y"]
+                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness}
+                        if source.nodePositionX != -1 and source.nodePositionY != -1:
+                            node["x"] = source.nodePositionX
+                            node["y"] = source.nodePositionY
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(source)
                     else:
                         pos = addedNodes.index(source)
-                        node = {"id": source, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": problemGraphStatesCorrectness[source]}
-                        if source in problemGraphNodePositions:
-                            node["x"] = problemGraphNodePositions[source]["x"]
-                            node["y"] = problemGraphNodePositions[source]["y"]
+                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness}
+                        if source.nodePositionX != -1 and source.nodePositionY != -1:
+                            node["x"] = source.nodePositionX
+                            node["y"] = source.nodePositionY
                             fixedPos = True
                         nodeList[pos] = node
                 else:
                     if source not in addedNodes:
                         nodeColor = self.getNodeColor(source)
-                        node = {"id": source, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[source]}
-                        if source in problemGraphNodePositions:
-                            node["x"] = problemGraphNodePositions[source]["x"]
-                            node["y"] = problemGraphNodePositions[source]["y"]
+                        node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness}
+                        if source.nodePositionX != -1 and source.nodePositionY != -1:
+                            node["x"] = source.nodePositionX
+                            node["y"] = source.nodePositionY
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(source)
                     if dest not in addedNodes:
                         nodeColor = self.getNodeColor(dest)
-                        node = {"id": dest, "height": defaultNodeHeight, "fill": nodeColor, "correctness": problemGraphStatesCorrectness[dest]}
-                        if dest in problemGraphNodePositions:
-                            node["x"] = problemGraphNodePositions[dest]["x"]
-                            node["y"] = problemGraphNodePositions[dest]["y"]
+                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness}
+                        if dest.nodePositionX != -1 and dest.nodePositionY != -1:
+                            node["x"] = dest.nodePositionX
+                            node["y"] = dest.nodePositionY
                             fixedPos = True
                         nodeList.append(node)
                         addedNodes.append(dest)
                     
-                    edge = {"from": source, "to": dest, "stroke": defaultArrowStroke + self.getEdgeColor(str((source, dest))), "correctness": problemGraphStepsCorrectness[str((source, dest))]}
+                    edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
                     edgeList.append(edge)
 
         return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}
                 
     def getEdgeColor(self, edge):
 
-        edgeValue = problemGraphStepsCorrectness[edge]
+        edgeValue = edge.correctness
         if edgeValue >= invalidStep[0] and edgeValue <= invalidStep[1]:
             return "#FC0D1B"
         if edgeValue >= stronglyInvalidStep[0] and edgeValue <= stronglyInvalidStep[1]:
@@ -565,7 +597,7 @@ class MyXBlock(XBlock):
 
     def getNodeColor(self, node):
 
-        nodeValue = problemGraphStatesCorrectness[node]
+        nodeValue = node.correctness
         if nodeValue >= incorrectState[0] and nodeValue <= incorrectState[1]:
             return "#EE8182"
         if nodeValue >= unknownState[0] and nodeValue <= unknownState[1]:
@@ -618,7 +650,16 @@ class MyXBlock(XBlock):
             #Então está tudo certo, pode dar um OK e seguir em frente
             #MO passo está correto, mas agora é momento de mostrar a dica para o próximo passo.
             if (wrongElement == None):
-                nextElement = self.problemCorrectStates.get(possibleIncorrectAnswer.get("lastCorrectElement"))[0]
+                loadedProblem = Problem.objects.get(id=self.problemId)
+                nextPossibleElementsEdges = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"))
+
+                nextElement = None
+                for edge in nextPossibleElementsEdges:
+                    element = edge.destNode.title
+                    loadedProblem = Problem.objects.get(id=self.problemId)
+                    nodeElement = Node.objects.get(problem=loadedProblem, title=element)
+                    if nodeElement.correctness >= correctState[0]:
+                        nextElement = element
                 #Verificar se é o último passo, se for, sempre dar a dica padrão?
                 if (nextElement == "_end_"):
                     hintText = self.problemDefaultHint
@@ -658,8 +699,6 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
 
-        self.loadGraphData()
-
         #Inicialização e coleta dos dados inicial
         answerArray = data['answer'].split('\n')
 
@@ -676,100 +715,84 @@ class MyXBlock(XBlock):
 
         currentStep = 0
 
-        lastElement = None
         wrongElement = None
 
         self.studentResolutionsStates = answerArray
         self.studentResolutionsSteps = list()
 
-        #Verifica se a resposta está correta
-        for step in answerArray:
-            #Substitui o que existe na resposta do aluno pelos estados equivalentes cadastrados
-            if (step in self.problemEquivalentStates):
-                step = self.problemEquivalentStates[step]
-            if (currentStep == 0):
-                if (step in self.problemCorrectStates['_start_']):
-                    if (self.problemCorrectStates.get(step) != None):
-                        lastElement = step
-                        currentStep = currentStep + 1
-                        continue
-                else:
-                    wrongElement = step
-                    break
-            else:
-                if (step in self.problemCorrectStates.get(lastElement) and self.problemCorrectStates.get(step) != None):
-                    if  ("_end_" in self.problemCorrectStates.get(step)):
-                        isStepsCorrect = True
-                        break
-                    else:
-                        lastElement = step
-                        currentStep = currentStep + 1
-                        continue
-                else:
-                    wrongElement = step
-                    break
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        endNode = Node.objects.get(problem=loadedProblem, title = "_end_")
 
         lastElement = '_start_'
-        isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
-
-        #Vai ser booleano ou vai ser float?
-        #self.studentResolutionsCorrectness[data['studentId']] = isAnswerCorrect
-
         #Aqui ficaria o updateCG, mas sem a parte do evaluation
         #Salva os passos, estados e também salva os passos feitos por cada aluno, de acordo com seu ID
         #COMENTADO OS PASSOS DE ATUALIZAÇÃO DE CORRETUDE, VAMOS FAZER DIREITO AGORA
         #LEMBRAR DE FAZER O IF DE ÚLTINO ELEMENTO PARA NÃO FICAR FEIO
         for step in answerArray:
-            if (lastElement not in problemGraph):
-                problemGraph[lastElement] = [step]
-            elif (lastElement in problemGraph and step not in problemGraph[lastElement]):
-                problemGraph[lastElement].append(step)
 
-            #Colocar os valores certos depois
-            if (isAnswerCorrect):
-                problemGraphStatesCorrectness[step] = defaultStateValue
-                problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
-            else:
-                if (step not in problemGraphStatesCorrectness):
-                    problemGraphStatesCorrectness[step] = defaultStateValue
-                if (str((lastElement, step)) not in problemGraphStepsCorrectness):
-                    problemGraphStepsCorrectness[str((lastElement, step))] = defaultStepValue
+            lastNode = Node.objects.filter(problem=loadedProblem, title=lastElement)
+            currentNode = Node.objects.filter(problem=loadedProblem, title=step)
 
-            ###
+            if not lastNode.exists():
+                n1 = Node(title=lastElement, problem=loadedProblem)
+                n1.save()
+
+            if lastNode.exists() and not currentNode.exists():
+                n2 = Node(title=step, problem=loadedProblem)
+                n2.save()
+
+                e1 = Edge(sourceNode = lastNode.first(), destNode = n2, problem=loadedProblem)
+                e1.save()
+
+
             self.studentResolutionsSteps.append(str((lastElement, step)))
             lastElement = step
 
         #Adicionar o caso do últio elemento com o _end_
         finalElement = '_end_'
-        if (lastElement not in problemGraph):
-            problemGraph[lastElement] = [finalElement]
-        elif (lastElement in problemGraph and finalElement not in problemGraph[lastElement]):
-            problemGraph[lastElement].append(finalElement)
 
-        #Colocar os valores certos depois
-        if (isAnswerCorrect):
-            problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
-        else:
-            if (str((lastElement, finalElement)) not in problemGraphStepsCorrectness):
-                problemGraphStepsCorrectness[str((lastElement, finalElement))] = defaultStepValue
-        ###
+        currentNode = Node.objects.get(problem=loadedProblem, title=lastElement)
+        edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
+
+        if not edgeList.exists():
+            e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem)
+            e1.save()
 
         self.studentResolutionsSteps.append(str((lastElement, finalElement)))
+
+
+        lastElement = '_start_'
+        #Verifica se a resposta está correta
+        for step in answerArray:
+            #Substitui o que existe na resposta do aluno pelos estados equivalentes cadastrados
+            if (step in self.problemEquivalentStates):
+                step = self.problemEquivalentStates[step]
+
+            lastNode = Node.objects.get(problem=loadedProblem, title=lastElement)
+            currentNode = Node.objects.get(problem=loadedProblem, title=step)
+            edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
+
+            if (edgeList.exists() and currentNode.correctness >= correctState[0]):
+                endNodes = Edge.objects.filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
+                if  (endNodes.exists()):
+                    isStepsCorrect = True
+                    break
+                else:
+                    lastElement = step
+                    currentStep = currentStep + 1
+                    continue
+            else:
+                wrongElement = step
+                break
+
+        isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
+
 
         #Fim da parte do updateCG
 
         #self.alreadyAnswered = True
 
-        allResolutions.append(answerArray)
-
-        if isAnswerCorrect:
-            correctResolutions.append(answerArray)
-        else:
-            wrongResolutions.append(answerArray)
-
         self.calculateValidityAndCorrectness(answerArray)
-
-        self.saveGraphData()
 
         if isAnswerCorrect:
             return {"answer": "Correto!"}
@@ -777,15 +800,21 @@ class MyXBlock(XBlock):
             return {"answer": "Incorreto!"}
 
     def getExplanationOrHintStepsFromProblemGraph(self):
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allNodes = Node.objects.filter(problem=loadedProblem)
+
         steps = {}
-        for i in problemGraph:
-            for j in problemGraph[i]:
-                if problemGraphStepsCorrectness[str((i, j))] >= stronglyValidStep[0]:
-                    if problemGraphStatesCorrectness[i] >= correctState[0] and problemGraphStatesCorrectness[j] >= correctState[0]:
-                        if i in steps:
-                            steps[i].append(j)
+        for sourceNode in allNodes:
+            nodeEdges = Edge.objects.filter(problem=loadedProblem, sourceNode=sourceNode)
+            for destNode in nodeEdges:
+                step = Edge.objects.get(problem=loadedProblem, sourceNode=sourceNode, destNode=destNode)
+                if step.correctness >= stronglyValidStep[0]:
+                    if sourceNode.correctness >= correctState[0] and endNode.correctness >= correctState[0]:
+                        if sourceNode.title in steps:
+                            steps[sourceNode.title].append(destNode.title)
                         else:
-                            steps[i] = [j]
+                            steps[sourceNode.title] = [destNode.title]
         return steps    
 
     def getHintStepFromStudentResolution(self, studentStates):
@@ -942,7 +971,7 @@ class MyXBlock(XBlock):
 
                 #Pega os estados iniciais no qual tem esse estado final
                 if nextStudentState != '_end_' and nextStudentState in problemGraph:
-                    for beforeState in getSourceStatesFromDestinyState(nextStudentState):
+                    for beforeState in self.getSourceStatesFromDestinyState(nextStudentState):
                         if beforeState != '_start_':
                             self.insertStepIfCorrectnessIsValid(str((beforeState, nextStudentState)), statesAndStepsNeededInfo, amount)
             else:
@@ -997,12 +1026,12 @@ class MyXBlock(XBlock):
             previousStudentState = studentState
         return statesAndStepsNeededInfo
 
-    def getSourceStatesFromDestinyState(self, destinyState):
-        sourceStates = []
-        for step in problemGraph:
-            if destinyState in problemGraph[step]:
-                sourceStates.append(step)
-        return sourceStates
+    #def getSourceStatesFromDestinyState(self, destinyState):
+    #    sourceStates = []
+    #    for step in problemGraph:
+    #        if destinyState in problemGraph[step]:
+    #            sourceStates.append(step)
+    #    return sourceStates
 
 
     def insertStepIfCorrectnessIsValid(self, step, statesAndStepsNeededInfo, amount):
@@ -1032,45 +1061,26 @@ class MyXBlock(XBlock):
                 statesAndStepsNeededInfo.pop(highestElement)
 
 
-        
-
-    #def possuiEstadoGrafo(state, self):
-    #    for resolution in self.studentResolutionsStates:
-    #        if state in resolution:
-    #            return True
-    #    return False
-    
-    def getStepsWhereStartsWith(self, state):
-        stepList = []
-        for step in self.problemGraphStatesSteps:
-            if eval(step)[0] == state:
-                stepList.append(eval(step))
-        return stepList
-
-    def getStepsWhereEndsWith(self, state):
-        stepList = []
-        for step in self.problemGraphStatesSteps:
-            if eval(step)[1] == state:
-                stepList.append(eval(step))
-        return stepList
-
     def corretudeResolucao(self, resolution):
+        loadedProblem = Problem.objects.get(id=self.problemId)
         stateNumber = len(resolution)
         stepNumber = stateNumber - 1
     
         stateValue = 0
         stepValue = 0
-        previousState = None
+        previousNode = None
         for state in resolution:
-            stateValue = stateValue + self.corretudeEstado(state)
-            if previousState != None:
-                stepValue = stepValue + self.validadePasso(previousState, state)
-            previousState = state
+            node = Node.objects.get(problem=loadedProblem, title = state)
+            stateValue = stateValue + node.correctness
+            if previousNode != None:
+                edge = Edge.objects.get(problem=loadedProblem, sourceNode=previousNode, destNode=node)
+                stepValue = stepValue + edge.correctness
+            previousNode = node
     
-        return (1/2*stateNumber) * (stateValue) + (1/2*stepNumber) * (stepValue)
+        return (1/(2*stateNumber)) * (stateValue) + (1/(2*stepNumber)) * (stepValue)
     
     def possuiEstado(self, state, resolution):
-        return int(state in resolution)
+        return int(state.id in ast.literal_eval(resolution.nodeIdList))
     
     def possuiEstadoConjunto(self, state, resolutions):
         value = 0
@@ -1079,36 +1089,61 @@ class MyXBlock(XBlock):
         return value
     
     def corretudeEstado(self, state):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt = defaultResolutionValue)
+        wrongResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte = defaultResolutionValue)
+
         correctValue = self.possuiEstadoConjunto(state, correctResolutions)
         incorrectValue = self.possuiEstadoConjunto(state, wrongResolutions)
     
-        return (correctValue-incorrectValue)/(correctValue + incorrectValue)
+        if correctValue + incorrectValue != 0:
+            return (correctValue-incorrectValue)/(correctValue + incorrectValue)
+        return 0
     
     def possuiPassoConjunto(self, initialState, finalState, resolutions):
         value = 0
         for resolution in resolutions:
             previousState = None
-            for state in resolution:
-                if state == finalState and previousState == initialState:
+            for state in ast.literal_eval(resolution.nodeIdList):
+                if state == finalState.id and previousState == initialState.id:
                     value = value + 1
                 previousState = state
         return value
     
     def validadePasso(self, initialState, finalState):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt = defaultResolutionValue)
+        wrongResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte = defaultResolutionValue)
+
         correctValue = self.possuiPassoConjunto(initialState, finalState, correctResolutions)
         incorrectValue = self.possuiPassoConjunto(initialState, finalState, wrongResolutions)
     
-        return (correctValue-incorrectValue)/(correctValue + incorrectValue)
+        if correctValue + incorrectValue != 0:
+            return (correctValue-incorrectValue)/(correctValue + incorrectValue)
+        return 0
 
     def calculateValidityAndCorrectness(self, resolution):
-        previousState = None
-        for state in resolution:
-            problemGraphStatesCorrectness[state] = self.corretudeEstado(state)
-            if previousState != None:
-                problemGraphStepsCorrectness[str((previousState, state))] = self.validadePasso(previousState, state)
-            previousState = state
 
-        self.corretudeResolucao(resolution)
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        previousNode = None
+        for state in resolution:
+            selectedNode = Node.objects.get(problem=loadedProblem, title=state)
+            selectedNode.correctness = self.corretudeEstado(selectedNode)
+            if previousNode != None:
+                selectedEdge = Edge.objects.get(problem=loadedProblem, sourceNode=previousNode, destNode=selectedNode)
+                selectedEdge.correctness = self.validadePasso(previousNode, selectedNode)
+                selectedEdge.save()
+            selectedNode.save()
+            previousNode = selectedNode
+
+        idArray = []
+        for node in resolution:
+            currentNode = Node.objects.get(problem=loadedProblem, title=node)
+            idArray.append(currentNode.id)
+
+        r1 = Resolution(nodeIdList = idArray, problem=loadedProblem, correctness=self.corretudeResolucao(resolution))
+        r1.save()
+
 
 
     @XBlock.json_handler
