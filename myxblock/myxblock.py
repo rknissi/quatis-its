@@ -736,12 +736,19 @@ class MyXBlock(XBlock):
             if not lastNode.exists():
                 n1 = Node(title=lastElement, problem=loadedProblem)
                 n1.save()
+            else:
+                n1 = lastNode.first()
 
             if lastNode.exists() and not currentNode.exists():
                 n2 = Node(title=step, problem=loadedProblem)
                 n2.save()
+            else:
+                n2 = currentNode.first()
 
-                e1 = Edge(sourceNode = lastNode.first(), destNode = n2, problem=loadedProblem)
+            
+            currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
+            if not currentEdge.exists():
+                e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem)
                 e1.save()
 
 
@@ -792,7 +799,7 @@ class MyXBlock(XBlock):
 
         #self.alreadyAnswered = True
 
-        self.calculateValidityAndCorrectness(answerArray)
+        #self.calculateValidityAndCorrectness(answerArray)
 
         if isAnswerCorrect:
             return {"answer": "Correto!"}
