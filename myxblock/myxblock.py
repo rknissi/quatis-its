@@ -340,7 +340,6 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
-        #Não está 100%, como que iremos trartar os casos das resoluções já existentes?
 
         graphData = data.get('graphData')
 
@@ -352,8 +351,10 @@ class MyXBlock(XBlock):
                 n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"])
                 n1.save()
             else:
-                nodeModel = Node.objects.get(problem=loadedProblem, title=node["id"])
+                nodeModel = nodeModel.first()
                 nodeModel.correctness = float(node["correctness"])
+                nodeModel.weigth = float(node["weigth"])
+                nodeModel.visible = float(node["visible"])
                 nodeModel.nodePositionX = node["x"]
                 nodeModel.nodePositionY = node["y"]
                 nodeModel.save()
@@ -509,71 +510,80 @@ class MyXBlock(XBlock):
                     nodeColor = self.getNodeColor(source)
 
                     if source not in addedNodes:
-                        node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": source.correctness}
-                        if source.nodePositionX != -1 and source.nodePositionY != -1:
-                            node["x"] = source.nodePositionX
-                            node["y"] = source.nodePositionY
-                            fixedPos = True
-                        nodeList.append(node)
-                        addedNodes.append(source)
+                        if source.visible == 1:
+                            node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                            if source.nodePositionX != -1 and source.nodePositionY != -1:
+                                node["x"] = source.nodePositionX
+                                node["y"] = source.nodePositionY
+                                fixedPos = True
+                            nodeList.append(node)
+                            addedNodes.append(source)
 
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
-                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness}
-                        if dest.nodePositionX != -1 and dest.nodePositionY != -1:
-                            node["x"] = dest.nodePositionX
-                            node["y"] = dest.nodePositionY
-                            fixedPos = True
-                        nodeList.append(node)
-                        addedNodes.append(dest)
+                        if dest.visible == 1:
+                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                            if dest.nodePositionX != -1 and dest.nodePositionY != -1:
+                                node["x"] = dest.nodePositionX
+                                node["y"] = dest.nodePositionY
+                                fixedPos = True
+                            nodeList.append(node)
+                            addedNodes.append(dest)
                     else: 
-                        pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness}
+                        if dest.visible == 1:
+                            pos = addedNodes.index(dest)
+                            nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
 
-                    edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
-                    edgeList.append(edge)
+                    if source.visible == 1 and dest.visible == 1:
+                        edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
+                        edgeList.append(edge)
 
                     
                 elif dest.title == "_end_":
                     nodeColor = self.getNodeColor(source)
                     if source not in addedNodes:
-                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness}
-                        if source.nodePositionX != -1 and source.nodePositionY != -1:
-                            node["x"] = source.nodePositionX
-                            node["y"] = source.nodePositionY
-                            fixedPos = True
-                        nodeList.append(node)
-                        addedNodes.append(source)
+                        if source.visible == 1:
+                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                            if source.nodePositionX != -1 and source.nodePositionY != -1:
+                                node["x"] = source.nodePositionX
+                                node["y"] = source.nodePositionY
+                                fixedPos = True
+                            nodeList.append(node)
+                            addedNodes.append(source)
                     else:
-                        pos = addedNodes.index(source)
-                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness}
-                        if source.nodePositionX != -1 and source.nodePositionY != -1:
-                            node["x"] = source.nodePositionX
-                            node["y"] = source.nodePositionY
-                            fixedPos = True
-                        nodeList[pos] = node
+                        if source.visible == 1:
+                            pos = addedNodes.index(source)
+                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                            if source.nodePositionX != -1 and source.nodePositionY != -1:
+                                node["x"] = source.nodePositionX
+                                node["y"] = source.nodePositionY
+                                fixedPos = True
+                            nodeList[pos] = node
                 else:
                     if source not in addedNodes:
-                        nodeColor = self.getNodeColor(source)
-                        node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness}
-                        if source.nodePositionX != -1 and source.nodePositionY != -1:
-                            node["x"] = source.nodePositionX
-                            node["y"] = source.nodePositionY
-                            fixedPos = True
-                        nodeList.append(node)
-                        addedNodes.append(source)
+                        if  source.visible == 1:
+                            nodeColor = self.getNodeColor(source)
+                            node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                            if source.nodePositionX != -1 and source.nodePositionY != -1:
+                                node["x"] = source.nodePositionX
+                                node["y"] = source.nodePositionY
+                                fixedPos = True
+                            nodeList.append(node)
+                            addedNodes.append(source)
                     if dest not in addedNodes:
-                        nodeColor = self.getNodeColor(dest)
-                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness}
-                        if dest.nodePositionX != -1 and dest.nodePositionY != -1:
-                            node["x"] = dest.nodePositionX
-                            node["y"] = dest.nodePositionY
-                            fixedPos = True
-                        nodeList.append(node)
-                        addedNodes.append(dest)
+                        if dest.visible == 1:
+                            nodeColor = self.getNodeColor(dest)
+                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                            if dest.nodePositionX != -1 and dest.nodePositionY != -1:
+                                node["x"] = dest.nodePositionX
+                                node["y"] = dest.nodePositionY
+                                fixedPos = True
+                            nodeList.append(node)
+                            addedNodes.append(dest)
                     
-                    edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
-                    edgeList.append(edge)
+                    if source.visible == 1 and dest.visible == 1:
+                        edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
+                        edgeList.append(edge)
 
         return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}
                 
@@ -1032,14 +1042,6 @@ class MyXBlock(XBlock):
 
             previousStudentState = studentState
         return statesAndStepsNeededInfo
-
-    #def getSourceStatesFromDestinyState(self, destinyState):
-    #    sourceStates = []
-    #    for step in problemGraph:
-    #        if destinyState in problemGraph[step]:
-    #            sourceStates.append(step)
-    #    return sourceStates
-
 
     def insertStepIfCorrectnessIsValid(self, step, statesAndStepsNeededInfo, amount):
         if step in statesAndStepsNeededInfo:

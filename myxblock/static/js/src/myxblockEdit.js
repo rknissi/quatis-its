@@ -51,6 +51,14 @@ function MyXBlockEdit(runtime, element) {
 
     saveGraph();
 
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (data.nodes[i].visible == 0) {
+        nodeName = data.nodes[i].id
+        data.nodes.splice(i, 1);
+        removeEdgeWithNode(nodeName)
+      }
+    }
+
     chart = anychart.graph(data);
     var nodes = chart.nodes();
 
@@ -99,6 +107,7 @@ function MyXBlockEdit(runtime, element) {
             if (data.nodes[i].id === tag.id) {
               document.getElementById("editState").value = tag.id;
               document.getElementById("editStateValue").value = data.nodes[i].correctness;
+              document.getElementById("editStateWeigth").value = data.nodes[i].weigth;
               if (data.nodes[i].stroke) {
                 if (data.nodes[i].stroke === finalNodeStroke) {
                   document.getElementById('changeStateType').value = 'finalState';
@@ -153,8 +162,9 @@ function MyXBlockEdit(runtime, element) {
   function removeNode(nodeName){
     for (i = 0; i < data.nodes.length; ++i) {
       if (nodeName === data.nodes[i].id) {
-        data.nodes.splice(i, 1);
-        removeEdgeWithNode(nodeName)
+        data.nodes[i].visible = 0;
+        //data.nodes.splice(i, 1);
+        //removeEdgeWithNode(nodeName)
         break;
       }
     }
@@ -235,12 +245,13 @@ function MyXBlockEdit(runtime, element) {
     reApplyConfig();
   }
   
-  function changeNodeCorrectness(nodeName, value){
+  function changeNodeCorrectness(nodeName, value, weigth){
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
           data.nodes.splice(i, 1);
           nodeData.correctness = value;
+          nodeData.weigth = weigth;
           nodeData.fill = getNodeColor(value);
           addNode(nodeData);
           break;
@@ -279,7 +290,6 @@ function MyXBlockEdit(runtime, element) {
           data.edges.splice(i, 1);
         }
     }
-    reApplyConfig();
   }
 
   function addNode(node){
@@ -368,6 +378,8 @@ function MyXBlockEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
+        weigth: el.find('input[id=stateWeigth]').val(),
+        visible: 1,
         x: 0,
         y: 0,
         type: dropDownValue
@@ -378,6 +390,8 @@ function MyXBlockEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
+        weigth: el.find('input[id=stateWeigth]').val(),
+        visible: 1,
         stroke: strokeType,
         shape: shapeType,
         x: 0,
@@ -402,23 +416,16 @@ function MyXBlockEdit(runtime, element) {
     removeEdge(from, to)
   });
 
-
-  //$('#changeStateValue', element).click(function(eventObject) {
-  //  var el = $(element);
-  //  var id = el.find('input[id=editState]').val()
-  //  var value = el.find('input[id=editStateValue]').val()
-  //  changeNodeValue(id, value)
-  //});
-
   $('#changeStateToNormal', element).click(function(eventObject) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
     var value = el.find('input[id=editStateValue]').val()
+    var weigth = el.find('input[id=editStateWeigth]').val()
 
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
 
-    changeNodeCorrectness(id, value)
+    changeNodeCorrectness(id, value, weigth)
     if (dropDownValue === 'normalState') {
       changeNodeToNormal(id)
     } else if (dropDownValue === 'initialState') {
@@ -426,7 +433,6 @@ function MyXBlockEdit(runtime, element) {
     } else if (dropDownValue === 'finalState') {
       changeNodeToFinal(id);
     }
-
 
   });
 
@@ -568,6 +574,7 @@ function MyXBlockEdit(runtime, element) {
                 if (data.nodes[i].id === tag.id) {
                   document.getElementById("editState").value = tag.id;
                   document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                  document.getElementById("editStateWeigth").value = data.nodes[i].weigth;
                   if (data.nodes[i].stroke) {
                     if (data.nodes[i].stroke === "1 black") {
                       document.getElementById('changeStateType').value = 'finalState';
