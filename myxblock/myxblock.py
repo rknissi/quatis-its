@@ -50,6 +50,7 @@ finalNodeStroke = "1 black"
 graphHeightDefaultValue = 60
 graphWidthDefaultValue = 0
 graphWidthExtraValue = 100
+graphWidthExtraValueY = 67
 graphNodeMinimumDistance = 100
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
@@ -309,6 +310,11 @@ class MyXBlock(XBlock):
         usedEdges = []
 
         loadedProblem = Problem.objects.get(id=self.problemId)
+
+        needToCalculate = Edge.objects.filter(problem=loadedProblem, destNode__alreadyCalculatedPos = 1, sourceNode__alreadyCalculatedPos = 1).exists() 
+        if not needToCalculate:
+            return
+
         endEdges = Edge.objects.filter(problem=loadedProblem, destNode__title = '_end_')
         for edge in endEdges:
             endNodes.append(edge.sourceNode)
@@ -319,7 +325,7 @@ class MyXBlock(XBlock):
                 node.nodePositionX = pos['x']
                 node.nodePositionY = pos['y']
                 node.save()
-        currentY = currentY - 67
+        currentY = currentY - graphWidthExtraValueY
 
         nextEdges = []
         for node in endNodes:
@@ -365,7 +371,7 @@ class MyXBlock(XBlock):
                         edgeToCalc.sourceNode.alreadyCalculatedPos = 1
                         edgeToCalc.sourceNode.save()
 
-                self.createNewGraphInitialPositions2(nextEdgesToCalc, copyUsedEdges, currentY - 67, loadedProblem)
+                self.createNewGraphInitialPositions2(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
 
     def avoidEdgesAboveOthers(self, node, loadedProblem):
         pos = {"x": node.nodePositionX, "y": node.nodePositionY}
@@ -389,7 +395,7 @@ class MyXBlock(XBlock):
         allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
 
         for node in allNodes:
-            if (abs(node.nodePositionX - x) < graphNodeMinimumDistance and abs(node.nodePositionY - y) < 67):
+            if (abs(node.nodePositionX - x) < graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
                 rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
                 leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
                 if abs(x - rightX) >= abs(x - leftX):
@@ -402,7 +408,7 @@ class MyXBlock(XBlock):
         allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
 
         for node in allNodes:
-            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < 67):
+            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
                 leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
                 return leftX
 
@@ -412,7 +418,7 @@ class MyXBlock(XBlock):
         allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
 
         for node in allNodes:
-            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < 67):
+            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
                 rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
                 return rightX
 
