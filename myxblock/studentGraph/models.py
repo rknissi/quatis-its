@@ -17,6 +17,8 @@ class Node(models.Model):
 	correctness = models.FloatField(default=0)
 	weigth = models.IntegerField(default=1)
 	visible = models.IntegerField(default=1)
+	alreadyCalculatedPos = models.IntegerField(default=0)
+	customPos = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'

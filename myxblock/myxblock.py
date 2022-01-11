@@ -11,6 +11,7 @@ import ast
 from .studentGraph.models import Problem, Node, Edge, Resolution
 from django.utils import timezone
 import uuid
+import copy
 
 #Step information
 correctnessMinValue = -1
@@ -48,8 +49,8 @@ initialNodeStroke = {"color": "black", "dash": "5 5"}
 finalNodeStroke = "1 black"
 graphHeightDefaultValue = 60
 graphWidthDefaultValue = 0
-graphWidthExtraValue = 30
-graphNodeMinimumDistance = 30
+graphWidthExtraValue = 100
+graphNodeMinimumDistance = 100
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
@@ -292,7 +293,7 @@ class MyXBlock(XBlock):
                 else:
                     x = graphWidthDefaultValue
 
-                positions = self.avoidSamePosFromAnotherNode(x, y)
+                positions = self.avoidSamePosFromAnotherNode(x, y, loadedProblem)
                 
                 node.nodePositionX = positions.get("x")
                 node.nodePositionY = positions.get("y")
@@ -300,16 +301,122 @@ class MyXBlock(XBlock):
 
                 nodePosition = nodePosition + 1
 
-    def avoidSamePosFromAnotherNode(self, x, y):
+    def createNewGraphInitialPositions(self):
+
+        currentX = 0
+        currentY = 500
+        endNodes = []
+        usedEdges = []
+
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allNodes = Node.objects.filter(problem=loadedProblem)
+        endEdges = Edge.objects.filter(problem=loadedProblem, destNode__title = '_end_')
+        for edge in endEdges:
+            endNodes.append(edge.sourceNode)
+
+        for node in endNodes:
+            if node.nodePositionX == -1 and node.nodePositionY == -1:
+                pos = self.avoidSamePosFromAnotherNode(currentX, currentY, loadedProblem)
+                node.nodePositionX = pos['x']
+                node.nodePositionY = pos['y']
+                node.save()
+        currentY = currentY - 67
+
+        nextEdges = []
+        for node in endNodes:
+            nextEdges.extend(Edge.objects.filter(problem=loadedProblem, destNode = node).exclude(sourceNode = node))
+
+        self.createNewGraphInitialPositions2(nextEdges, usedEdges, currentY, loadedProblem)
+    
+    def createNewGraphInitialPositions2(self, nextEdges, usedEdges, currentY, loadedProblem):
+        for edge in nextEdges:
+            changed = False
+            node = edge.sourceNode
+            if edge.sourceNode.title + edge.destNode.title not in usedEdges:
+                copyUsedEdges = copy.deepcopy(usedEdges)
+                if node.nodePositionX == -1 and node.nodePositionY == -1:
+                    pos = self.avoidSamePosFromAnotherNode(edge.destNode.nodePositionX, currentY, loadedProblem)
+                    node.nodePositionX = pos['x']
+                    node.nodePositionY = pos['y']
+                    node.alreadyCalculatedPos = 1
+                    node.save()
+                    changed = True
+                    if edge.sourceNode.title + edge.destNode.title not in copyUsedEdges:
+                        copyUsedEdges.append(edge.sourceNode.title + edge.destNode.title)
+                else:
+                    if node.nodePositionY > currentY:
+                        node.nodePositionY = currentY
+
+                    if node.alreadyCalculatedPos == 0:
+                        pos = self.avoidEdgesAboveOthers(node, loadedProblem)
+                        node.nodePositionX = pos['x']
+                        node.nodePositionY = pos['y']
+                        node.alreadyCalculatedPos = 1
+                        changed = True
+
+                    node.save()
+
+                    if edge.sourceNode.title + edge.destNode.title not in copyUsedEdges:
+                        copyUsedEdges.append(edge.sourceNode.title + edge.destNode.title)
+
+                nextEdgesToCalc = Edge.objects.filter(problem=loadedProblem, destNode = node, sourceNode__visible = 1, sourceNode__customPos = 0)
+
+                if (changed):
+                    for edgeToCalc in nextEdgesToCalc:
+                        edgeToCalc.sourceNode.alreadyCalculatedPos = 1
+                        edgeToCalc.sourceNode.save()
+
+                self.createNewGraphInitialPositions2(nextEdgesToCalc, copyUsedEdges, currentY - 67, loadedProblem)
+
+    def avoidEdgesAboveOthers(self, node, loadedProblem):
+        pos = {"x": node.nodePositionX, "y": node.nodePositionY}
+        needsTest = True
+
+        while needsTest:
+            nodeDests = Edge.objects.filter(problem=loadedProblem, sourceNode__title = node.title, destNode__nodePositionX = pos["x"], destNode__visible = 1)
+            nodeCross =  Edge.objects.filter(problem=loadedProblem, sourceNode__nodePositionX = pos["x"], destNode__nodePositionX = pos["x"], sourceNode__nodePositionY__lt = pos["y"], destNode__nodePositionY__gt = pos["y"], destNode__visible = 1, sourceNode__visible = 1).exclude(sourceNode = node, destNode = node)
+            nodeSame =  Node.objects.filter(problem=loadedProblem, nodePositionX = pos["x"], nodePositionY = pos["y"], visible = 1).exclude(title=node.title)
+
+            needsTest = False
+            if  nodeDests.count() > 1 or nodeCross.count() > 0 or nodeSame.count() > 0:
+                pos = self.avoidSamePosFromAnotherNode(pos["x"] + graphWidthExtraValue, pos["y"], loadedProblem)
+                needsTest = True
+                break
+
+        return pos
+
+
+    def avoidSamePosFromAnotherNode(self, x, y, loadedProblem):
+        allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
 
         for node in allNodes:
-            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) <= graphNodeMinimumDistance):
-                x = x + graphWidthExtraValue
-                return self.avoidSamePosFromAnotherNode(x, y)
+            if (abs(node.nodePositionX - x) < graphNodeMinimumDistance and abs(node.nodePositionY - y) < 67):
+                rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
+                leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
+                if abs(x - rightX) >= abs(x - leftX):
+                    return {"x": leftX, "y": y}
+                return {"x": rightX, "y": y}
 
         return {"x": x, "y": y}
+
+    def avoidSamePosFromAnotherNodeLeft(self, x, y, loadedProblem):
+        allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
+
+        for node in allNodes:
+            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < 67):
+                leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
+                return leftX
+
+        return x
+
+    def avoidSamePosFromAnotherNodeRight(self, x, y, loadedProblem):
+        allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
+
+        for node in allNodes:
+            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < 67):
+                rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
+                return rightX
+
+        return  x
 
 
     @XBlock.json_handler
@@ -367,7 +474,7 @@ class MyXBlock(XBlock):
                         toNode = Node.objects.get(problem=loadedProblem, title="_end_")
                         e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem)
                         e1.save()
-                elif node["stroke"] == initialNodeStroke and node["id"] != "_start_":
+                elif node["stroke"] == initialNodeStroke:
                     edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=node["id"])
                     if not edgeModel.exists():
                         fromNode = Node.objects.get(problem=loadedProblem, title="_start_")
@@ -497,7 +604,8 @@ class MyXBlock(XBlock):
         addedNodes = []
         fixedPos = False
 
-        self.createGraphInitialPositions()
+        #self.createGraphInitialPositions()
+        self.createNewGraphInitialPositions()
 
         loadedProblem = Problem.objects.get(id=self.problemId)
         allNodes = Node.objects.filter(problem=loadedProblem)
@@ -507,22 +615,10 @@ class MyXBlock(XBlock):
             for edgeObj in edgeObjList:
                 dest = edgeObj.destNode
                 if source.title == "_start_":
-                    nodeColor = self.getNodeColor(source)
-
-                    if source not in addedNodes:
-                        if source.visible == 1:
-                            node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
-                            if source.nodePositionX != -1 and source.nodePositionY != -1:
-                                node["x"] = source.nodePositionX
-                                node["y"] = source.nodePositionY
-                                fixedPos = True
-                            nodeList.append(node)
-                            addedNodes.append(source)
-
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
                         if dest.visible == 1:
-                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
                             if dest.nodePositionX != -1 and dest.nodePositionY != -1:
                                 node["x"] = dest.nodePositionX
                                 node["y"] = dest.nodePositionY
@@ -532,12 +628,7 @@ class MyXBlock(XBlock):
                     else: 
                         if dest.visible == 1:
                             pos = addedNodes.index(dest)
-                            nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
-
-                    if source.visible == 1 and dest.visible == 1:
-                        edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
-                        edgeList.append(edge)
-
+                            nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
                     
                 elif dest.title == "_end_":
                     nodeColor = self.getNodeColor(source)
@@ -809,7 +900,7 @@ class MyXBlock(XBlock):
 
         #self.alreadyAnswered = True
 
-        #self.calculateValidityAndCorrectness(answerArray)
+        self.calculateValidityAndCorrectness(answerArray)
 
         if isAnswerCorrect:
             return {"answer": "Correto!"}
@@ -957,10 +1048,7 @@ class MyXBlock(XBlock):
                                 for step in stepsToBeAdded:
                                     self.chosenExplanationSteps[step] = stepsToBeAdded[step]
 
-                        
         return usefulRelatedSteps    
-
-
 
 
     def getWhichStatesAndStepsToGetMinimumFeedback(self, studentStates, amount) :
@@ -1134,23 +1222,24 @@ class MyXBlock(XBlock):
     def calculateValidityAndCorrectness(self, resolution):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        previousNode = None
-        for state in resolution:
-            selectedNode = Node.objects.get(problem=loadedProblem, title=state)
-            selectedNode.correctness = self.corretudeEstado(selectedNode)
-            if previousNode != None:
-                selectedEdge = Edge.objects.get(problem=loadedProblem, sourceNode=previousNode, destNode=selectedNode)
-                selectedEdge.correctness = self.validadePasso(previousNode, selectedNode)
-                selectedEdge.save()
-            selectedNode.save()
-            previousNode = selectedNode
+        #previousNode = None
+        #for state in resolution:
+        #    selectedNode = Node.objects.get(problem=loadedProblem, title=state)
+        #    selectedNode.correctness = self.corretudeEstado(selectedNode)
+        #    if previousNode != None:
+        #        selectedEdge = Edge.objects.get(problem=loadedProblem, sourceNode=previousNode, destNode=selectedNode)
+        #        selectedEdge.correctness = self.validadePasso(previousNode, selectedNode)
+        #        selectedEdge.save()
+        #    selectedNode.save()
+        #    previousNode = selectedNode
 
         idArray = []
         for node in resolution:
             currentNode = Node.objects.get(problem=loadedProblem, title=node)
             idArray.append(currentNode.id)
 
-        r1 = Resolution(nodeIdList = idArray, problem=loadedProblem, correctness=self.corretudeResolucao(resolution))
+        #r1 = Resolution(nodeIdList = idArray, problem=loadedProblem, correctness=self.corretudeResolucao(resolution))
+        r1 = Resolution(nodeIdList = idArray, problem=loadedProblem, correctness=0)
         r1.save()
 
 

@@ -23,7 +23,7 @@ function MyXBlockEdit(runtime, element) {
 
 
   var defaultArrowStroke = "3 ";
-  var defaultArrowSize = 3;
+  var defaultArrowSize = 5;
   var defaultFontSize = 10;
   var defaultNodeHeight = 20;
 
@@ -76,6 +76,13 @@ function MyXBlockEdit(runtime, element) {
 
     // enable the labels of nodes
     chart.nodes().labels().enabled(true);
+
+    chart.labels().anchor("center");
+    chart.labels().position("center");
+
+    var zoomController = anychart.ui.zoom();
+    zoomController.target(chart);
+    zoomController.render();
 
     // configure the labels of nodes
     chart.nodes().labels().format("{%id}");
@@ -525,6 +532,13 @@ function MyXBlockEdit(runtime, element) {
 
         // set the title
         chart.title("Grafo das escolhas dos estudantes");
+
+        chart.labels().anchor("center");
+        chart.labels().position("center");
+
+        var zoomController = anychart.ui.zoom();
+        zoomController.target(chart);
+        zoomController.render();
 
         // access nodes
         var nodes = chart.nodes();
