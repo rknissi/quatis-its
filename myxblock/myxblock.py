@@ -12,6 +12,7 @@ from .studentGraph.models import Problem, Node, Edge, Resolution
 from django.utils import timezone
 import uuid
 import copy
+import asyncio
 
 #Step information
 correctnessMinValue = -1
@@ -302,7 +303,7 @@ class MyXBlock(XBlock):
 
                 nodePosition = nodePosition + 1
 
-    def createNewGraphInitialPositions(self):
+    async def createNewGraphInitialPositions(self):
 
         currentX = 0
         currentY = 500
@@ -311,8 +312,16 @@ class MyXBlock(XBlock):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
 
-        needToCalculate = Edge.objects.filter(problem=loadedProblem, destNode__alreadyCalculatedPos = 1, sourceNode__alreadyCalculatedPos = 1).exists() 
+        if loadedProblem.isCalculatingPos == 1:
+            return 
+
+        loadedProblem.isCalculatingPos = 1
+        loadedProblem.save()
+
+        needToCalculate = Node.objects.filter(problem=loadedProblem, alreadyCalculatedPos = 0).exists() 
         if not needToCalculate:
+            loadedProblem.isCalculatingPos = 0
+            loadedProblem.save()
             return
 
         endEdges = Edge.objects.filter(problem=loadedProblem, destNode__title = '_end_')
@@ -321,7 +330,9 @@ class MyXBlock(XBlock):
 
         for node in endNodes:
             if node.nodePositionX == -1 and node.nodePositionY == -1:
-                pos = self.avoidSamePosFromAnotherNode(currentX, currentY, loadedProblem)
+                pos = await self.avoidSamePosFromAnotherNode(currentX, currentY, loadedProblem)
+                test = pos['x']
+                node.nodePositionX = test
                 node.nodePositionX = pos['x']
                 node.nodePositionY = pos['y']
                 node.save()
@@ -331,16 +342,20 @@ class MyXBlock(XBlock):
         for node in endNodes:
             nextEdges.extend(Edge.objects.filter(problem=loadedProblem, destNode = node).exclude(sourceNode = node))
 
-        self.createNewGraphInitialPositions2(nextEdges, usedEdges, currentY, loadedProblem)
+        await self.createNewGraphInitialPositions2(nextEdges, usedEdges, currentY, loadedProblem)
+
+        loadedProblem.isCalculatingPos = 0
+        loadedProblem.save()
+
     
-    def createNewGraphInitialPositions2(self, nextEdges, usedEdges, currentY, loadedProblem):
+    async def createNewGraphInitialPositions2(self, nextEdges, usedEdges, currentY, loadedProblem):
         for edge in nextEdges:
             changed = False
             node = edge.sourceNode
             if edge.sourceNode.title + edge.destNode.title not in usedEdges:
                 copyUsedEdges = copy.deepcopy(usedEdges)
                 if node.nodePositionX == -1 and node.nodePositionY == -1:
-                    pos = self.avoidSamePosFromAnotherNode(edge.destNode.nodePositionX, currentY, loadedProblem)
+                    pos = await self.avoidSamePosFromAnotherNode(edge.destNode.nodePositionX, currentY, loadedProblem)
                     node.nodePositionX = pos['x']
                     node.nodePositionY = pos['y']
                     node.alreadyCalculatedPos = 1
@@ -353,7 +368,7 @@ class MyXBlock(XBlock):
                         node.nodePositionY = currentY
 
                     if node.alreadyCalculatedPos == 0:
-                        pos = self.avoidEdgesAboveOthers(node, loadedProblem)
+                        pos = await self.avoidEdgesAboveOthers(node, loadedProblem)
                         node.nodePositionX = pos['x']
                         node.nodePositionY = pos['y']
                         node.alreadyCalculatedPos = 1
@@ -371,9 +386,9 @@ class MyXBlock(XBlock):
                         edgeToCalc.sourceNode.alreadyCalculatedPos = 1
                         edgeToCalc.sourceNode.save()
 
-                self.createNewGraphInitialPositions2(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
+                await self.createNewGraphInitialPositions2(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
 
-    def avoidEdgesAboveOthers(self, node, loadedProblem):
+    async def avoidEdgesAboveOthers(self, node, loadedProblem):
         pos = {"x": node.nodePositionX, "y": node.nodePositionY}
         needsTest = True
 
@@ -384,42 +399,42 @@ class MyXBlock(XBlock):
 
             needsTest = False
             if  nodeDests.count() > 1 or nodeCross.count() > 0 or nodeSame.count() > 0:
-                pos = self.avoidSamePosFromAnotherNode(pos["x"] + graphWidthExtraValue, pos["y"], loadedProblem)
+                pos = await self.avoidSamePosFromAnotherNode(pos["x"] + graphWidthExtraValue, pos["y"], loadedProblem)
                 needsTest = True
                 break
 
         return pos
 
 
-    def avoidSamePosFromAnotherNode(self, x, y, loadedProblem):
+    async def avoidSamePosFromAnotherNode(self, x, y, loadedProblem):
         allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
 
         for node in allNodes:
             if (abs(node.nodePositionX - x) < graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
-                rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
-                leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
+                rightX = await self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
+                leftX = await self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
                 if abs(x - rightX) >= abs(x - leftX):
                     return {"x": leftX, "y": y}
                 return {"x": rightX, "y": y}
 
         return {"x": x, "y": y}
 
-    def avoidSamePosFromAnotherNodeLeft(self, x, y, loadedProblem):
+    async def avoidSamePosFromAnotherNodeLeft(self, x, y, loadedProblem):
         allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
 
         for node in allNodes:
             if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
-                leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
+                leftX = await self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
                 return leftX
 
         return x
 
-    def avoidSamePosFromAnotherNodeRight(self, x, y, loadedProblem):
+    async def avoidSamePosFromAnotherNodeRight(self, x, y, loadedProblem):
         allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
 
         for node in allNodes:
             if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
-                rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
+                rightX = await self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
                 return rightX
 
         return  x
@@ -610,10 +625,15 @@ class MyXBlock(XBlock):
         addedNodes = []
         fixedPos = False
 
-        #self.createGraphInitialPositions()
-        self.createNewGraphInitialPositions()
-
         loadedProblem = Problem.objects.get(id=self.problemId)
+
+        #while loadedProblem.isCalculatingPos == 1:
+        #    loadedProblem.refresh_from_db()
+        #    continue
+        
+        #self.createGraphInitialPositions()
+        #self.createNewGraphInitialPositions()
+
         allNodes = Node.objects.filter(problem=loadedProblem)
 
         for source in allNodes:
@@ -908,10 +928,18 @@ class MyXBlock(XBlock):
 
         self.calculateValidityAndCorrectness(answerArray)
 
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.createNewGraphInitialPositions())
+        loop.run_until_complete(self.createNewGraphInitialPositions())
+    
+
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
             return {"answer": "Incorreto!"}
+
+
 
     def getExplanationOrHintStepsFromProblemGraph(self):
 
