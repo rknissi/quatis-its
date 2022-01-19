@@ -267,42 +267,7 @@ class MyXBlock(XBlock):
         frag.initialize_js('MyXBlockEdit')
         return frag
 
-
     def createGraphInitialPositions(self):
-
-        loadedProblem = Problem.objects.get(id=self.problemId)
-        createPos = Node.objects.filter(problem=loadedProblem, nodePositionX = -1, nodePositionY = -1)
-        
-        if createPos:
-
-            nodePosition = 0
-            for node in createPos:
-                level = 0
-                x = 0
-                y = 0
-
-                sourceNodesEdges = Edge.objects.filter(problem=loadedProblem, destNode = node)
-                initialSourceNodes = sourceNodesEdges
-
-                while sourceNodesEdges.exists():
-                    level = level + 1
-                    sourceNodesEdges = Edge.objects.filter(problem=loadedProblem, destNode = sourceNodesEdges[0].sourceNode)
-
-                y = (graphHeightDefaultValue + nodePosition) * level
-                if initialSourceNodes.exists():
-                    x = initialSourceNodes[0].sourceNode.nodePositionX
-                else:
-                    x = graphWidthDefaultValue
-
-                positions = self.avoidSamePosFromAnotherNode(x, y, loadedProblem)
-                
-                node.nodePositionX = positions.get("x")
-                node.nodePositionY = positions.get("y")
-                node.save()
-
-                nodePosition = nodePosition + 1
-
-    def createNewGraphInitialPositions(self):
 
         currentX = 0
         currentY = 500
@@ -311,7 +276,7 @@ class MyXBlock(XBlock):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
 
-        needToCalculate = Edge.objects.filter(problem=loadedProblem, destNode__alreadyCalculatedPos = 1, sourceNode__alreadyCalculatedPos = 1).exists() 
+        needToCalculate = Node.objects.filter(problem=loadedProblem, alreadyCalculatedPos = 0).exists() 
         if not needToCalculate:
             return
 
@@ -324,16 +289,19 @@ class MyXBlock(XBlock):
                 pos = self.avoidSamePosFromAnotherNode(currentX, currentY, loadedProblem)
                 node.nodePositionX = pos['x']
                 node.nodePositionY = pos['y']
-                node.save()
+
+            node.alreadyCalculatedPos = 1
+            node.save()
+
         currentY = currentY - graphWidthExtraValueY
 
         nextEdges = []
         for node in endNodes:
             nextEdges.extend(Edge.objects.filter(problem=loadedProblem, destNode = node).exclude(sourceNode = node))
 
-        self.createNewGraphInitialPositions2(nextEdges, usedEdges, currentY, loadedProblem)
+        self.createGraphInitialPositionsNextSteps(nextEdges, usedEdges, currentY, loadedProblem)
     
-    def createNewGraphInitialPositions2(self, nextEdges, usedEdges, currentY, loadedProblem):
+    def createGraphInitialPositionsNextSteps(self, nextEdges, usedEdges, currentY, loadedProblem):
         for edge in nextEdges:
             changed = False
             node = edge.sourceNode
@@ -368,14 +336,16 @@ class MyXBlock(XBlock):
 
                 if (changed):
                     for edgeToCalc in nextEdgesToCalc:
-                        edgeToCalc.sourceNode.alreadyCalculatedPos = 1
+                        edgeToCalc.sourceNode.alreadyCalculatedPos = 0
                         edgeToCalc.sourceNode.save()
 
-                self.createNewGraphInitialPositions2(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
+                self.createGraphInitialPositionsNextSteps(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
 
     def avoidEdgesAboveOthers(self, node, loadedProblem):
         pos = {"x": node.nodePositionX, "y": node.nodePositionY}
         needsTest = True
+        oldPos = {"x": pos["x"], "y": pos["y"]}
+        invert = False
 
         while needsTest:
             nodeDests = Edge.objects.filter(problem=loadedProblem, sourceNode__title = node.title, destNode__nodePositionX = pos["x"], destNode__visible = 1)
@@ -384,9 +354,16 @@ class MyXBlock(XBlock):
 
             needsTest = False
             if  nodeDests.count() > 1 or nodeCross.count() > 0 or nodeSame.count() > 0:
-                pos = self.avoidSamePosFromAnotherNode(pos["x"] + graphWidthExtraValue, pos["y"], loadedProblem)
+                if not invert:
+                    pos = self.avoidSamePosFromAnotherNode(pos["x"] + graphWidthExtraValue, pos["y"], loadedProblem)
+                else:
+                    pos = self.avoidSamePosFromAnotherNode(pos["x"] - graphWidthExtraValue, pos["y"], loadedProblem)
+
+                if oldPos["x"] == pos["x"] and oldPos["y"] == pos["y"]:
+                    invert = not invert
+
+                oldPos = pos
                 needsTest = True
-                break
 
         return pos
 
@@ -524,10 +501,10 @@ class MyXBlock(XBlock):
 
 
     def createInitialNodeData(self, problemFK):
-        n1 = Node(title="_start_", correctness=1, problem=problemFK)
+        n1 = Node(title="_start_", correctness=1, alreadyCalculatedPos = 1, problem=problemFK)
         n2 = Node(title="Option 1", correctness=1, problem=problemFK)
         n3 = Node(title="Option 2", correctness=1, problem=problemFK)
-        n4 = Node(title="_end_", correctness=1, problem=problemFK)
+        n4 = Node(title="_end_", correctness=1, alreadyCalculatedPos = 1, problem=problemFK)
 
         n1.save()
         n2.save()
@@ -610,8 +587,7 @@ class MyXBlock(XBlock):
         addedNodes = []
         fixedPos = False
 
-        #self.createGraphInitialPositions()
-        self.createNewGraphInitialPositions()
+        self.createGraphInitialPositions()
 
         loadedProblem = Problem.objects.get(id=self.problemId)
         allNodes = Node.objects.filter(problem=loadedProblem)
