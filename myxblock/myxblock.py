@@ -319,6 +319,7 @@ class MyXBlock(XBlock):
                 else:
                     if node.nodePositionY > currentY:
                         node.nodePositionY = currentY
+                        node.alreadyCalculatedPos = 0
 
                     if node.alreadyCalculatedPos == 0:
                         pos = self.avoidEdgesAboveOthers(node, loadedProblem)
@@ -334,10 +335,10 @@ class MyXBlock(XBlock):
 
                 nextEdgesToCalc = Edge.objects.filter(problem=loadedProblem, destNode = node, sourceNode__visible = 1, sourceNode__customPos = 0)
 
-                if (changed):
-                    for edgeToCalc in nextEdgesToCalc:
-                        edgeToCalc.sourceNode.alreadyCalculatedPos = 0
-                        edgeToCalc.sourceNode.save()
+                #if (changed):
+                #    for edgeToCalc in nextEdgesToCalc:
+                #        edgeToCalc.sourceNode.alreadyCalculatedPos = 0
+                #        edgeToCalc.sourceNode.save()
 
                 self.createGraphInitialPositionsNextSteps(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
 
@@ -600,7 +601,7 @@ class MyXBlock(XBlock):
                     nodeColor = self.getNodeColor(dest)
                     if dest not in addedNodes:
                         if dest.visible == 1:
-                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
                             if dest.nodePositionX != -1 and dest.nodePositionY != -1:
                                 node["x"] = dest.nodePositionX
                                 node["y"] = dest.nodePositionY
@@ -610,13 +611,13 @@ class MyXBlock(XBlock):
                     else: 
                         if dest.visible == 1:
                             pos = addedNodes.index(dest)
-                            nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"stroke": initialNodeStroke, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                            nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
                     
                 elif dest.title == "_end_":
                     nodeColor = self.getNodeColor(source)
                     if source not in addedNodes:
                         if source.visible == 1:
-                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
                             if source.nodePositionX != -1 and source.nodePositionY != -1:
                                 node["x"] = source.nodePositionX
                                 node["y"] = source.nodePositionY
@@ -626,7 +627,7 @@ class MyXBlock(XBlock):
                     else:
                         if source.visible == 1:
                             pos = addedNodes.index(source)
-                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
                             if source.nodePositionX != -1 and source.nodePositionY != -1:
                                 node["x"] = source.nodePositionX
                                 node["y"] = source.nodePositionY
@@ -655,7 +656,7 @@ class MyXBlock(XBlock):
                             addedNodes.append(dest)
                     
                     if source.visible == 1 and dest.visible == 1:
-                        edge = {"from": source.title, "to": dest.title, "stroke": defaultArrowStroke + self.getEdgeColor(edgeObj), "correctness": edgeObj.correctness}
+                        edge = {"from": source.title, "to": dest.title, "normal": {"stroke": defaultArrowStroke + self.getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": self.getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": self.getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness}
                         edgeList.append(edge)
 
         return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}

@@ -23,7 +23,7 @@ function MyXBlockEdit(runtime, element) {
 
 
   var defaultArrowStroke = "3 ";
-  var defaultArrowSize = 5;
+  var defaultArrowSize = 8;
   var defaultFontSize = 10;
   var defaultNodeHeight = 20;
 
@@ -91,9 +91,11 @@ function MyXBlockEdit(runtime, element) {
 
     chart.edges().arrows({
       enabled: true,
-      size: defaultArrowSize
+      size: defaultArrowSize,
+      position: '80%'
     });
-    chart.interactivity().scrollOnMouseWheel(false);
+    
+    chart.interactivity().scrollOnMouseWheel(true);
     chart.interactivity().zoomOnMouseWheel(false);
 
     chart.layout().type("fixed");
@@ -170,8 +172,6 @@ function MyXBlockEdit(runtime, element) {
     for (i = 0; i < data.nodes.length; ++i) {
       if (nodeName === data.nodes[i].id) {
         data.nodes[i].visible = 0;
-        //data.nodes.splice(i, 1);
-        //removeEdgeWithNode(nodeName)
         break;
       }
     }
@@ -256,11 +256,16 @@ function MyXBlockEdit(runtime, element) {
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
-          data.nodes.splice(i, 1);
+          //data.nodes.splice(i, 1);
           nodeData.correctness = value;
           nodeData.weigth = weigth;
+
           nodeData.fill = getNodeColor(value);
-          addNode(nodeData);
+
+          nodeData.hovered = {stroke: {color: "#333333", thickness: 3}};
+          nodeData.selected = {stroke: {color: "#333333", thickness: 3}};
+
+          //addNode(nodeData);
           break;
         }
     }
@@ -271,10 +276,13 @@ function MyXBlockEdit(runtime, element) {
       for (i = 0; i < data.edges.length; ++i) {
         if (sourceName === data.edges[i].from && distName === data.edges[i].to) {
           edgeData = data.edges[i];
-          data.edges.splice(i, 1);
-          edgeData.correctness = value;
-          edgeData.stroke = defaultArrowSize + " " + getEdgeColor(value);
-          addEdge(edgeData);
+    
+          edgeData.correctness = value
+
+          edgeData.normal = {stroke: defaultArrowStroke + getEdgeColor(value)}
+          edgeData.hovered = {stroke: {thickness: 5, color: getEdgeColor(value)}}
+          edgeData.selected = {stroke: {color: getEdgeColor(value), dash: '10 3', thickness: '7' }}
+          
           break;
         }
     }
@@ -353,7 +361,9 @@ function MyXBlockEdit(runtime, element) {
     var data = {
       from: el.find('input[id=sourceState]').val(),
       to: el.find('input[id=destState]').val(),
-      stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()),
+      normal: {stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val())},
+      hovered: {stroke: {thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val())}},
+      selected: {stroke: {color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' }},
       correctness: el.find('input[id=stepCorrectness]').val()
     };
     addEdge(data);
@@ -563,10 +573,11 @@ function MyXBlockEdit(runtime, element) {
 
         chart.edges().arrows({
             enabled: true,
-            size: defaultArrowSize
+            size: defaultArrowSize,
+            position: '80%'
         });
 
-        chart.interactivity().scrollOnMouseWheel(false);
+        chart.interactivity().scrollOnMouseWheel(true);
         chart.interactivity().zoomOnMouseWheel(false);
 
         chart.container("graph").draw();
