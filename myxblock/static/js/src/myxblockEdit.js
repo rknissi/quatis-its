@@ -36,136 +36,7 @@ function MyXBlockEdit(runtime, element) {
 
 
   function reApplyConfig() {
-    document.getElementById("graph").innerHTML = "";
-    var nodeData = chart.toJson().chart.graphData.nodes
-
-    for (i = 0; i < nodeData.length; ++i) {
-      for (j = 0; j < data.nodes.length; ++j) {
-        if (nodeData[i].id === data.nodes[j].id) {
-          data.nodes[j].x = nodeData[i].x;
-          data.nodes[j].y = nodeData[i].y;
-          break
-        }
-      }
-    }
-
-    saveGraph();
-
-    for (i = 0; i < data.nodes.length; ++i) {
-      if (data.nodes[i].visible == 0) {
-        nodeName = data.nodes[i].id
-        data.nodes.splice(i, 1);
-        removeEdgeWithNode(nodeName)
-      }
-    }
-
-    chart = anychart.graph(data);
-    var nodes = chart.nodes();
-
-    chart.title("Grafo das escolhas dos estudantes");
-
-    // set the size of nodes
-    nodes.normal().height(30);
-    nodes.hovered().height(45);
-    nodes.selected().height(45);
-
-    // set the stroke of nodes
-    nodes.normal().stroke(null);
-    nodes.hovered().stroke("#333333", 3);
-    nodes.selected().stroke("#333333", 3);
-
-    // enable the labels of nodes
-    chart.nodes().labels().enabled(true);
-
-    chart.labels().anchor("center");
-    chart.labels().position("center");
-
-    var zoomController = anychart.ui.zoom();
-    zoomController.target(chart);
-    zoomController.render();
-
-    // configure the labels of nodes
-    chart.nodes().labels().format("{%id}");
-    chart.nodes().labels().fontSize(defaultFontSize);
-    chart.nodes().labels().fontWeight(600);
-
-    chart.edges().arrows({
-      enabled: true,
-      size: defaultArrowSize,
-      position: '80%'
-    });
-    
-    chart.interactivity().scrollOnMouseWheel(true);
-    chart.interactivity().zoomOnMouseWheel(false);
-
-    chart.layout().type("fixed");
-
-    chart.container("graph").draw();
-
-    chart.listen("click", function(e) {
-      var tag = e.domTarget.tag;
-      var nodeMenu = document.getElementById("nodeMenu");
-      var edgeMenu = document.getElementById("edgeMenu");
-      var addMenu = document.getElementById("addMenu");
-      
-      if (tag) {
-        if (tag.type === 'node') {
-          edgeMenu.style.display = "none";
-          addMenu.style.display = "none";
-          for (var i = 0; i < data.nodes.length; i++) {
-            if (data.nodes[i].id === tag.id) {
-              document.getElementById("editState").value = tag.id;
-              document.getElementById("editStateValue").value = data.nodes[i].correctness;
-              document.getElementById("editStateWeigth").value = data.nodes[i].weigth;
-              if (data.nodes[i].stroke) {
-                if (data.nodes[i].stroke === finalNodeStroke) {
-                  document.getElementById('changeStateType').value = 'finalState';
-                } else {
-                  document.getElementById('changeStateType').value = 'initialState';
-                }
-
-              } else {
-                document.getElementById('changeStateType').value = 'normalState';
-              }
-
-              nodeMenu.style.display = "block";
-              break;
-            }
-          }
-        }
-        else if (tag.type === 'edge') {
-          nodeMenu.style.display = "none";
-          addMenu.style.display = "none";
-          edgePos = tag.id.split("_")[1];
-          var body = {
-            from: data.edges[edgePos].from,
-            to: data.edges[edgePos].to
-          };
-
-          $.ajax({
-            type: "POST",
-            url: getEdgeInfoUrl,
-            data: JSON.stringify(body),
-            success: function (edgeInfo) {
-              document.getElementById("stepErrorSpecificFeedbacks").value = edgeInfo.errorSpecificFeedbacks;
-              document.getElementById("stepExplanations").value = edgeInfo.explanations;
-              document.getElementById("stepHints").value = edgeInfo.hints;
-            }   
-          });
-
-          document.getElementById("editStepSource").value = data.edges[edgePos].from;
-          document.getElementById("editStepDest").value = data.edges[edgePos].to;
-          document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
-
-          edgeMenu.style.display = "block";
-        }
-      } else {
-        addMenu.style.display = "block";
-        nodeMenu.style.display = "none";
-        edgeMenu.style.display = "none";
-      }
-    });
-
+    createOrReloadGraph()
   }
 
   function removeNode(nodeName){
@@ -256,7 +127,6 @@ function MyXBlockEdit(runtime, element) {
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
-          //data.nodes.splice(i, 1);
           nodeData.correctness = value;
           nodeData.weigth = weigth;
 
@@ -265,7 +135,6 @@ function MyXBlockEdit(runtime, element) {
           nodeData.hovered = {stroke: {color: "#333333", thickness: 3}};
           nodeData.selected = {stroke: {color: "#333333", thickness: 3}};
 
-          //addNode(nodeData);
           break;
         }
     }
@@ -519,139 +388,203 @@ function MyXBlockEdit(runtime, element) {
   });
 
   $('#closeGraphModal', element).click(function(eventObject) {
-    reApplyConfig();
     var modal = document.getElementById("graphModal");
     modal.style.display = "none";
+
+    var loadingMessage = document.getElementById("loadingMessage");
+    loadingMessage.style.display = "none";
+
+    var errorMessage = document.getElementById("errorMessage");
+    errorMessage.style.display = "none";
+
+    reApplyConfig();
+
   });
+
+  function createOrReloadGraph(value) {
+    if (value != null) {
+
+      chart = anychart.graph(value.teste);
+      data = value.teste;
+
+      chart.labels().anchor("center");
+      chart.labels().position("center");
+
+      var zoomController = anychart.ui.zoom();
+      zoomController.target(chart);
+      zoomController.render();
+
+    } else {
+      document.getElementById("graph").innerHTML = "";
+      var nodeData = chart.toJson().chart.graphData.nodes
+
+      for (i = 0; i < nodeData.length; ++i) {
+        for (j = 0; j < data.nodes.length; ++j) {
+          if (nodeData[i].id === data.nodes[j].id) {
+            data.nodes[j].x = nodeData[i].x;
+            data.nodes[j].y = nodeData[i].y;
+            break
+          }
+        }
+      }
+
+      saveGraph();
+
+      for (i = 0; i < data.nodes.length; ++i) {
+        if (data.nodes[i].visible == 0) {
+          nodeName = data.nodes[i].id
+          data.nodes.splice(i, 1);
+          removeEdgeWithNode(nodeName)
+        }
+      }
+
+      chart = anychart.graph(data);
+
+    }
+      var nodes = chart.nodes();
+
+      chart.title("Grafo das escolhas dos estudantes");
+
+      // set the size of nodes
+      nodes.normal().height(30);
+      nodes.hovered().height(45);
+      nodes.selected().height(45);
+
+      // set the stroke of nodes
+      nodes.normal().stroke(null);
+      nodes.hovered().stroke("#333333", 3);
+      nodes.selected().stroke("#333333", 3);
+
+      // enable the labels of nodes
+      chart.nodes().labels().enabled(true);
+
+      chart.labels().anchor("center");
+      chart.labels().position("center");
+
+      var zoomController = anychart.ui.zoom();
+      zoomController.target(chart);
+      zoomController.render();
+
+      // configure the labels of nodes
+      chart.nodes().labels().format("{%id}");
+      chart.nodes().labels().fontSize(defaultFontSize);
+      chart.nodes().labels().fontWeight(600);
+
+      chart.edges().arrows({
+        enabled: true,
+        size: defaultArrowSize,
+        position: '80%'
+      });
+    
+      chart.interactivity().scrollOnMouseWheel(true);
+      chart.interactivity().zoomOnMouseWheel(false);
+
+      chart.layout().type("fixed");
+
+      chart.container("graph").draw();
+
+      chart.listen("click", function(e) {
+        var tag = e.domTarget.tag;
+        var nodeMenu = document.getElementById("nodeMenu");
+        var edgeMenu = document.getElementById("edgeMenu");
+        var addMenu = document.getElementById("addMenu");
+
+        if (tag) {
+          if (tag.type === 'node') {
+            edgeMenu.style.display = "none";
+            addMenu.style.display = "none";
+            for (var i = 0; i < data.nodes.length; i++) {
+              if (data.nodes[i].id === tag.id) {
+                document.getElementById("editState").value = tag.id;
+                document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                document.getElementById("editStateWeigth").value = data.nodes[i].weigth;
+                if (data.nodes[i].stroke) {
+                  if (data.nodes[i].stroke === finalNodeStroke) {
+                    document.getElementById('changeStateType').value = 'finalState';
+                  } else {
+                    document.getElementById('changeStateType').value = 'initialState';
+                  }
+
+                } else {
+                  document.getElementById('changeStateType').value = 'normalState';
+                }
+
+                nodeMenu.style.display = "block";
+                break;
+              }
+            }
+          }
+          else if (tag.type === 'edge') {
+            nodeMenu.style.display = "none";
+            addMenu.style.display = "none";
+            edgePos = tag.id.split("_")[1];
+            var body = {
+              from: data.edges[edgePos].from,
+              to: data.edges[edgePos].to
+            };
+
+            $.ajax({
+              type: "POST",
+              url: getEdgeInfoUrl,
+              data: JSON.stringify(body),
+              success: function (edgeInfo) {
+                document.getElementById("stepErrorSpecificFeedbacks").value = edgeInfo.errorSpecificFeedbacks;
+                document.getElementById("stepExplanations").value = edgeInfo.explanations;
+                document.getElementById("stepHints").value = edgeInfo.hints;
+              }   
+            });
+
+            document.getElementById("editStepSource").value = data.edges[edgePos].from;
+            document.getElementById("editStepDest").value = data.edges[edgePos].to;
+            document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
+
+            edgeMenu.style.display = "block";
+          }
+        } else {
+          addMenu.style.display = "block";
+          nodeMenu.style.display = "none";
+          edgeMenu.style.display = "none";
+        }
+      });
+
+  }
 
   $('#createGraph', element).click(function(eventObject) {
     document.getElementById("graph").innerHTML = "";
 
     var modal = document.getElementById("graphModal");
-
     modal.style.display = "block";
+
+    var loadingMessage = document.getElementById("loadingMessage");
+    loadingMessage.style.display = "block";
+
+    var errorMessage = document.getElementById("errorMessage");
+    errorMessage.style.display = "none";
 
     $.ajax({
       type: "POST",
       url: getGraphurl,
       data: JSON.stringify({}),
       success: function (value) {
-          // create a chart from the loaded data
-        chart = anychart.graph(value.teste);
-        data = value.teste;
+        var loadingMessage = document.getElementById("loadingMessage");
+        loadingMessage.style.display = "none"
 
-        // set the title
-        chart.title("Grafo das escolhas dos estudantes");
-
-        chart.labels().anchor("center");
-        chart.labels().position("center");
-
-        var zoomController = anychart.ui.zoom();
-        zoomController.target(chart);
-        zoomController.render();
-
-        // access nodes
-        var nodes = chart.nodes();
-
-        // set the size of nodes
-        nodes.normal().height(30);
-        nodes.hovered().height(45);
-        nodes.selected().height(45);
-
-        // set the stroke of nodes
-        nodes.normal().stroke(null);
-        nodes.hovered().stroke("#333333", 3);
-        nodes.selected().stroke("#333333", 3);
-
-        // enable the labels of nodes
-        chart.nodes().labels().enabled(true);
-
-        // configure the labels of nodes
-        chart.nodes().labels().format("{%id}");
-        chart.nodes().labels().fontSize(defaultFontSize);
-        chart.nodes().labels().fontWeight(600);
-
-        chart.edges().arrows({
-            enabled: true,
-            size: defaultArrowSize,
-            position: '80%'
-        });
-
-        chart.interactivity().scrollOnMouseWheel(true);
-        chart.interactivity().zoomOnMouseWheel(false);
-
-        chart.container("graph").draw();
-        if(value.teste.fixedPos) {
-          chart.layout().type("fixed");
-        }
-
-        chart.listen("click", function(e) {
-          var tag = e.domTarget.tag;
-          var nodeMenu = document.getElementById("nodeMenu");
-          var edgeMenu = document.getElementById("edgeMenu");
-          var addMenu = document.getElementById("addMenu");
-          
-          if (tag) {
-            if (tag.type === 'node') {
-              edgeMenu.style.display = "none";
-              addMenu.style.display = "none";
-              for (var i = 0; i < data.nodes.length; i++) {
-                if (data.nodes[i].id === tag.id) {
-                  document.getElementById("editState").value = tag.id;
-                  document.getElementById("editStateValue").value = data.nodes[i].correctness;
-                  document.getElementById("editStateWeigth").value = data.nodes[i].weigth;
-                  if (data.nodes[i].stroke) {
-                    if (data.nodes[i].stroke === "1 black") {
-                      document.getElementById('changeStateType').value = 'finalState';
-                    } else {
-                      document.getElementById('changeStateType').value = 'initialState';
-                    }
-
-                  } else {
-                    document.getElementById('changeStateType').value = 'normalState';
-                  }
-
-                  nodeMenu.style.display = "block";
-                  break;
-                }
-              }
-            }
-            else if (tag.type === 'edge') {
-              nodeMenu.style.display = "none";
-              addMenu.style.display = "none";
-              edgePos = tag.id.split("_")[1];
-              var body = {
-                from: data.edges[edgePos].from,
-                to: data.edges[edgePos].to
-              };
-
-              $.ajax({
-                type: "POST",
-                url: getEdgeInfoUrl,
-                data: JSON.stringify(body),
-                success: function (edgeInfo) {
-                  document.getElementById("stepErrorSpecificFeedbacks").value = edgeInfo.errorSpecificFeedbacks;
-                  document.getElementById("stepExplanations").value = edgeInfo.explanations;
-                  document.getElementById("stepHints").value = edgeInfo.hints;
-                }   
-              });
-
-              document.getElementById("editStepSource").value = data.edges[edgePos].from;
-              document.getElementById("editStepDest").value = data.edges[edgePos].to;
-              document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
-
-              edgeMenu.style.display = "block";
-            }
-          } else {
-            addMenu.style.display = "block";
-            nodeMenu.style.display = "none";
-            edgeMenu.style.display = "none";
-          }
-        });
-
+        var errorMessage = document.getElementById("errorMessage");
+        errorMessage.style.display = "none";
+        creategraph(value);
       }   
    });
   });
+
+  function creategraph (value) {
+    try {
+      createOrReloadGraph(value)
+    } catch(error) {
+      var errorMessage = document.getElementById("errorMessage");
+      errorMessage.style.display = "block";
+      creategraph(value);
+    }
+  }
 
   $('#cancel_button', element).click(function(eventObject) {
     runtime.notify('cancel', {});

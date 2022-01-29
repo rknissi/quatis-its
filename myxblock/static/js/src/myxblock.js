@@ -117,6 +117,15 @@ function MyXBlock(runtime, element, data) {
         alert(value.answer);
     }
 
+    async function create_initial_positions() {
+        $.ajax({
+          type: "POST",
+          url: runtime.handlerUrl(element, 'create_initial_positions'),
+          data: "{}",
+          success: function (data) {
+          }   
+        });
+    }
 
     var send_answer = runtime.handlerUrl(element, 'send_answer');
     var get_hint_for_last_step = runtime.handlerUrl(element, 'get_hint_for_last_step');
@@ -152,8 +161,12 @@ function MyXBlock(runtime, element, data) {
             type: "POST",
             url: send_answer,
             data: JSON.stringify({answer: userAnswer, radioAnswer: radioAnswer}),
-            success: showResults
+            success: function (value) {
+                create_initial_positions()
+                showResults(value)
+            } 
         });
+
     });
 
     $('#prevHint', element).click(function(eventObject) {

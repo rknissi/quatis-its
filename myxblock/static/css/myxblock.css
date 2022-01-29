@@ -126,6 +126,14 @@
     background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
 }
 
+#loadingMessage {
+    display: none;
+}
+
+#errorMessage {
+    display: none;
+}
+
 .graphModalContent {
     background-color: #fefefe;
     margin: auto;

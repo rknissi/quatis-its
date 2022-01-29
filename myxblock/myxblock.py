@@ -280,6 +280,13 @@ class MyXBlock(XBlock):
         if not needToCalculate:
             return
 
+        if loadedProblem.isCalculatingPos == 1:
+            return
+
+            
+        loadedProblem.isCalculatingPos = 1
+        loadedProblem.save()
+
         endEdges = Edge.objects.filter(problem=loadedProblem, destNode__title = '_end_')
         for edge in endEdges:
             endNodes.append(edge.sourceNode)
@@ -300,6 +307,10 @@ class MyXBlock(XBlock):
             nextEdges.extend(Edge.objects.filter(problem=loadedProblem, destNode = node).exclude(sourceNode = node))
 
         self.createGraphInitialPositionsNextSteps(nextEdges, usedEdges, currentY, loadedProblem)
+
+        loadedProblem.isCalculatingPos = 0
+        loadedProblem.save()
+
     
     def createGraphInitialPositionsNextSteps(self, nextEdges, usedEdges, currentY, loadedProblem):
         for edge in nextEdges:
@@ -313,7 +324,6 @@ class MyXBlock(XBlock):
                     node.nodePositionY = pos['y']
                     node.alreadyCalculatedPos = 1
                     node.save()
-                    changed = True
                     if edge.sourceNode.title + edge.destNode.title not in copyUsedEdges:
                         copyUsedEdges.append(edge.sourceNode.title + edge.destNode.title)
                 else:
@@ -326,7 +336,6 @@ class MyXBlock(XBlock):
                         node.nodePositionX = pos['x']
                         node.nodePositionY = pos['y']
                         node.alreadyCalculatedPos = 1
-                        changed = True
 
                     node.save()
 
@@ -334,11 +343,6 @@ class MyXBlock(XBlock):
                         copyUsedEdges.append(edge.sourceNode.title + edge.destNode.title)
 
                 nextEdgesToCalc = Edge.objects.filter(problem=loadedProblem, destNode = node, sourceNode__visible = 1, sourceNode__customPos = 0)
-
-                #if (changed):
-                #    for edgeToCalc in nextEdgesToCalc:
-                #        edgeToCalc.sourceNode.alreadyCalculatedPos = 0
-                #        edgeToCalc.sourceNode.save()
 
                 self.createGraphInitialPositionsNextSteps(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
 
@@ -428,6 +432,11 @@ class MyXBlock(XBlock):
         
         return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps, "explanations": self.explanationFromSteps, "hints": self.hintFromSteps}
 
+    @XBlock.json_handler
+    def create_initial_positions(self,data,suffix=''):
+        self.createGraphInitialPositions()
+
+        return {"Status": "Ok"}
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
@@ -588,10 +597,13 @@ class MyXBlock(XBlock):
         addedNodes = []
         fixedPos = False
 
-        self.createGraphInitialPositions()
-
         loadedProblem = Problem.objects.get(id=self.problemId)
         allNodes = Node.objects.filter(problem=loadedProblem)
+
+        while loadedProblem.isCalculatingPos == 1:
+            loadedProblem.refresh_from_db()
+
+        self.createGraphInitialPositions()
 
         for source in allNodes:
             edgeObjList = Edge.objects.filter(problem=loadedProblem, sourceNode = source)
