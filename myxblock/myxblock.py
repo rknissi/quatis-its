@@ -11,7 +11,7 @@ import ast
 from .studentGraph.models import Problem, Node, Edge, Resolution
 from django.utils import timezone
 import uuid
-import copy
+from .visualGraph import *
 
 #Step information
 correctnessMinValue = -1
@@ -24,44 +24,11 @@ partiallyCorrectResolution = [0, 0.74999]
 correctResolution = [0.75, 1]
 defaultResolutionValue = 0
 
-#Step values
-invalidStep = [-1, -0.80001]
-stronglyInvalidStep = [-0.8, -0.40001]
-possiblyInvalidStep = [-0.4, -0.00001]
-neutralStep = [0, 0]
-possiblyValidStep = [0.00001, 0.39999]
-stronglyValidStep = [0.4, 0.79999]
-validStep = [0.8, 1]
-defaultStepValue = 0
-
-#State values
-incorrectState = [-1, -0.7]
-unknownState = [-0.69999, 0.69999]
-correctState = [0.7, 1]
-defaultStateValue = 0
-
-#VisualGraphProperties
-defaultArrowStroke = "3 "
-initialNodeShape = "square"
-finalNodeShape = "diamond"
-defaultNodeHeight = 20
-initialNodeStroke = {"color": "black", "dash": "5 5"}
-finalNodeStroke = "1 black"
-graphHeightDefaultValue = 60
-graphWidthDefaultValue = 0
-graphWidthExtraValue = 100
-graphWidthExtraValueY = 67
-graphNodeMinimumDistance = 100
-
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
 problemGraphStatesCorrectnessDefault = {'_start_': correctState[1], 'Option 1': correctState[1], 'Option 2': correctState[1]}
 problemGraphStepsCorrectnessDefault = {str(('_start_', 'Option 1')): validStep[1], str(('Option 1', 'Option 2')): validStep[1], str(('Option 2', '_end_')): validStep[1]}
 allResolutionsDefault = []
-
-problemGraphStates = []
-problemGraphSteps = []
-problemGraphResolutions = []
 
 #Ainda não salvando nada nessa variável
 allResolutionsNew = allResolutionsDefault
@@ -267,180 +234,8 @@ class MyXBlock(XBlock):
         frag.initialize_js('MyXBlockEdit')
         return frag
 
-    def createGraphInitialPositions(self):
-
-        currentX = 0
-        currentY = 500
-        endNodes = []
-        usedEdges = []
-
-        loadedProblem = Problem.objects.get(id=self.problemId)
-
-        needToCalculate = Node.objects.filter(problem=loadedProblem, alreadyCalculatedPos = 0).exists() 
-        if not needToCalculate:
-            return
-
-        if loadedProblem.isCalculatingPos == 1:
-            return
-
-            
-        loadedProblem.isCalculatingPos = 1
-        loadedProblem.save()
-
-        endEdges = Edge.objects.filter(problem=loadedProblem, destNode__title = '_end_')
-        for edge in endEdges:
-            endNodes.append(edge.sourceNode)
-
-        for node in endNodes:
-            if node.nodePositionX == -1 and node.nodePositionY == -1:
-                pos = self.avoidSamePosFromAnotherNode(currentX, currentY, loadedProblem)
-                node.nodePositionX = pos['x']
-                node.nodePositionY = pos['y']
-
-            node.alreadyCalculatedPos = 1
-            node.save()
-
-        currentY = currentY - graphWidthExtraValueY
-
-        nextEdges = []
-        for node in endNodes:
-            nextEdges.extend(Edge.objects.filter(problem=loadedProblem, destNode = node).exclude(sourceNode = node))
-
-        self.createGraphInitialPositionsNextSteps(nextEdges, usedEdges, currentY, loadedProblem)
-
-        loadedProblem.isCalculatingPos = 0
-        loadedProblem.save()
-
-    
-    def createGraphInitialPositionsNextSteps(self, nextEdges, usedEdges, currentY, loadedProblem):
-        for edge in nextEdges:
-            changed = False
-            node = edge.sourceNode
-            if edge.sourceNode.title + edge.destNode.title not in usedEdges:
-                copyUsedEdges = copy.deepcopy(usedEdges)
-                if node.nodePositionX == -1 and node.nodePositionY == -1:
-                    pos = self.avoidSamePosFromAnotherNode(edge.destNode.nodePositionX, currentY, loadedProblem)
-                    node.nodePositionX = pos['x']
-                    node.nodePositionY = pos['y']
-                    node.alreadyCalculatedPos = 1
-                    node.save()
-                    if edge.sourceNode.title + edge.destNode.title not in copyUsedEdges:
-                        copyUsedEdges.append(edge.sourceNode.title + edge.destNode.title)
-                else:
-                    if node.nodePositionY > currentY:
-                        node.nodePositionY = currentY
-                        node.alreadyCalculatedPos = 0
-
-                    if node.alreadyCalculatedPos == 0:
-                        pos = self.avoidEdgesAboveOthers(node, loadedProblem)
-                        node.nodePositionX = pos['x']
-                        node.nodePositionY = pos['y']
-                        node.alreadyCalculatedPos = 1
-
-                    node.save()
-
-                    if edge.sourceNode.title + edge.destNode.title not in copyUsedEdges:
-                        copyUsedEdges.append(edge.sourceNode.title + edge.destNode.title)
-
-                nextEdgesToCalc = Edge.objects.filter(problem=loadedProblem, destNode = node, sourceNode__visible = 1, sourceNode__customPos = 0)
-
-                self.createGraphInitialPositionsNextSteps(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
-
-    def avoidEdgesAboveOthers(self, node, loadedProblem):
-        pos = {"x": node.nodePositionX, "y": node.nodePositionY}
-        needsTest = True
-        oldPos = {"x": pos["x"], "y": pos["y"]}
-        invert = False
-
-        while needsTest:
-            nodeDests = Edge.objects.filter(problem=loadedProblem, sourceNode__title = node.title, destNode__nodePositionX = pos["x"], destNode__visible = 1)
-            nodeCross =  Edge.objects.filter(problem=loadedProblem, sourceNode__nodePositionX = pos["x"], destNode__nodePositionX = pos["x"], sourceNode__nodePositionY__lt = pos["y"], destNode__nodePositionY__gt = pos["y"], destNode__visible = 1, sourceNode__visible = 1).exclude(sourceNode = node, destNode = node)
-            nodeSame =  Node.objects.filter(problem=loadedProblem, nodePositionX = pos["x"], nodePositionY = pos["y"], visible = 1).exclude(title=node.title)
-
-            needsTest = False
-            if  nodeDests.count() > 1 or nodeCross.count() > 0 or nodeSame.count() > 0:
-                if not invert:
-                    pos = self.avoidSamePosFromAnotherNode(pos["x"] + graphWidthExtraValue, pos["y"], loadedProblem)
-                else:
-                    pos = self.avoidSamePosFromAnotherNode(pos["x"] - graphWidthExtraValue, pos["y"], loadedProblem)
-
-                if oldPos["x"] == pos["x"] and oldPos["y"] == pos["y"]:
-                    invert = not invert
-
-                oldPos = pos
-                needsTest = True
-
-        return pos
-
-
-    def avoidSamePosFromAnotherNode(self, x, y, loadedProblem):
-        allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
-
-        for node in allNodes:
-            if (abs(node.nodePositionX - x) < graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
-                rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
-                leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
-                if abs(x - rightX) >= abs(x - leftX):
-                    return {"x": leftX, "y": y}
-                return {"x": rightX, "y": y}
-
-        return {"x": x, "y": y}
-
-    def avoidSamePosFromAnotherNodeLeft(self, x, y, loadedProblem):
-        allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
-
-        for node in allNodes:
-            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
-                leftX = self.avoidSamePosFromAnotherNodeLeft(x - graphWidthExtraValue, y, loadedProblem)
-                return leftX
-
-        return x
-
-    def avoidSamePosFromAnotherNodeRight(self, x, y, loadedProblem):
-        allNodes = Node.objects.filter(problem=loadedProblem).exclude(nodePositionX = -1, nodePositionY = -1)
-
-        for node in allNodes:
-            if (abs(node.nodePositionX - x) <= graphNodeMinimumDistance and abs(node.nodePositionY - y) < graphWidthExtraValueY):
-                rightX = self.avoidSamePosFromAnotherNodeRight(x + graphWidthExtraValue, y, loadedProblem)
-                return rightX
-
-        return  x
-
-
-    @XBlock.json_handler
-    def get_edge_info(self,data,suffix=''):
-        step = str((data.get("from"), data.get("to")))
-        errorSpecificFeedbacks = None
-        explanations = None
-        hints = None
-
-        if step in self.errorSpecificFeedbackFromSteps:
-            errorSpecificFeedbacks = self.errorSpecificFeedbackFromSteps[step]
-        if step in self.explanationFromSteps:
-            explanations = self.explanationFromSteps[step]
-        if step in self.hintFromSteps:
-            hints = self.hintFromSteps[step]
-        
-        return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
-
-    @XBlock.json_handler
-    def submit_edge_info(self,data,suffix=''):
-        step = str((data.get("from"), data.get("to")))
-        self.errorSpecificFeedbackFromSteps[step] = data.get("errorSpecificFeedbacks")
-        self.hintFromSteps[step] = data.get("hints")
-        self.explanationFromSteps[step] = data.get("explanations")
-        
-        return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps, "explanations": self.explanationFromSteps, "hints": self.hintFromSteps}
-
-    @XBlock.json_handler
-    def create_initial_positions(self,data,suffix=''):
-        self.createGraphInitialPositions()
-
-        return {"Status": "Ok"}
-
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
-
         graphData = data.get('graphData')
 
         loadedProblem = Problem.objects.get(id=self.problemId)
@@ -458,7 +253,7 @@ class MyXBlock(XBlock):
                 nodeModel.nodePositionX = node["x"]
                 nodeModel.nodePositionY = node["y"]
                 nodeModel.save()
-            
+
             if "stroke" in node:
                 if node["stroke"] == finalNodeStroke:
                     edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=node["id"], destNode__title="_end_")
@@ -489,6 +284,39 @@ class MyXBlock(XBlock):
                 edgeModel.save()
 
         return {}
+
+
+    @XBlock.json_handler
+    def get_edge_info(self,data,suffix=''):
+        step = str((data.get("from"), data.get("to")))
+        errorSpecificFeedbacks = None
+        explanations = None
+        hints = None
+
+        if step in self.errorSpecificFeedbackFromSteps:
+            errorSpecificFeedbacks = self.errorSpecificFeedbackFromSteps[step]
+        if step in self.explanationFromSteps:
+            explanations = self.explanationFromSteps[step]
+        if step in self.hintFromSteps:
+            hints = self.hintFromSteps[step]
+        
+        return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
+
+    @XBlock.json_handler
+    def submit_edge_info(self,data,suffix=''):
+        step = str((data.get("from"), data.get("to")))
+        self.errorSpecificFeedbackFromSteps[step] = data.get("errorSpecificFeedbacks")
+        self.hintFromSteps[step] = data.get("hints")
+        self.explanationFromSteps[step] = data.get("explanations")
+        
+        return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps, "explanations": self.explanationFromSteps, "hints": self.hintFromSteps}
+
+    @XBlock.json_handler
+    def create_initial_positions(self,data,suffix=''):
+        createGraphInitialPositions(self.problemId)
+
+        return {"Status": "Ok"}
+
 
     def createInitialEdgeData(self, nodeList, problemFK):
         e1 = Edge(sourceNode=nodeList[0], destNode=nodeList[1], correctness=1, problem=problemFK)
@@ -591,120 +419,11 @@ class MyXBlock(XBlock):
         return {"wrongElement": wrongElement, "availableCorrectSteps": availableCorrectSteps, "wrongElementLine": wrongStep, "lastCorrectElement": lastElement}
 
 
-    def getJsonFromProblemGraph(self):
-        nodeList = []
-        edgeList = []
-        addedNodes = []
-        fixedPos = False
-
-        loadedProblem = Problem.objects.get(id=self.problemId)
-        allNodes = Node.objects.filter(problem=loadedProblem)
-
-        while loadedProblem.isCalculatingPos == 1:
-            loadedProblem.refresh_from_db()
-
-        self.createGraphInitialPositions()
-
-        for source in allNodes:
-            edgeObjList = Edge.objects.filter(problem=loadedProblem, sourceNode = source)
-            for edgeObj in edgeObjList:
-                dest = edgeObj.destNode
-                if source.title == "_start_":
-                    nodeColor = self.getNodeColor(dest)
-                    if dest not in addedNodes:
-                        if dest.visible == 1:
-                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
-                            if dest.nodePositionX != -1 and dest.nodePositionY != -1:
-                                node["x"] = dest.nodePositionX
-                                node["y"] = dest.nodePositionY
-                                fixedPos = True
-                            nodeList.append(node)
-                            addedNodes.append(dest)
-                    else: 
-                        if dest.visible == 1:
-                            pos = addedNodes.index(dest)
-                            nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
-                    
-                elif dest.title == "_end_":
-                    nodeColor = self.getNodeColor(source)
-                    if source not in addedNodes:
-                        if source.visible == 1:
-                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
-                            if source.nodePositionX != -1 and source.nodePositionY != -1:
-                                node["x"] = source.nodePositionX
-                                node["y"] = source.nodePositionY
-                                fixedPos = True
-                            nodeList.append(node)
-                            addedNodes.append(source)
-                    else:
-                        if source.visible == 1:
-                            pos = addedNodes.index(source)
-                            node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
-                            if source.nodePositionX != -1 and source.nodePositionY != -1:
-                                node["x"] = source.nodePositionX
-                                node["y"] = source.nodePositionY
-                                fixedPos = True
-                            nodeList[pos] = node
-                else:
-                    if source not in addedNodes:
-                        if  source.visible == 1:
-                            nodeColor = self.getNodeColor(source)
-                            node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
-                            if source.nodePositionX != -1 and source.nodePositionY != -1:
-                                node["x"] = source.nodePositionX
-                                node["y"] = source.nodePositionY
-                                fixedPos = True
-                            nodeList.append(node)
-                            addedNodes.append(source)
-                    if dest not in addedNodes:
-                        if dest.visible == 1:
-                            nodeColor = self.getNodeColor(dest)
-                            node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
-                            if dest.nodePositionX != -1 and dest.nodePositionY != -1:
-                                node["x"] = dest.nodePositionX
-                                node["y"] = dest.nodePositionY
-                                fixedPos = True
-                            nodeList.append(node)
-                            addedNodes.append(dest)
-                    
-                    if source.visible == 1 and dest.visible == 1:
-                        edge = {"from": source.title, "to": dest.title, "normal": {"stroke": defaultArrowStroke + self.getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": self.getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": self.getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness}
-                        edgeList.append(edge)
-
-        return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}
-                
-    def getEdgeColor(self, edge):
-
-        edgeValue = edge.correctness
-        if edgeValue >= invalidStep[0] and edgeValue <= invalidStep[1]:
-            return "#FC0D1B"
-        if edgeValue >= stronglyInvalidStep[0] and edgeValue <= stronglyInvalidStep[1]:
-            return "#FC644D"
-        if edgeValue >= possiblyInvalidStep[0] and edgeValue <= possiblyInvalidStep[1]:
-            return "#FDA07E"
-        if edgeValue >= neutralStep[0] and edgeValue <= neutralStep[1]:
-            return "#FED530"
-        if edgeValue >= possiblyValidStep[0] and edgeValue <= possiblyValidStep[1]:
-            return  "#807F17"
-        if edgeValue >= stronglyValidStep[0] and edgeValue <= stronglyValidStep[1]:
-            return  "#9BCB40"
-        if edgeValue >= validStep[0] and edgeValue <= validStep[1]:
-            return "#81FA30"
-
-    def getNodeColor(self, node):
-
-        nodeValue = node.correctness
-        if nodeValue >= incorrectState[0] and nodeValue <= incorrectState[1]:
-            return "#EE8182"
-        if nodeValue >= unknownState[0] and nodeValue <= unknownState[1]:
-            return "#F0E591"
-        if nodeValue >= correctState[0] and nodeValue <= correctState[1]:
-            return "#2AFD84"
 
     @XBlock.json_handler
     def generate_graph(self, data, suffix=''):
         self.createInitialData()
-        return {"teste": self.getJsonFromProblemGraph()}
+        return {"teste": getJsonFromProblemGraph(self.problemId)}
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
     #TALVEZ COLOCAR ALGUMA COISA NOA TELA QUE MOSTRE QUE A LINHA ESTÁ CORRETA
