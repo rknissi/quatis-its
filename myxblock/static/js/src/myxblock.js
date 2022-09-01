@@ -17,25 +17,34 @@ function MyXBlock(runtime, element, data) {
         
         $('#tags', element).text(result);
 
-        document.getElementById("answer1").value = value.answer1;
-        var itsLabel1 = $("[for=" + $("#answer1").attr("id") + "]");
-        itsLabel1.text(value.answer1);
+        if (value.multipleChoiceProblem == 1) {
+            document.getElementById("answer1").value = value.answer1;
+            var itsLabel1 = $("[for=" + $("#answer1").attr("id") + "]");
+            itsLabel1.text(value.answer1);
 
-        document.getElementById("answer2").value = value.answer2;
-        var itsLabel2 = $("[for=" + $("#answer2").attr("id") + "]");
-        itsLabel2.text(value.answer2);
-        
-        document.getElementById("answer3").value = value.answer3;
-        var itsLabel3 = $("[for=" + $("#answer3").attr("id") + "]");
-        itsLabel3.text(value.answer3);
+            document.getElementById("answer2").value = value.answer2;
+            var itsLabel2 = $("[for=" + $("#answer2").attr("id") + "]");
+            itsLabel2.text(value.answer2);
 
-        document.getElementById("answer4").value = value.answer4;
-        var itsLabel4 = $("[for=" + $("#answer4").attr("id") + "]");
-        itsLabel4.text(value.answer4);
+            document.getElementById("answer3").value = value.answer3;
+            var itsLabel3 = $("[for=" + $("#answer3").attr("id") + "]");
+            itsLabel3.text(value.answer3);
 
-        document.getElementById("answer5").value = value.answer5;
-        var itsLabel5 = $("[for=" + $("#answer5").attr("id") + "]");
-        itsLabel5.text(value.answer5);
+            document.getElementById("answer4").value = value.answer4;
+            var itsLabel4 = $("[for=" + $("#answer4").attr("id") + "]");
+            itsLabel4.text(value.answer4);
+
+            document.getElementById("answer5").value = value.answer5;
+            var itsLabel5 = $("[for=" + $("#answer5").attr("id") + "]");
+            itsLabel5.text(value.answer5);
+        } else {
+            document.getElementById("answer1").remove();
+            document.getElementById("answer2").remove();
+            document.getElementById("answer3").remove();
+            document.getElementById("answer4").remove();
+            document.getElementById("answer5").remove();
+        }
+
 
         if (value.alreadyAnswered == "True") {
             $("#hintButton").css("background", "grey");

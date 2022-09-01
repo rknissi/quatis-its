@@ -213,8 +213,11 @@ class MyXBlock(XBlock):
     # TO-DO: change this view to display your data your own way.
     def student_view(self, context=None):
         #Adiciona qual arquivo HTML será usado
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedMultipleChoiceProblem = loadedProblem.multipleChoiceProblem
+
         html = self.resource_string("static/html/myxblock.html")
-        frag = Fragment(str(html).format(block=self))
+        frag = Fragment(str(html).format(block=self, multipleChoiceProblem=loadedMultipleChoiceProblem))
         frag.add_css(self.resource_string("static/css/myxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/myxblock.js"))
 
@@ -225,10 +228,14 @@ class MyXBlock(XBlock):
     problem_view = student_view
 
     def studio_view(self,context=None):
+        self.createInitialData()
 
         html=self.resource_string("static/html/myxblockEdit.html")
 
-        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,problemCorrectSteps=self.problemCorrectStates,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedMultipleChoiceProblem = loadedProblem.multipleChoiceProblem
+
+        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,multipleChoiceProblem=loadedMultipleChoiceProblem,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
         frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
 
         frag.initialize_js('MyXBlockEdit')
@@ -276,11 +283,12 @@ class MyXBlock(XBlock):
             if not edgeModel.exists():
                 fromNode = Node.objects.get(problem=loadedProblem, title=edge["from"])
                 toNode = Node.objects.get(problem=loadedProblem, title=edge["to"])
-                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem)
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, visible=edge["visible"])
                 e1.save()
             else:
                 edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=edge["from"], destNode__title=edge["to"])
                 edgeModel.correctness = float(edge["correctness"])
+                edgeModel.visible = edge["visible"]
                 edgeModel.save()
 
         return {}
@@ -366,10 +374,12 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def submit_data(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
         self.problemTitle = data.get('problemTitle')
         self.problemDescription = data.get('problemDescription')
         self.problemCorrectRadioAnswer = data.get('problemCorrectRadioAnswer')
-        self.problemCorrectStates = ast.literal_eval(data.get('problemCorrectSteps'))
+        loadedProblem.multipleChoiceProblem = data.get('multipleChoiceProblem')
         self.problemAnswer1 = data.get('problemAnswer1')
         self.problemAnswer2 = data.get('problemAnswer2')
         self.problemAnswer3 = data.get('problemAnswer3')
@@ -377,6 +387,8 @@ class MyXBlock(XBlock):
         self.problemAnswer5 = data.get('problemAnswer5')
         self.problemSubject = data.get('problemSubject')
         self.problemTags = ast.literal_eval(data.get('problemTags'))
+
+        loadedProblem.save()
 
         return {'result':'success'}
 
@@ -422,7 +434,6 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def generate_graph(self, data, suffix=''):
-        self.createInitialData()
         return {"teste": getJsonFromProblemGraph(self.problemId)}
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
@@ -514,6 +525,7 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
 
+        loadedProblem = Problem.objects.get(id=self.problemId)
         #Inicialização e coleta dos dados inicial
         answerArray = data['answer'].split('\n')
 
@@ -522,10 +534,12 @@ class MyXBlock(XBlock):
 
         self.answerSteps = answerArray
 
-        if('radioAnswer' not in data) :
+        if loadedProblem.multipleChoiceProblem == 1 and 'radioAnswer' not in data :
             return {"error": "Nenhuma opções de resposta foi selecionada!"}
 
-        self.answerRadio = data['radioAnswer']
+        if loadedProblem.multipleChoiceProblem == 1:
+            self.answerRadio = data['radioAnswer']
+
         isStepsCorrect = False
 
         currentStep = 0
@@ -535,7 +549,6 @@ class MyXBlock(XBlock):
         self.studentResolutionsStates = answerArray
         self.studentResolutionsSteps = list()
 
-        loadedProblem = Problem.objects.get(id=self.problemId)
         endNode = Node.objects.get(problem=loadedProblem, title = "_end_")
 
         lastElement = '_start_'
@@ -607,7 +620,11 @@ class MyXBlock(XBlock):
                 wrongElement = step
                 break
 
-        isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
+        if loadedProblem.multipleChoiceProblem == 1:
+            isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
+        else:
+            isAnswerCorrect = isStepsCorrect
+
 
 
         #Fim da parte do updateCG
@@ -960,9 +977,11 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def initial_data(self, data, suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
         return {"title": self.problemTitle, "description": self.problemDescription, 
         "answer1": self.problemAnswer1, "answer2": self.problemAnswer2, "answer3": self.problemAnswer3, "answer4": self.problemAnswer4, "answer5": self.problemAnswer5,
-        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered)}
+        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered), "multipleChoiceProblem": loadedProblem.multipleChoiceProblem}
 
 
     # TO-DO: change this to create the scenarios you'd like to see in the

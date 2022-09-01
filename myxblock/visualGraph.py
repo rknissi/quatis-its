@@ -1,4 +1,4 @@
-from .studentGraph.models import Problem, Node, Edge
+from .studentGraph.models import Problem, Node, Edge, ErrorSpecificFeedback, Hints, Explanations, Doubt, KnowledgeComponent
 import copy
 
 #VisualGraphProperties
@@ -248,8 +248,8 @@ def getJsonFromProblemGraph(problemId):
                         nodeList.append(node)
                         addedNodes.append(dest)
                 
-                if source.visible == 1 and dest.visible == 1:
-                    edge = {"from": source.title, "to": dest.title, "normal": {"stroke": defaultArrowStroke + getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness}
+                if source.visible == 1 and dest.visible == 1 and edgeObj.visible == 1:
+                    edge = {"from": source.title, "to": dest.title, "normal": {"stroke": defaultArrowStroke + getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness, "visible": 1}
                     edgeList.append(edge)
 
     return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}

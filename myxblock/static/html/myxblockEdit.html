@@ -31,18 +31,18 @@
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemCorrectRadioAnswer">Resposta correta  </label>
-        <input class="input setting-input" name="problemCorrectRadioAnswer" id="problemCorrectRadioAnswer" value="{problemCorrectRadioAnswer}" type="text" />
+        <label class="label setting-label" for="multipleChoiceProblem">Problema de multipla escolha</label>
+        <input class="input setting-input" name="multipleChoiceProblem" id="multipleChoiceProblem" value="{multipleChoiceProblem}" type="text" />
       </div>
-      <span class="tip setting-help">Coloque a resposta igual a opcao escolhida </span>
+      <span class="tip setting-help">Decidir se é um problema de multipla escolha ou nao (1 para sim, 0 para nao)</span>
     </li>
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemCorrectSteps">Caminhos que estao certos  </label>
-        <input class="input setting-input" name="problemCorrectSteps" id="problemCorrectSteps" value="{problemCorrectSteps}" type="text" />
+        <label class="label setting-label" for="problemCorrectRadioAnswer">Alternativa correta  </label>
+        <input class="input setting-input" name="problemCorrectRadioAnswer" id="problemCorrectRadioAnswer" value="{problemCorrectRadioAnswer}" type="text" />
       </div>
-      <span class="tip setting-help">Caminhos que estao certos </span>
+      <span class="tip setting-help">Coloque a alternativa correta. Essa opcao e ignorada caso nao seja um problema de multipla escolha</span>
     </li>
 
     <li class="field comp-setting-entry is-set">
@@ -55,42 +55,42 @@
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer1">Resposta 1  </label>
+        <label class="label setting-label" for="problemAnswer1">Alternativa 1  </label>
         <input class="input setting-input" name="problemAnswer1" id="problemAnswer1" value="{problemAnswer1}" type="text" />
       </div>
-      <span class="tip setting-help">Valor da resposta 1 </span>
+      <span class="tip setting-help">Valor da alternativa 1. Essa opcao e ignorada caso nao seja um problema de multipla escolha </span>
     </li>
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer2">Resposta 2  </label>
+        <label class="label setting-label" for="problemAnswer2">Alternativa 2  </label>
         <input class="input setting-input" name="problemAnswer2" id="problemAnswer2" value="{problemAnswer2}" type="text" />
       </div>
-      <span class="tip setting-help">Valor da resposta 2 </span>
+      <span class="tip setting-help">Valor da alternativa 2. Essa opcao e ignorada caso nao seja um problema de multipla escolha </span>
     </li>
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer3">Resposta 3  </label>
+        <label class="label setting-label" for="problemAnswer3">Alternativa 3  </label>
         <input class="input setting-input" name="problemAnswer3" id="problemAnswer3" value="{problemAnswer3}" type="text" />
       </div>
-      <span class="tip setting-help">Valor da resposta 3 </span>
+      <span class="tip setting-help">Valor da alternativa 3. Essa opcao e ignorada caso nao seja um problema de multipla escolha </span>
     </li>
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer4">Resposta 4  </label>
+        <label class="label setting-label" for="problemAnswer4">Alternativa 4  </label>
         <input class="input setting-input" name="problemAnswer4" id="problemAnswer4" value="{problemAnswer4}" type="text" />
       </div>
-      <span class="tip setting-help">Valor da resposta 4 </span>
+      <span class="tip setting-help">Valor da alternativa 4. Essa opcao e ignorada caso nao seja um problema de multipla escolha </span>
     </li>
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer5">Resposta 5  </label>
+        <label class="label setting-label" for="problemAnswer5">Alternativa 5  </label>
         <input class="input setting-input" name="problemAnswer5" id="problemAnswer5" value="{problemAnswer5}" type="text" />
       </div>
-      <span class="tip setting-help">Valor da resposta 5 </span>
+      <span class="tip setting-help">Valor da alternativa 5. Essa opcao e ignorada caso nao seja um problema de multipla escolha </span>
     </li>
 
     <li class="field comp-setting-entry is-set">
@@ -131,7 +131,7 @@
 
     <div class="nodeMenu" id="nodeMenu">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="editState">Qual estado?</label>
+        <label class="label setting-label" for="editState">Estado</label>
         <input class="input" name="editState" id="editState" type="text" />
         <p></p>
         <label class="label setting-label" for="editStateValue">Valor/Corretude</label>
@@ -158,10 +158,10 @@
 
     <div class="edgeMenu" id="edgeMenu">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="editStepSource">Qual estado inicial?</label>
+        <label class="label setting-label" for="editStepSource">Estado inicial</label>
         <input class="input" name="editStepSource" id="editStepSource"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editStepDest">Qual estado final?</label>
+        <label class="label setting-label" for="editStepDest">Estado final</label>
         <input class="input" name="editStepDest" id="editStepDest"  type="text" />
         <p></p>
         <label class="label setting-label" for="editStepValue">Corretude</label>

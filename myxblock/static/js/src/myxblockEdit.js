@@ -161,7 +161,7 @@ function MyXBlockEdit(runtime, element) {
   function removeEdge(sourceName, distName){
       for (i = 0; i < data.edges.length; ++i) {
         if (sourceName === data.edges[i].from && distName === data.edges[i].to) {
-          data.edges.splice(i, 1);
+          data.edges[i].visible = 0
           break;
         }
     }
@@ -365,7 +365,7 @@ function MyXBlockEdit(runtime, element) {
       problemTitle: el.find('input[name=problemTitle]').val(),
       problemDescription: el.find('input[id=problemDescription]').val(),
       problemCorrectRadioAnswer: el.find('input[id=problemCorrectRadioAnswer]').val(),
-      problemCorrectSteps: el.find('input[id=problemCorrectSteps]').val(),
+      multipleChoiceProblem: el.find('input[id=multipleChoiceProblem]').val(),
       problemTipsToNextStep: el.find('input[id=problemTipsToNextStep]').val(),
       problemDefaultHint: el.find('input[id=problemDefaultHint]').val(),
       problemAnswer1: el.find('input[id=problemAnswer1]').val(),
@@ -435,6 +435,12 @@ function MyXBlockEdit(runtime, element) {
           nodeName = data.nodes[i].id
           data.nodes.splice(i, 1);
           removeEdgeWithNode(nodeName)
+        }
+      }
+
+      for (i = 0; i < data.edges.length; ++i) {
+        if (data.edges[i].visible == 0) {
+          data.edges.splice(i, 1);
         }
       }
 
