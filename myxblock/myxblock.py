@@ -133,11 +133,6 @@ class MyXBlock(XBlock):
         help="For each correct step that the student uses, it will show a specific feedback",
     )
 
-    hintFromSteps = Dict(
-        default={str(('_start_', 'Option 1')): ["Uiaaa", "hahaha"], str(('Option 1', 'Option 2')): ["hint 1", "Hint 2"], str(('X=500-2', 'X=498')): ["Hint feedback 1", "Hint Feedback 2"]}, scope=Scope.content,
-        help="For each correct step that the student uses, it will show a specific hint",
-    )
-
     problemDefaultHint = String(
         default="Verifique se a resposta está correta", scope=Scope.content,
         help="If there is no available hint",
@@ -227,6 +222,7 @@ class MyXBlock(XBlock):
 
         #Também precisa inicializar
         frag.initialize_js('MyXBlock')
+        self.lastWrongElementCount = 0
         return frag
 
     problem_view = student_view
@@ -301,17 +297,9 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def get_edge_info(self,data,suffix=''):
-        #step = str((data.get("from"), data.get("to")))
         errorSpecificFeedbacks = None
         explanations = None
         hints = None
-
-        #if step in self.errorSpecificFeedbackFromSteps:
-        #    errorSpecificFeedbacks = self.errorSpecificFeedbackFromSteps[step]
-        #if step in self.explanationFromSteps:
-        #    explanations = self.explanationFromSteps[step]
-        #if step in self.hintFromSteps:
-        #    hints = self.hintFromSteps[step]
 
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
@@ -332,10 +320,6 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def submit_edge_info(self,data,suffix=''):
-        step = str((data.get("from"), data.get("to")))
-        #self.errorSpecificFeedbackFromSteps[step] = data.get("errorSpecificFeedbacks")
-        #self.hintFromSteps[step] = data.get("hints")
-        #self.explanationFromSteps[step] = data.get("explanations")
 
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
@@ -346,7 +330,6 @@ class MyXBlock(XBlock):
         else:
             hint = hints[0]
         hint.text=ast.literal_eval(data.get("hints"))
-        #hint.text=data.get("hints")
         hint.save()
 
         errorSpecificFeedbacks = ErrorSpecificFeedback.objects.filter(problem=loadedProblem, edge=loadedEdge)
@@ -355,7 +338,6 @@ class MyXBlock(XBlock):
         else:
             errorSpecificFeedback = errorSpecificFeedbacks[0]
         errorSpecificFeedback.text=ast.literal_eval(data.get("errorSpecificFeedbacks"))
-        #errorSpecificFeedback.text=data.get("errorSpecificFeedbacks")
         errorSpecificFeedback.save()
 
         explanations = Explanations.objects.filter(problem=loadedProblem, edge=loadedEdge)
@@ -364,7 +346,6 @@ class MyXBlock(XBlock):
         else:
             explanation = explanations[0]
         explanation.text=ast.literal_eval(data.get("explanations"))
-        #explanation.text=data.get("explanations")
         explanation.save()
 
         return {"errorSpecificFeedbacks": errorSpecificFeedback.text, "explanations": explanation.text, "hints": hint.text}
@@ -538,6 +519,8 @@ class MyXBlock(XBlock):
         hintText = self.problemDefaultHint
         hintList = None
 
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
         minValue = float('inf')
         nextCorrectStep = None
         if  (wrongElement != None):
@@ -548,8 +531,9 @@ class MyXBlock(XBlock):
                     minValue = actualValue
                     nextCorrectStep = step
 
-            if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) in self.hintFromSteps):
-                hintList = self.hintFromSteps[str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))]
+            hintForStep = Hints.objects.filter(problem=loadedProblem, edge__sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), edge__destNode__title=nextCorrectStep)
+            if hintForStep.exists():
+                hintList = ast.literal_eval(hintForStep[0].text)
             else:
                 hintList = [self.problemDefaultHint]
 
@@ -571,8 +555,9 @@ class MyXBlock(XBlock):
                 if (nextElement == "_end_"):
                     hintText = self.problemDefaultHint
                 else:
-                    if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement)) in self.hintFromSteps):
-                        hintList = self.hintFromSteps[str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))]
+                    hintForStep = Hints.objects.filter(problem=loadedProblem, edge__sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), edge__destNode__title=nextElement)
+                    if hintForStep.exists():
+                        hintList = ast.literal_eval(hintForStep[0].text)
                     else:
                         hintList = [self.problemDefaultHint]
 
@@ -741,6 +726,8 @@ class MyXBlock(XBlock):
         chosenHintStep = None
         chosenHintValue = None
 
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
         hintSteps = self.getExplanationOrHintStepsFromProblemGraph()
 
         for i in range(len(studentStates) - 1):
@@ -754,13 +741,19 @@ class MyXBlock(XBlock):
                                 chosenHintStep = hintStep
                                 chosenHintValue = problemGraphStepsCorrectness[hintStep]
                             else:
-                                if hintStep in self.hintFromSteps:
-                                    newHintFeedbacks = self.hintFromSteps[hintStep]
+                                hintForStep = Hints.objects.filter(problem=loadedProblem, edge__sourceNode__title=hintStepFromGraph, edge__destNode__title=destinyHintStep)
+                                if hintForStep.exists():
+                                #if hintStep in self.hintFromSteps:
+                                    #newHintFeedbacks = self.hintFromSteps[hintStep]
+                                    newHintFeedbacks = ast.literal_eval(hintForStep[0])[hintStep]
                                 else:
                                     newHintFeedbacks = 0
 
-                                if chosenHintStep in self.explanationFromSteps:
-                                    chosenHintStepFeedbacks = self.explanationFromSteps[chosenHintStep]
+                                explanationForStep = Explanations.objects.filter(problem=loadedProblem, edge__sourceNode__title=hintStepFromGraph, edge__destNode__title=destinyHintStep)
+                                if explanationForStep.exists():
+                                #if chosenHintStep in self.explanationFromSteps:
+                                    #chosenHintStepFeedbacks = self.explanationFromSteps[chosenHintStep]
+                                    chosenHintStepFeedbacks = ast.literal_eval(explanationForStep[0])[chosenHintStep]
                                 else:
                                     chosenHintstepFeedbacks = 0
 
