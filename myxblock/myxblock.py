@@ -213,11 +213,15 @@ class MyXBlock(XBlock):
     # TO-DO: change this view to display your data your own way.
     def student_view(self, context=None):
         #Adiciona qual arquivo HTML será usado
-        loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedMultipleChoiceProblem = loadedProblem.multipleChoiceProblem
-
         html = self.resource_string("static/html/myxblock.html")
-        frag = Fragment(str(html).format(block=self, multipleChoiceProblem=loadedMultipleChoiceProblem))
+        loadedProblem = Problem.objects.filter(id=self.problemId)
+        if loadedProblem.exists():
+            loadedMultipleChoiceProblem = loadedProblem[0].multipleChoiceProblem
+            frag = Fragment(str(html).format(block=self, multipleChoiceProblem=loadedMultipleChoiceProblem))
+        else: 
+            frag = Fragment(str(html).format(block=self))
+            
+
         frag.add_css(self.resource_string("static/css/myxblock.css"))
         frag.add_javascript(self.resource_string("static/js/src/myxblock.js"))
 
@@ -228,12 +232,13 @@ class MyXBlock(XBlock):
     problem_view = student_view
 
     def studio_view(self,context=None):
-        self.createInitialData()
-
         html=self.resource_string("static/html/myxblockEdit.html")
 
-        loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedMultipleChoiceProblem = loadedProblem.multipleChoiceProblem
+        loadedProblem = Problem.objects.filter(id=self.problemId)
+        if loadedProblem.exists():
+            loadedMultipleChoiceProblem = loadedProblem[0].multipleChoiceProblem
+        else:
+            loadedMultipleChoiceProblem = "Valor ainda não carregado"
 
         frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,multipleChoiceProblem=loadedMultipleChoiceProblem,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
         frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
@@ -296,28 +301,73 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def get_edge_info(self,data,suffix=''):
-        step = str((data.get("from"), data.get("to")))
+        #step = str((data.get("from"), data.get("to")))
         errorSpecificFeedbacks = None
         explanations = None
         hints = None
 
-        if step in self.errorSpecificFeedbackFromSteps:
-            errorSpecificFeedbacks = self.errorSpecificFeedbackFromSteps[step]
-        if step in self.explanationFromSteps:
-            explanations = self.explanationFromSteps[step]
-        if step in self.hintFromSteps:
-            hints = self.hintFromSteps[step]
+        #if step in self.errorSpecificFeedbackFromSteps:
+        #    errorSpecificFeedbacks = self.errorSpecificFeedbackFromSteps[step]
+        #if step in self.explanationFromSteps:
+        #    explanations = self.explanationFromSteps[step]
+        #if step in self.hintFromSteps:
+        #    hints = self.hintFromSteps[step]
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
+        loadedHints = Hints.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        if loadedHints.exists():
+            hints = loadedHints[0].text
+
+        loadedExplanations = Explanations.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        if loadedExplanations.exists():
+            explanations = loadedExplanations[0].text
+
+        loadedErrorSpecificFeedbacks = ErrorSpecificFeedback.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        if loadedErrorSpecificFeedbacks.exists():
+            errorSpecificFeedbacks = loadedErrorSpecificFeedbacks[0].text
         
+        #return {"errorSpecificFeedbacks": ast.literal_eval(errorSpecificFeedbacks), "explanations": ast.literal_eval(explanations), "hints": ast.literal_eval(hints)}
         return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
 
     @XBlock.json_handler
     def submit_edge_info(self,data,suffix=''):
         step = str((data.get("from"), data.get("to")))
-        self.errorSpecificFeedbackFromSteps[step] = data.get("errorSpecificFeedbacks")
-        self.hintFromSteps[step] = data.get("hints")
-        self.explanationFromSteps[step] = data.get("explanations")
-        
-        return {"errorSpecificFeedbacks": self.errorSpecificFeedbackFromSteps, "explanations": self.explanationFromSteps, "hints": self.hintFromSteps}
+        #self.errorSpecificFeedbackFromSteps[step] = data.get("errorSpecificFeedbacks")
+        #self.hintFromSteps[step] = data.get("hints")
+        #self.explanationFromSteps[step] = data.get("explanations")
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
+
+        hints = Hints.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        if not hints.exists():
+            hint = Hints(problem=loadedProblem, edge=loadedEdge)
+        else:
+            hint = hints[0]
+        hint.text=ast.literal_eval(data.get("hints"))
+        #hint.text=data.get("hints")
+        hint.save()
+
+        errorSpecificFeedbacks = ErrorSpecificFeedback.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        if not errorSpecificFeedbacks.exists():
+            errorSpecificFeedback = ErrorSpecificFeedback(problem=loadedProblem, edge=loadedEdge)
+        else:
+            errorSpecificFeedback = errorSpecificFeedbacks[0]
+        errorSpecificFeedback.text=ast.literal_eval(data.get("errorSpecificFeedbacks"))
+        #errorSpecificFeedback.text=data.get("errorSpecificFeedbacks")
+        errorSpecificFeedback.save()
+
+        explanations = Explanations.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        if not explanations.exists():
+            explanation = Explanations(problem=loadedProblem, edge=loadedEdge)
+        else:
+            explanation = explanations[0]
+        explanation.text=ast.literal_eval(data.get("explanations"))
+        #explanation.text=data.get("explanations")
+        explanation.save()
+
+        return {"errorSpecificFeedbacks": errorSpecificFeedback.text, "explanations": explanation.text, "hints": hint.text}
 
     @XBlock.json_handler
     def create_initial_positions(self,data,suffix=''):
@@ -334,6 +384,27 @@ class MyXBlock(XBlock):
         e1.save()
         e2.save()
         e3.save()
+
+        hint1 = Hints(problem=problemFK, edge=e1)
+        hint1.text=["Uiaaa", "hahaha"]
+
+        hint2 = Hints(problem=problemFK, edge=e2)
+        hint2.text=["hint 1", "Hint 2"]
+
+        hint3 = Hints(problem=problemFK, edge=e3)
+        hint3.text=["Hint feedback 1", "Hint Feedback 2"]
+
+        hint1.save()
+        hint2.save()
+        hint3.save()
+
+        errorSpecificFeedback1 = ErrorSpecificFeedback(problem=problemFK, edge=e2)
+        errorSpecificFeedback1.text=["Error Specific feedback 1", "Error Specific Feedback 2"]
+        errorSpecificFeedback1.save()
+
+        explanations1 = Explanations(problem=problemFK, edge=e2)
+        explanations1.text=["Explanation feedback 1", "Explanation Feedback 2"]
+        explanations1.save()
 
     def createInitialResolutionData(self, nodeList, problemFK):
         idArray = []
@@ -368,9 +439,19 @@ class MyXBlock(XBlock):
             p = Problem(graph=json.dumps(problemGraphDefault))
             p.save()
             self.problemId = p.id
-
             self.createInitialNodeData(p)
 
+    @XBlock.json_handler
+    def generate_problem_id(self,data,suffix=''):
+        if self.problemId == -1:
+            created = True
+        else:
+            created = False
+        self.createInitialData()
+        if created:
+            return {'result':'created'}
+        else:
+            return {'result':'exists'}
 
     @XBlock.json_handler
     def submit_data(self,data,suffix=''):
@@ -977,11 +1058,15 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def initial_data(self, data, suffix=''):
-        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedProblem = Problem.objects.filter(id=self.problemId)
+        if not loadedProblem.exists():
+            return {"title": self.problemTitle, "description": self.problemDescription, 
+            "answer1": self.problemAnswer1, "answer2": self.problemAnswer2, "answer3": self.problemAnswer3, "answer4": self.problemAnswer4, "answer5": self.problemAnswer5,
+            "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered)}
 
         return {"title": self.problemTitle, "description": self.problemDescription, 
         "answer1": self.problemAnswer1, "answer2": self.problemAnswer2, "answer3": self.problemAnswer3, "answer4": self.problemAnswer4, "answer5": self.problemAnswer5,
-        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered), "multipleChoiceProblem": loadedProblem.multipleChoiceProblem}
+        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered), "multipleChoiceProblem": loadedProblem[0].multipleChoiceProblem}
 
 
     # TO-DO: change this to create the scenarios you'd like to see in the

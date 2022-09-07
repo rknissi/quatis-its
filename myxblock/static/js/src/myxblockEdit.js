@@ -1,6 +1,7 @@
 function MyXBlockEdit(runtime, element) {
 
   var submitDataUrl = runtime.handlerUrl(element, 'submit_data');
+  var generateProblemId = runtime.handlerUrl(element, 'generate_problem_id');
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
   var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
   var getEdgeInfoUrl = runtime.handlerUrl(element, 'get_edge_info');
@@ -343,9 +344,9 @@ function MyXBlockEdit(runtime, element) {
     var data = {
       from: el.find('input[id=editStepSource]').val(),
       to: el.find('input[id=editStepDest]').val(),
-      errorSpecificFeedbacks: el.find('input[name=stepErrorSpecificFeedbacks]').val().split(","),
-      explanations: el.find('input[name=stepExplanations]').val().split(","),
-      hints: el.find('input[name=stepHints]').val().split(",")
+      errorSpecificFeedbacks: el.find('input[name=stepErrorSpecificFeedbacks]').val(),
+      explanations: el.find('input[name=stepExplanations]').val(),
+      hints: el.find('input[name=stepHints]').val()
     };
 
     $.ajax({
@@ -358,6 +359,19 @@ function MyXBlockEdit(runtime, element) {
     });
   });
 
+  $(document).ready( function () {
+    $.ajax({
+      type: "POST",
+      url: generateProblemId,
+      data: JSON.stringify(null),
+      success: function (data) {
+        if (data.result == 'created') {
+          alert("Dados iniciais gerados com sucesso! Recarregando a página...");
+          window.location.reload(false);
+        }
+      }   
+    });
+  });
 
   $('#save_button', element).click(function(eventObject) {
     var el = $(element);
