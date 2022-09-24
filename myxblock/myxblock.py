@@ -1,16 +1,11 @@
-from array import array
 import json
 from re import I
-from django.db.models.fields import NOT_PROVIDED
 import pkg_resources
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
-from django.core.files.storage import default_storage
 import ast 
 from .studentGraph.models import Problem, Node, Edge, Resolution
-from django.utils import timezone
-import uuid
 from .visualGraph import *
 
 #Step information
@@ -315,7 +310,6 @@ class MyXBlock(XBlock):
         if loadedErrorSpecificFeedbacks.exists():
             errorSpecificFeedbacks = loadedErrorSpecificFeedbacks[0].text
         
-        #return {"errorSpecificFeedbacks": ast.literal_eval(errorSpecificFeedbacks), "explanations": ast.literal_eval(explanations), "hints": ast.literal_eval(hints)}
         return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
 
     @XBlock.json_handler
@@ -673,7 +667,7 @@ class MyXBlock(XBlock):
             currentNode = Node.objects.get(problem=loadedProblem, title=step)
             edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
 
-            if (edgeList.exists() and currentNode.correctness >= correctState[0]):
+            if (edgeList.exists() and edgeList[0].correctness >= validStep[0] and lastNode.correctness >= correctState[0] and currentNode.correctness >= correctState[0]):
                 endNodes = Edge.objects.filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
                 if  (endNodes.exists()):
                     isStepsCorrect = True
