@@ -39,7 +39,8 @@ class Edge(models.Model):
 
 class Resolution(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
-	nodeIdList = models.TextField()
+	nodeIdList = models.TextField(default="")
+	edgeIdList = models.TextField(default="")
 	studentId = models.TextField()
 	correctness = models.FloatField(default=0)
 

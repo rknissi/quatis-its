@@ -381,13 +381,18 @@ class MyXBlock(XBlock):
         explanations1.text=["Explanation feedback 1", "Explanation Feedback 2"]
         explanations1.save()
 
-    def createInitialResolutionData(self, nodeList, problemFK):
-        idArray = []
-        for node in nodeList:
-            if node.title != "_start_" and node.title != "_end_":
-                idArray.append(node.id)
+        return [e1, e2, e3]        
 
-        r1 = Resolution(nodeIdList=json.dumps(idArray), correctness=1, problem=problemFK)
+    def createInitialResolutionData(self, nodeList, edgeList, problemFK):
+        nodeArray = []
+        edgeArray = []
+        for node in nodeList:
+                nodeArray.append(node.id)
+
+        for edge in edgeList:
+                edgeArray.append(edge.id)
+
+        r1 = Resolution(nodeIdList=json.dumps(nodeArray), edgeIdList=json.dumps(edgeArray), correctness=1, problem=problemFK)
 
         r1.save()
 
@@ -405,8 +410,8 @@ class MyXBlock(XBlock):
         
         nodeList = [n1, n2, n3, n4]
 
-        self.createInitialEdgeData(nodeList, problemFK)
-        self.createInitialResolutionData(nodeList, problemFK)
+        edgeList = self.createInitialEdgeData(nodeList, problemFK)
+        self.createInitialResolutionData(nodeList, edgeList, problemFK)
         
 
     def createInitialData(self):
@@ -959,35 +964,51 @@ class MyXBlock(XBlock):
 
     def corretudeResolucao(self, resolution):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        stateNumber = len(resolution)
-        stepNumber = stateNumber - 1
-    
-        stateValue = 0
-        stepValue = 0
-        previousNode = None
-        for state in resolution:
-            node = Node.objects.get(problem=loadedProblem, title = state)
-            stateValue = stateValue + node.correctness
-            if previousNode != None:
-                edge = Edge.objects.get(problem=loadedProblem, sourceNode=previousNode, destNode=node)
-                stepValue = stepValue + edge.correctness
-            previousNode = node
-    
-        return (1/(2*stateNumber)) * (stateValue) + (1/(2*stepNumber)) * (stepValue)
+        stateIdList = ast.literal_eval(resolution.nodeIdList)
+        stateIdAmount = len(stateIdList) - 2
+        stepIdList = ast.literal_eval(resolution.edgeIdList)
+        stepIdAmount = len(stepIdList) - 2
+
+        stateCorrectness = 0
+        stepCorrectness = 0
+
+        for stateId in stateIdList:
+            if stateId != stateIdList[0] and stateId != stateIdList[-1]:
+                state = Node.objects.get(problem=loadedProblem, id = stateId)
+                stateCorrectness = stateCorrectness + self.corretudeEstado(state)
+
+        for stepId in stepIdList:
+            if stepId != stepIdList[0] and stepId != stepIdList[-1]:
+                step = Edge.objects.get(problem=loadedProblem, id = stepId)
+                stepCorrectness = stepCorrectness + self.validadePasso(step)
+                
+        return (1/(2*stateIdAmount)) * (stateCorrectness) + (1/(2*stepIdAmount)) * (stepCorrectness)
     
     def possuiEstado(self, state, resolution):
-        return int(state.id in ast.literal_eval(resolution.nodeIdList))
+        return state.id in ast.literal_eval(resolution.nodeIdList)
     
     def possuiEstadoConjunto(self, state, resolutions):
-        value = 0
+        sum = 0
         for resolution in resolutions:
-            value = value + self.possuiEstado(state, resolution)
-        return value
+            sum = sum + self.possuiEstado(state, resolution)
+        
+        return sum
     
     def corretudeEstado(self, state):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt = defaultResolutionValue)
-        wrongResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte = defaultResolutionValue)
+        allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        correctResolutions = []
+        wrongResolutions = []
+
+        for resolution in allResolutions:
+            lastStateId = ast.literal_eval(resolution.nodeIdList)[-2]
+            lastState = Node.objects.get(problem=loadedProblem, id=lastStateId)
+
+            if self.problemCorrectRadioAnswer == lastState.title:
+                correctResolutions.append(resolution)
+            else:
+                wrongResolutions.append(resolution)
+
 
         correctValue = self.possuiEstadoConjunto(state, correctResolutions)
         incorrectValue = self.possuiEstadoConjunto(state, wrongResolutions)
@@ -996,23 +1017,34 @@ class MyXBlock(XBlock):
             return (correctValue-incorrectValue)/(correctValue + incorrectValue)
         return 0
     
-    def possuiPassoConjunto(self, initialState, finalState, resolutions):
-        value = 0
+    def possuiPassoConjunto(self, step, resolutions):
+        sum = 0
         for resolution in resolutions:
-            previousState = None
-            for state in ast.literal_eval(resolution.nodeIdList):
-                if state == finalState.id and previousState == initialState.id:
-                    value = value + 1
-                previousState = state
-        return value
-    
-    def validadePasso(self, initialState, finalState):
-        loadedProblem = Problem.objects.get(id=self.problemId)
-        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt = defaultResolutionValue)
-        wrongResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte = defaultResolutionValue)
+            sum = sum + self.possuiPasso(step, resolution)
+        
+        return sum
 
-        correctValue = self.possuiPassoConjunto(initialState, finalState, correctResolutions)
-        incorrectValue = self.possuiPassoConjunto(initialState, finalState, wrongResolutions)
+    def possuiPasso(self, step, resolution):
+        return step.id in ast.literal_eval(resolution.edgeIdList)
+    
+    def validadePasso(self, step):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        correctResolutions = []
+        wrongResolutions = []
+
+        for resolution in allResolutions:
+            lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
+            lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
+
+            if self.problemCorrectRadioAnswer == lastEdge.sourceNode.title:
+                correctResolutions.append(resolution)
+            else:
+                wrongResolutions.append(resolution)
+
+
+        correctValue = self.possuiPassoConjunto(step, correctResolutions)
+        incorrectValue = self.possuiPassoConjunto(step, wrongResolutions)
     
         if correctValue + incorrectValue != 0:
             return (correctValue-incorrectValue)/(correctValue + incorrectValue)
@@ -1021,24 +1053,33 @@ class MyXBlock(XBlock):
     def calculateValidityAndCorrectness(self, resolution):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        #previousNode = None
-        #for state in resolution:
-        #    selectedNode = Node.objects.get(problem=loadedProblem, title=state)
-        #    selectedNode.correctness = self.corretudeEstado(selectedNode)
-        #    if previousNode != None:
-        #        selectedEdge = Edge.objects.get(problem=loadedProblem, sourceNode=previousNode, destNode=selectedNode)
-        #        selectedEdge.correctness = self.validadePasso(previousNode, selectedNode)
-        #        selectedEdge.save()
-        #    selectedNode.save()
-        #    previousNode = selectedNode
 
-        idArray = []
+        nodeArray = []
+        edgeArray = []
+        lastNodeName = "_start_"
+        lastNode = Node.objects.get(problem=loadedProblem, title=lastNodeName)
+        nodeArray.append(lastNode.id)
         for node in resolution:
             currentNode = Node.objects.get(problem=loadedProblem, title=node)
-            idArray.append(currentNode.id)
+            currentNode.correctness = self.corretudeEstado(currentNode)
+            currentNode.save()
+            nodeArray.append(currentNode.id)
+            currentEdge = Edge.objects.get(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
+            currentEdge.correctness = self.validadePasso(currentEdge)
+            currentEdge.save()
+            edgeArray.append(currentEdge.id)
+            lastNode = currentNode
 
-        #r1 = Resolution(nodeIdList = idArray, problem=loadedProblem, correctness=self.corretudeResolucao(resolution))
-        r1 = Resolution(nodeIdList = idArray, problem=loadedProblem, correctness=0)
+        currentNode = Node.objects.get(problem=loadedProblem, title="_end_")
+        nodeArray.append(currentNode.id)
+        currentEdge = Edge.objects.get(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
+        edgeArray.append(currentEdge.id)
+        lastNode = currentNode
+
+        r1 = Resolution(nodeIdList = nodeArray, edgeIdList = edgeArray, problem=loadedProblem, correctness=0)
+        r1.save()
+        r1 = Resolution.objects.get(nodeIdList = nodeArray, problem=loadedProblem, edgeIdList = edgeArray)
+        r1.correctness = self.corretudeResolucao(r1)
         r1.save()
 
 
