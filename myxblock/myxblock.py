@@ -5,8 +5,15 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 import ast 
-from .studentGraph.models import Problem, Node, Edge, Resolution
+from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hints, Explanations, Doubt, KnowledgeComponent
 from .visualGraph import *
+from django.utils.timezone import now
+from datetime import datetime  
+
+#Max amount of feedback
+maxErrorSpecificFeedback = 2
+maxExplanations = 2
+maxDoubts = 2
 
 #Step information
 correctnessMinValue = -1
@@ -27,6 +34,14 @@ allResolutionsDefault = []
 
 #Ainda não salvando nada nessa variável
 allResolutionsNew = allResolutionsDefault
+
+def amorzinho(element):
+    quantity = ast.literal_eval(ErrorSpecificFeedbacks.objects.filter(problem = element.problem, edge = element)).length()
+    correctness = element.correctness
+    return (1/(correctness * 10) * (1/(0.1 + quantity)))
+
+def amorzinhoTempo(element):
+    return element.dateAdded
 
 def levenshteinDistance(A, B):
     if(len(A) == 0):
@@ -246,7 +261,7 @@ class MyXBlock(XBlock):
         for node in graphData['nodes']:
             nodeModel = Node.objects.filter(problem=loadedProblem, title=node["id"])
             if not nodeModel.exists():
-                n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"])
+                n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now())
                 n1.save()
             else:
                 nodeModel = nodeModel.first()
@@ -255,6 +270,7 @@ class MyXBlock(XBlock):
                 nodeModel.visible = float(node["visible"])
                 nodeModel.nodePositionX = node["x"]
                 nodeModel.nodePositionY = node["y"]
+                nodeModel.dateModified = datetime.now()
                 nodeModel.save()
 
             if "stroke" in node:
@@ -263,14 +279,14 @@ class MyXBlock(XBlock):
                     if not edgeModel.exists():
                         fromNode = Node.objects.get(problem=loadedProblem, title=node["id"])
                         toNode = Node.objects.get(problem=loadedProblem, title="_end_")
-                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem)
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
                         e1.save()
                 elif node["stroke"] == initialNodeStroke:
                     edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=node["id"])
                     if not edgeModel.exists():
                         fromNode = Node.objects.get(problem=loadedProblem, title="_start_")
                         toNode = Node.objects.get(problem=loadedProblem, title=node["id"])
-                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem)
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
                         e1.save()
 
 
@@ -279,12 +295,13 @@ class MyXBlock(XBlock):
             if not edgeModel.exists():
                 fromNode = Node.objects.get(problem=loadedProblem, title=edge["from"])
                 toNode = Node.objects.get(problem=loadedProblem, title=edge["to"])
-                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, visible=edge["visible"])
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, visible=edge["visible"], dateAdded=datetime.now())
                 e1.save()
             else:
                 edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=edge["from"], destNode__title=edge["to"])
                 edgeModel.correctness = float(edge["correctness"])
                 edgeModel.visible = edge["visible"]
+                edgeModel.dateModified = datetime.now()
                 edgeModel.save()
 
         return {}
@@ -306,7 +323,7 @@ class MyXBlock(XBlock):
         if loadedExplanations.exists():
             explanations = loadedExplanations[0].text
 
-        loadedErrorSpecificFeedbacks = ErrorSpecificFeedback.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        loadedErrorSpecificFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=loadedEdge)
         if loadedErrorSpecificFeedbacks.exists():
             errorSpecificFeedbacks = loadedErrorSpecificFeedbacks[0].text
         
@@ -320,25 +337,28 @@ class MyXBlock(XBlock):
 
         hints = Hints.objects.filter(problem=loadedProblem, edge=loadedEdge)
         if not hints.exists():
-            hint = Hints(problem=loadedProblem, edge=loadedEdge)
+            hint = Hints(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
         else:
             hint = hints[0]
+            hint.dateModified = datetime.now()
         hint.text=ast.literal_eval(data.get("hints"))
         hint.save()
 
-        errorSpecificFeedbacks = ErrorSpecificFeedback.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        errorSpecificFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=loadedEdge)
         if not errorSpecificFeedbacks.exists():
-            errorSpecificFeedback = ErrorSpecificFeedback(problem=loadedProblem, edge=loadedEdge)
+            errorSpecificFeedback = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
         else:
             errorSpecificFeedback = errorSpecificFeedbacks[0]
+            errorSpecificFeedback.dateModified = datetime.now()
         errorSpecificFeedback.text=ast.literal_eval(data.get("errorSpecificFeedbacks"))
         errorSpecificFeedback.save()
 
         explanations = Explanations.objects.filter(problem=loadedProblem, edge=loadedEdge)
         if not explanations.exists():
-            explanation = Explanations(problem=loadedProblem, edge=loadedEdge)
+            explanation = Explanations(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
         else:
             explanation = explanations[0]
+            explanation.dateModified = datetime.now()
         explanation.text=ast.literal_eval(data.get("explanations"))
         explanation.save()
 
@@ -352,9 +372,9 @@ class MyXBlock(XBlock):
 
 
     def createInitialEdgeData(self, nodeList, problemFK):
-        e1 = Edge(sourceNode=nodeList[0], destNode=nodeList[1], correctness=1, problem=problemFK)
-        e2 = Edge(sourceNode=nodeList[1], destNode=nodeList[2], correctness=1, problem=problemFK)
-        e3 = Edge(sourceNode=nodeList[2], destNode=nodeList[3], correctness=1, problem=problemFK)
+        e1 = Edge(sourceNode=nodeList[0], destNode=nodeList[1], correctness=1, problem=problemFK, dateAdded=datetime.now())
+        e2 = Edge(sourceNode=nodeList[1], destNode=nodeList[2], correctness=1, problem=problemFK, dateAdded=datetime.now())
+        e3 = Edge(sourceNode=nodeList[2], destNode=nodeList[3], correctness=1, problem=problemFK, dateAdded=datetime.now())
 
         e1.save()
         e2.save()
@@ -362,23 +382,28 @@ class MyXBlock(XBlock):
 
         hint1 = Hints(problem=problemFK, edge=e1)
         hint1.text=["Uiaaa", "hahaha"]
+        hint1.dateAdded = datetime.now()
 
         hint2 = Hints(problem=problemFK, edge=e2)
         hint2.text=["hint 1", "Hint 2"]
+        hint2.dateAdded = datetime.now()
 
         hint3 = Hints(problem=problemFK, edge=e3)
         hint3.text=["Hint feedback 1", "Hint Feedback 2"]
+        hint3.dateAdded = datetime.now()
 
         hint1.save()
         hint2.save()
         hint3.save()
 
-        errorSpecificFeedback1 = ErrorSpecificFeedback(problem=problemFK, edge=e2)
+        errorSpecificFeedback1 = ErrorSpecificFeedbacks(problem=problemFK, edge=e2)
         errorSpecificFeedback1.text=["Error Specific feedback 1", "Error Specific Feedback 2"]
+        errorSpecificFeedback1.dateAdded = datetime.now()
         errorSpecificFeedback1.save()
 
         explanations1 = Explanations(problem=problemFK, edge=e2)
         explanations1.text=["Explanation feedback 1", "Explanation Feedback 2"]
+        explanations1.dateAdded = datetime.now()
         explanations1.save()
 
         return [e1, e2, e3]        
@@ -392,16 +417,16 @@ class MyXBlock(XBlock):
         for edge in edgeList:
                 edgeArray.append(edge.id)
 
-        r1 = Resolution(nodeIdList=json.dumps(nodeArray), edgeIdList=json.dumps(edgeArray), correctness=1, problem=problemFK)
+        r1 = Resolution(nodeIdList=json.dumps(nodeArray), edgeIdList=json.dumps(edgeArray), correctness=1, problem=problemFK, dateAdded=datetime.now())
 
         r1.save()
 
 
     def createInitialNodeData(self, problemFK):
-        n1 = Node(title="_start_", correctness=1, alreadyCalculatedPos = 1, problem=problemFK)
-        n2 = Node(title="Option 1", correctness=1, problem=problemFK)
-        n3 = Node(title="Option 2", correctness=1, problem=problemFK)
-        n4 = Node(title="_end_", correctness=1, alreadyCalculatedPos = 1, problem=problemFK)
+        n1 = Node(title="_start_", correctness=1, alreadyCalculatedPos = 1, problem=problemFK, dateAdded=datetime.now())
+        n2 = Node(title="Option 1", correctness=1, problem=problemFK, dateAdded=datetime.now())
+        n3 = Node(title="Option 2", correctness=1, problem=problemFK, dateAdded=datetime.now())
+        n4 = Node(title="_end_", correctness=1, alreadyCalculatedPos = 1, problem=problemFK, dateAdded=datetime.now())
 
         n1.save()
         n2.save()
@@ -416,7 +441,7 @@ class MyXBlock(XBlock):
 
     def createInitialData(self):
         if self.problemId == -1:
-            p = Problem(graph=json.dumps(problemGraphDefault))
+            p = Problem(graph=json.dumps(problemGraphDefault), dateAdded=datetime.now())
             p.save()
             self.problemId = p.id
             self.createInitialNodeData(p)
@@ -448,6 +473,7 @@ class MyXBlock(XBlock):
         self.problemAnswer5 = data.get('problemAnswer5')
         self.problemSubject = data.get('problemSubject')
         self.problemTags = ast.literal_eval(data.get('problemTags'))
+        loadedProblem.dateModified=datetime.now()
 
         loadedProblem.save()
 
@@ -627,13 +653,13 @@ class MyXBlock(XBlock):
             currentNode = Node.objects.filter(problem=loadedProblem, title=step)
 
             if not lastNode.exists():
-                n1 = Node(title=lastElement, problem=loadedProblem)
+                n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now())
                 n1.save()
             else:
                 n1 = lastNode.first()
 
             if lastNode.exists() and not currentNode.exists():
-                n2 = Node(title=step, problem=loadedProblem)
+                n2 = Node(title=step, problem=loadedProblem, dateAdded=datetime.now())
                 n2.save()
             else:
                 n2 = currentNode.first()
@@ -641,7 +667,7 @@ class MyXBlock(XBlock):
             
             currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
             if not currentEdge.exists():
-                e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem)
+                e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
                 e1.save()
 
 
@@ -655,7 +681,7 @@ class MyXBlock(XBlock):
         edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
 
         if not edgeList.exists():
-            e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem)
+            e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem, dateAdded=datetime.now())
             e1.save()
 
         self.studentResolutionsSteps.append(str((lastElement, finalElement)))
@@ -690,7 +716,10 @@ class MyXBlock(XBlock):
         else:
             isAnswerCorrect = isStepsCorrect
 
-
+        self.getMinimalFeedbackFromStudentResolution(answerArray)
+        self.getErrorSpecificFeedbackFromProblemGraph(answerArray)
+        self.getExplanationsAndHintsFromProblemGraph(answerArray)
+        self.getDoubtsFromProblemGraph()
 
         #Fim da parte do updateCG
 
@@ -703,264 +732,110 @@ class MyXBlock(XBlock):
         else:
             return {"answer": "Incorreto!"}
 
-    def getExplanationOrHintStepsFromProblemGraph(self):
-
+    def getMinimalFeedbackFromStudentResolution(self, resolution):
+        askInfoSteps = []
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allNodes = Node.objects.filter(problem=loadedProblem)
+        previousStateName = "_start_"
+        nextStateName = None
+        for stateName in resolution:
+            if resolution.index(stateName) + 1 != len(resolution):
+                nextStateName = resolution[resolution.index(stateName) + 1]
+            else:
+                nextStateName = "_end_"
+            state = Node.objects.filter(problem=loadedProblem, title=stateName)
+            if not state.exists():
+                if previousStateName != "_start_":
+                    previousState = Node.objects.filter(problem=loadedProblem, title=previousStateName)
+                    if previousState.exists():
+                        differentSteps = Edge.objects.filter(problem=loadedProblem, sourceNode=previousState)
+                        askInfoSteps.append(differentSteps)
+                        
+                if nextStateName != "_end_":
+                    nextState = Node.objects.filter(problem=loadedProblem, title=nextStateName)
+                    if nextState.exists():
+                        differentSteps = Edge.objects.filter(problem=loadedProblem, destNode=previousState)
+                        askInfoSteps.append(differentSteps)
+            else:
+                previousEdges = Edge.objects.filter(problem=loadedProblem, destNode=state[0])
+                for previousEdge in previousEdges:
+                    previousNode = previousEdge.sourceNode
+                    if previousNode.title != previousStateName:
+                        inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode = previousNode).exclude(destNode=state[0])
+                        inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode=state[0]).exclude(sourceNode = previousNode)
+                        inforSteps3 = Edge.objects.filter(problem=loadedProblem).exclude(sourceNode = previousNode, destNode=state[0])
+                        askInfoSteps.append(inforSteps1)
+                        askInfoSteps.append(inforSteps2)
+                        askInfoSteps.append(inforSteps3)
+                nextEdges = Edge.objects.filter(problem=loadedProblem, sourceNode=state[0])
+                for nextEdge in nextEdges:
+                    nextNode = nextEdge.destNode
+                    if nextNode.title != nextStateName:
+                        inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode = state[0]).exclude(destNode = nextNode)
+                        inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode = nextNode).exclude(sourceNode = state[0])
+                        inforSteps3 = Edge.objects.filter(problem=loadedProblem).exclude(destNode = nextNode, sourceNode = state[0])
+                        askInfoSteps.append(inforSteps1)
+                        askInfoSteps.append(inforSteps2)
+                        askInfoSteps.append(inforSteps3)
 
-        steps = {}
-        for sourceNode in allNodes:
-            nodeEdges = Edge.objects.filter(problem=loadedProblem, sourceNode=sourceNode)
-            for destNode in nodeEdges:
-                step = Edge.objects.get(problem=loadedProblem, sourceNode=sourceNode, destNode=destNode)
-                if step.correctness >= stronglyValidStep[0]:
-                    if sourceNode.correctness >= correctState[0] and endNode.correctness >= correctState[0]:
-                        if sourceNode.title in steps:
-                            steps[sourceNode.title].append(destNode.title)
-                        else:
-                            steps[sourceNode.title] = [destNode.title]
-        return steps    
+            previousStateName = stateName
+        return askInfoSteps
+                        
 
-    def getHintStepFromStudentResolution(self, studentStates):
-        chosenHintStep = None
-        chosenHintValue = None
-
+    def getErrorSpecificFeedbackFromProblemGraph(self, resolution):
+        CFEE = []
+        returnList = []
         loadedProblem = Problem.objects.get(id=self.problemId)
+        CFEE = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[0])
+        for stepEE in CFEE:
+            sourceNodeTitleEE = stepEE.sourceNode.title 
+            if sourceNodeTitleEE in resolution:
+                sourceNodeIndexEE = resolution.index(sourceNodeTitleEE)
+                if sourceNodeIndexEE < len(resolution) - 1:
+                    if resolution[sourceNodeIndexEE + 1] != stepEE.destNode.title:
+                        possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = sourceNodeTitleEE, destNode__title = resolution[sourceNodeIndexEE + 1], destNode__correctness__gte = correctState[0])
+                        if possibleEdge.exists():
+                            returnList.append(possibleEdge.get(0))
+        if len(returnList) > 0:
+            return returnList.sort(key=amorzinho)[0:maxErrorSpecificFeedback]
+        else:
+            return returnList
 
-        hintSteps = self.getExplanationOrHintStepsFromProblemGraph()
-
-        for i in range(len(studentStates) - 1):
-            for hintStepFromGraph in hintSteps:
-                if studentStates[i] == hintStepFromGraph and problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
-                    for destinyHintStep in hintSteps[hintStepFromGraph]:
-                        if studentStates[i+1] == destinyHintStep and problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
-
-                            hintStep = str((hintStepFromGraph, destinyHintStep))
-                            if chosenHintStep == None:
-                                chosenHintStep = hintStep
-                                chosenHintValue = problemGraphStepsCorrectness[hintStep]
-                            else:
-                                hintForStep = Hints.objects.filter(problem=loadedProblem, edge__sourceNode__title=hintStepFromGraph, edge__destNode__title=destinyHintStep)
-                                if hintForStep.exists():
-                                #if hintStep in self.hintFromSteps:
-                                    #newHintFeedbacks = self.hintFromSteps[hintStep]
-                                    newHintFeedbacks = ast.literal_eval(hintForStep[0])[hintStep]
-                                else:
-                                    newHintFeedbacks = 0
-
-                                explanationForStep = Explanations.objects.filter(problem=loadedProblem, edge__sourceNode__title=hintStepFromGraph, edge__destNode__title=destinyHintStep)
-                                if explanationForStep.exists():
-                                #if chosenHintStep in self.explanationFromSteps:
-                                    #chosenHintStepFeedbacks = self.explanationFromSteps[chosenHintStep]
-                                    chosenHintStepFeedbacks = ast.literal_eval(explanationForStep[0])[chosenHintStep]
-                                else:
-                                    chosenHintstepFeedbacks = 0
-
-                                if chosenHintValue < problemGraphStepsCorrectness[hintStep] or chosenHintStepFeedbacks < newHintFeedbacks:
-                                    chosenHintStep = hintStep
-                                    chosenHintValue = problemGraphStepsCorrectness[hintStep]
-        return chosenHintStep
-
-    def getExplanationStepsFromStudentResolution(self, studentStates, amount):
-        chosenExplanationSteps = {}
-        explanationSteps = self.getExplanationOrHintStepsFromProblemGraph()
-
-        for i in range(len(studentStates) - 1):
-            for explanationStep in explanationSteps:
-                if studentStates[i] == explanationStep and problemGraphStatesCorrectness[studentStates[i]] >= correctState[0]:
-                    for destinyExplanationStep in explanationSteps[explanationStep]:
-                        if studentStates[i+1] == destinyExplanationStep and problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0]:
-
-                            chosenExplanationStep = str((explanationStep, destinyExplanationStep))
-                            if len(chosenExplanationSteps) < amount:
-                                chosenExplanationSteps[chosenExplanationStep] = problemGraphStepsCorrectness[chosenExplanationStep]
-                            else:
-                                stepsToBeRemoved = []
-                                stepsToBeAdded = {}
-                                for step in chosenExplanationSteps:
-                                    if len(chosenExplanationSteps) - len(stepsToBeRemoved) >= amount:
-                                        if step in self.explanationFromSteps:
-                                            stepFeedbacks = self.explanationFromSteps[step]
-                                        else:
-                                            stepFeedbacks = 0
-
-                                        if chosenExplanationStep in self.explanationFromSteps:
-                                            chosenExplanationStepFeedbacks = self.explanationFromSteps[chosenExplanationStep]
-                                        else:
-                                            chosenExplanationStepFeedbacks = 0
-
-                                        if chosenExplanationSteps[step] < problemGraphStepsCorrectness[chosenExplanationStep] or stepFeedbacks < chosenExplanationStepFeedbacks:
-                                            stepsToBeRemoved.append(step)
-                                            stepsToBeAdded[chosenExplanationStep] = problemGraphStepsCorrectness[chosenExplanationStep]
-
-                                for step in stepsToBeRemoved:
-                                    chosenExplanationSteps.pop(step)
-
-                                for step in stepsToBeAdded:
-                                    chosenExplanationSteps[step] = stepsToBeAdded[step]
-
-        return chosenExplanationSteps    
-    
-    def getErrorSpecificFeedbackStepsFromProblemGraph(self):
-        steps = {}
-        for i in problemGraph:
-            for j in problemGraph[i]:
-                if problemGraphStepsCorrectness[str((i, j))] < stronglyInvalidStep[1]:
-                    if problemGraphStatesCorrectness[i] > correctState[0] and problemGraphStatesCorrectness[j] < incorrectState[1]:
-                        if i in steps:
-                            steps[i].append(j)
-                        else:
-                            steps[i] = [j]
-        return steps    
-
-    #Inicio igual, mas o fim não
-    def getErrorSpecificFeedbackStepsFromStudentResolution(self, studentStates, amount):
-        usefulRelatedSteps = {}
-        errorSpecificFeedbackSteps = self.getErrorSpecificFeedbackStepsFromGraph()
-
-        for i in range(len(studentStates) - 1):
-            for errorSpecificFeedbackSourceState in errorSpecificFeedbackSteps:
-                if studentStates[i] == errorSpecificFeedbackSourceState:
-                    for errorSpecificFeedbackDestinyState in errorSpecificFeedbackSteps[errorSpecificFeedbackSourceState]:
-                        errorSpecificStep = str((errorSpecificFeedbackSourceState, errorSpecificFeedbackDestinyState))
-                        studentStep = str((studentStates[i], studentStates[i+1]))
-                        if studentStates[i+1] != errorSpecificFeedbackDestinyState and problemGraphStepsCorrectness[studentStep] >= stronglyValidStep[0] and problemGraphStatesCorrectness[studentStates[i+1]] >= correctState[0] :
-                            if len(usefulRelatedSteps) < amount:
-                                usefulRelatedSteps[errorSpecificStep] = problemGraphStepsCorrectness[errorSpecificStep]
-                            else:
-                                stepsToBeRemoved = []
-                                stepsToBeAdded = {}
-                                for usefulRelatedStep in usefulRelatedSteps:
-                                    if len(usefulRelatedSteps) - len(stepsToBeRemoved) >= amount:
-                                        if usefulRelatedStep in self.errorSpecificFeedbackFromSteps:
-                                            usefulRelatedStepFeedbacks = self.errorSpecificFeedbackFromSteps[usefulRelatedStep]
-                                        else:
-                                            usefulRelatedStepFeedbacks = 0
-
-                                        if errorSpecificStep in self.errorSpecificFeedbackFromSteps:
-                                            errorSpecificStepFeedbacks = self.errorSpecificFeedbackFromSteps[errorSpecificStep]
-                                        else:
-                                            errorSpecificStepFeedbacks = 0
-
-                                        if usefulRelatedSteps[usefulRelatedStep] > problemGraphStepsCorrectness[errorSpecificStep] or usefulRelatedStepFeedbacks < errorSpecificStepFeedbacks:
-                                            stepsToBeRemoved.append(usefulRelatedStep)
-                                            stepsToBeAdded[errorSpecificStep] = problemGraphStepsCorrectness[errorSpecificStep]
-
-                                for step in stepsToBeRemoved:
-                                    usefulRelatedSteps.pop(step)
-
-                                for step in stepsToBeAdded:
-                                    self.chosenExplanationSteps[step] = stepsToBeAdded[step]
-
-        return usefulRelatedSteps    
+    def getExplanationsAndHintsFromProblemGraph(self, resolution):
+        CEX = []
+        returnList = []
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        CEX = Edge.objects.filter(problem=loadedProblem, correctness__gt = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
+        for stepEX in CEX:
+            sourceNodeTitleEX = stepEX.sourceNode.title 
+            if sourceNodeTitleEX in resolution:
+                sourceNodeIndexEX = resolution.index(sourceNodeTitleEX)
+                if sourceNodeIndexEX < len(resolution) - 1:
+                    if resolution[sourceNodeIndexEX + 1] == stepEX.destNode.title:
+                        possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__correctness__gte = correctState[0], sourceNode__title = sourceNodeTitleEX, destNode__title = resolution[sourceNodeIndexEX + 1], destNode__correctness__gte = correctState[0])
+                        if possibleEdge.exists():
+                            returnList.append(possibleEdge.get(0))
+        if len(returnList) > 0:
+            return returnList.sort(key=amorzinho)[0:maxExplanations]
+        else:
+            return returnList
 
 
-    def getWhichStatesAndStepsToGetMinimumFeedback(self, studentStates, amount) :
+    def getDoubtsFromProblemGraph(self):
+        CDU = []
+        allDoubtsWithAnswers = []
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allDoubts = Doubt.objects.filter(problem=loadedProblem)
+        allAnswers = Answer.objects.filter(problem=loadedProblem)
+        for answer in allAnswers:
+            if answer.doubt not in allDoubtsWithAnswers:
+                allDoubtsWithAnswers.append(answer)
+        if len(allDoubts) > 0:
+            CDU = allDoubts.difference(allDoubtsWithAnswers)
 
-        previousStudentState = '_start_'
-        nextStudentState = None
-
-        statesAndStepsNeededInfo = {}
-
-        #for studentState in studentStates:
-        for i in range(len(studentStates)):
-
-            studentState = studentStates[i]
-            if i < len(studentStates) - 1:
-                nextStudentState = studentStates[i+1]
-            else:
-                nextStudentState = '_end_'
-
-            if studentState not in problemGraph:
-                #Pega os estados finais no qual tem esse estado inicial
-                if previousStudentState !=  '_start_' and previousStudentState in problemGraph:
-                    for nextStepFromPreviousStudentState in problemGraph[previousStudentState]:
-                        if nextStepFromPreviousStudentState != '_end_':
-                            self.insertStepIfCorrectnessIsValid(str((previousStudentState, nextStepFromPreviousStudentState)), statesAndStepsNeededInfo, amount)
-
-                #Pega os estados iniciais no qual tem esse estado final
-                if nextStudentState != '_end_' and nextStudentState in problemGraph:
-                    for beforeState in self.getSourceStatesFromDestinyState(nextStudentState):
-                        if beforeState != '_start_':
-                            self.insertStepIfCorrectnessIsValid(str((beforeState, nextStudentState)), statesAndStepsNeededInfo, amount)
-            else:
-                #Pega os estados finais no qual tem esse estado inicial
-                if previousStudentState !=  '_start_' and previousStudentState in problemGraph:
-                    #Pega os passos onde o estado final é diferente do feito pelo aluno
-                    for nextStepFromPreviousStudentState in problemGraph[previousStudentState]:
-                        if nextStepFromPreviousStudentState != studentState and nextStepFromPreviousStudentState != '_end_':
-                            self.insertStepIfCorrectnessIsValid(str((previousStudentState, nextStepFromPreviousStudentState)), statesAndStepsNeededInfo, amount)
-
-                    #Pega os passos onde o estado inicial é diferente do usado
-                    for beforeState in self.getSourceStatesFromDestinyState(studentState):
-                        if beforeState != previousStudentState and beforeState != '_start_':
-                            self.insertStepIfCorrectnessIsValid(str((beforeState, studentState)), statesAndStepsNeededInfo, amount)
-
-                    #Pega os passos alternativos, onde estado anterior e estado atual são diferentes dos usados
-                    alternativeSteps = []
-                    sourceStates = self.getSourceStatesFromDestinyState(studentState)
-                    for sourceState in sourceStates:
-                        if sourceState != previousStudentState and sourceState != '_start_':
-                            for nextState in problemGraph[sourceState]:
-                                if nextState != studentState and nextState != '_end_':
-                                    alternativeSteps.append(str((sourceState, nextState)))
-
-                    for step in alternativeSteps:
-                        self.insertStepIfCorrectnessIsValid(step, statesAndStepsNeededInfo, amount)
-
-                #Pega os estados iniciais no qual tem esse estado final
-                if nextStudentState != '_end_' and nextStudentState in problemGraph:
-                    #Casos onde o estado inicial é o atual, mas o final é diferente
-                    for nextStepFromStudentState in problemGraph[studentState]:
-                        if nextStepFromStudentState != nextStudentState and nextStepFromStudentState != '_end_':
-                            self.insertStepIfCorrectnessIsValid(str((studentState, nextStepFromStudentState)), statesAndStepsNeededInfo, amount)
-                    
-                    #Casos onde os estados iniciais são diferentes do estado atual, mas o estado final é o próximo estado
-                    for beforeState in self.getSourceStatesFromDestinyState(nextStudentState):
-                        if beforeState != studentState and beforeState != '_start_':
-                            self.insertStepIfCorrectnessIsValid(str((beforeState, nextStudentState)), statesAndStepsNeededInfo, amount)
-            
-                    #Pega os passos alternativos, onde os passo atual e o próximo são diferentes
-                    alternativeSteps = []
-                    sourceStates = self.getSourceStatesFromDestinyState(nextStudentState)
-                    for sourceState in sourceStates:
-                        if sourceState != studentState and sourceState != '_start_':
-                            for nextState in problemGraph[sourceState]:
-                                if nextState != nextStudentState and nextState != '_end_':
-                                    alternativeSteps.append(str((sourceState, nextState)))
-
-                    for step in alternativeSteps:
-                        self.insertStepIfCorrectnessIsValid(step, statesAndStepsNeededInfo, amount)
-
-            previousStudentState = studentState
-        return statesAndStepsNeededInfo
-
-    def insertStepIfCorrectnessIsValid(self, step, statesAndStepsNeededInfo, amount):
-        if step in statesAndStepsNeededInfo:
-            return
-
-        #Adiciona se achar um maior que o valor passado
-        for element in statesAndStepsNeededInfo:
-            if abs(problemGraphStepsCorrectness[step]) < abs(statesAndStepsNeededInfo[element]):
-                statesAndStepsNeededInfo[step] = problemGraphStepsCorrectness[step]
-
-        #Se tiver espaço na lista, adiciona
-        if len(statesAndStepsNeededInfo) < amount:
-            statesAndStepsNeededInfo[step] = problemGraphStepsCorrectness[step]
-
-
-        #Deixa o vetor com o número certo de elementos
-        if len(statesAndStepsNeededInfo) > amount:
-            highestValue = 0
-            highestElement = None
-            for element in statesAndStepsNeededInfo:
-                if abs(statesAndStepsNeededInfo[element]) > highestValue:
-                    highestValue = abs(statesAndStepsNeededInfo[element])
-                    highestElement = element
-
-            if highestElement != None:
-                statesAndStepsNeededInfo.pop(highestElement)
-
+        if len(CDU) > 0:
+            return CDU.sort(key=amorzinho)[0:maxDoubts]
+        else:
+            return CDU
 
     def corretudeResolucao(self, resolution):
         loadedProblem = Problem.objects.get(id=self.problemId)
@@ -1062,10 +937,12 @@ class MyXBlock(XBlock):
         for node in resolution:
             currentNode = Node.objects.get(problem=loadedProblem, title=node)
             currentNode.correctness = self.corretudeEstado(currentNode)
+            currentNode.dateAdded = datetime.now()
             currentNode.save()
             nodeArray.append(currentNode.id)
             currentEdge = Edge.objects.get(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
             currentEdge.correctness = self.validadePasso(currentEdge)
+            currentEdge.dateAdded = datetime.now()
             currentEdge.save()
             edgeArray.append(currentEdge.id)
             lastNode = currentNode
@@ -1076,7 +953,7 @@ class MyXBlock(XBlock):
         edgeArray.append(currentEdge.id)
         lastNode = currentNode
 
-        r1 = Resolution(nodeIdList = nodeArray, edgeIdList = edgeArray, problem=loadedProblem, correctness=0)
+        r1 = Resolution(nodeIdList = nodeArray, edgeIdList = edgeArray, problem=loadedProblem, correctness=0, dateAdded=datetime.now())
         r1.save()
         r1 = Resolution.objects.get(nodeIdList = nodeArray, problem=loadedProblem, edgeIdList = edgeArray)
         r1.correctness = self.corretudeResolucao(r1)

@@ -1,4 +1,4 @@
-from .studentGraph.models import Problem, Node, Edge, ErrorSpecificFeedback, Hints, Explanations, Doubt, KnowledgeComponent
+from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hints, Explanations, Doubt, KnowledgeComponent
 import copy
 
 #VisualGraphProperties
