@@ -9,8 +9,11 @@ from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorS
 from .visualGraph import *
 from django.utils.timezone import now
 from datetime import datetime  
+from django.http import JsonResponse
+from django.core import serializers
 
 #Max amount of feedback
+maxMinimumFeedback = 4
 maxErrorSpecificFeedback = 2
 maxExplanations = 2
 maxDoubts = 2
@@ -35,8 +38,21 @@ allResolutionsDefault = []
 #Ainda não salvando nada nessa variável
 allResolutionsNew = allResolutionsDefault
 
-def amorzinho(element):
+def amorzinhoErrorSpecificFeedback(element):
     quantity = ast.literal_eval(ErrorSpecificFeedbacks.objects.filter(problem = element.problem, edge = element)).length()
+    correctness = element.correctness
+    return (1/(correctness * 10) * (1/(0.1 + quantity)))
+
+def amorzinhoMinimalFeedback(element):
+    return element.correctness
+
+def amorzinhoHints(element):
+    quantity = ast.literal_eval(Hints.objects.filter(problem = element.problem, edge = element)).length()
+    correctness = element.correctness
+    return (1/(correctness * 10) * (1/(0.1 + quantity)))
+
+def amorzinhoExplanations(element):
+    quantity = ast.literal_eval(Explanations.objects.filter(problem = element.problem, edge = element)).length()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
@@ -716,10 +732,28 @@ class MyXBlock(XBlock):
         else:
             isAnswerCorrect = isStepsCorrect
 
-        self.getMinimalFeedbackFromStudentResolution(answerArray)
-        self.getErrorSpecificFeedbackFromProblemGraph(answerArray)
-        self.getExplanationsAndHintsFromProblemGraph(answerArray)
-        self.getDoubtsFromProblemGraph()
+        minimal = self.getMinimalFeedbackFromStudentResolution(answerArray)
+        minimalSteps = []
+        for minimalStep in minimal:
+            minimalSteps.append(minimalStep.sourceNode.title + " " + minimalStep.destNode.title)
+
+        errorSpecific = self.getErrorSpecificFeedbackFromProblemGraph(answerArray)
+        errorSpecificSteps = []
+        for errorSpecificStep in errorSpecific:
+            errorSpecificSteps.append(errorSpecificStep.sourceNode.title + " " + errorSpecificStep.destNode.title)
+
+        explanation = self.getExplanationsAndHintsFromProblemGraph(answerArray)
+        explanationSteps = []
+        for explanationStep in explanation:
+            explanationSteps.append(explanationStep.sourceNode.title + " " + explanationStep.destNode.title)
+
+        doubts = self.getDoubtsFromProblemGraph()
+        doubtsReturn = []
+        for model in doubts:
+            if isinstance(model, Edge):
+                doubtsReturn.append(model.sourceNode.title + " " + model.destNode.title)
+            else:
+                doubtsReturn.append(model.title)
 
         #Fim da parte do updateCG
 
@@ -730,7 +764,7 @@ class MyXBlock(XBlock):
         if isAnswerCorrect:
             return {"answer": "Correto!"}
         else:
-            return {"answer": "Incorreto!"}
+            return {"answer": "Incorreto!", "minimal": minimalSteps, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubts": doubtsReturn}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution):
         askInfoSteps = []
@@ -748,13 +782,15 @@ class MyXBlock(XBlock):
                     previousState = Node.objects.filter(problem=loadedProblem, title=previousStateName)
                     if previousState.exists():
                         differentSteps = Edge.objects.filter(problem=loadedProblem, sourceNode=previousState)
-                        askInfoSteps.append(differentSteps)
+                        for step in differentSteps:
+                            askInfoSteps.append(step)
                         
                 if nextStateName != "_end_":
                     nextState = Node.objects.filter(problem=loadedProblem, title=nextStateName)
                     if nextState.exists():
                         differentSteps = Edge.objects.filter(problem=loadedProblem, destNode=previousState)
-                        askInfoSteps.append(differentSteps)
+                        for step in differentSteps:
+                            askInfoSteps.append(step)
             else:
                 previousEdges = Edge.objects.filter(problem=loadedProblem, destNode=state[0])
                 for previousEdge in previousEdges:
@@ -763,9 +799,12 @@ class MyXBlock(XBlock):
                         inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode = previousNode).exclude(destNode=state[0])
                         inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode=state[0]).exclude(sourceNode = previousNode)
                         inforSteps3 = Edge.objects.filter(problem=loadedProblem).exclude(sourceNode = previousNode, destNode=state[0])
-                        askInfoSteps.append(inforSteps1)
-                        askInfoSteps.append(inforSteps2)
-                        askInfoSteps.append(inforSteps3)
+                        for step in inforSteps1:
+                            askInfoSteps.append(step)
+                        for step in inforSteps2:
+                            askInfoSteps.append(step)
+                        for step in inforSteps3:
+                            askInfoSteps.append(step)
                 nextEdges = Edge.objects.filter(problem=loadedProblem, sourceNode=state[0])
                 for nextEdge in nextEdges:
                     nextNode = nextEdge.destNode
@@ -773,13 +812,20 @@ class MyXBlock(XBlock):
                         inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode = state[0]).exclude(destNode = nextNode)
                         inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode = nextNode).exclude(sourceNode = state[0])
                         inforSteps3 = Edge.objects.filter(problem=loadedProblem).exclude(destNode = nextNode, sourceNode = state[0])
-                        askInfoSteps.append(inforSteps1)
-                        askInfoSteps.append(inforSteps2)
-                        askInfoSteps.append(inforSteps3)
+                        for step in inforSteps1:
+                            askInfoSteps.append(step)
+                        for step in inforSteps2:
+                            askInfoSteps.append(step)
+                        for step in inforSteps3:
+                            askInfoSteps.append(step)
 
             previousStateName = stateName
-        return askInfoSteps
-                        
+        if askInfoSteps is not None and len(askInfoSteps) >= maxMinimumFeedback:
+            askInfoSteps.sort(key=amorzinhoMinimalFeedback)
+            return askInfoSteps[0:maxMinimumFeedback]
+        else:
+            return askInfoSteps
+
 
     def getErrorSpecificFeedbackFromProblemGraph(self, resolution):
         CFEE = []
@@ -794,9 +840,10 @@ class MyXBlock(XBlock):
                     if resolution[sourceNodeIndexEE + 1] != stepEE.destNode.title:
                         possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = sourceNodeTitleEE, destNode__title = resolution[sourceNodeIndexEE + 1], destNode__correctness__gte = correctState[0])
                         if possibleEdge.exists():
-                            returnList.append(possibleEdge.get(0))
-        if len(returnList) > 0:
-            return returnList.sort(key=amorzinho)[0:maxErrorSpecificFeedback]
+                            returnList.append(possibleEdge[0])
+        if len(returnList) >= maxErrorSpecificFeedback:
+            returnList.sort(key=amorzinhoErrorSpecificFeedback)
+            return returnList[0:maxErrorSpecificFeedback]
         else:
             return returnList
 
@@ -813,9 +860,10 @@ class MyXBlock(XBlock):
                     if resolution[sourceNodeIndexEX + 1] == stepEX.destNode.title:
                         possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__correctness__gte = correctState[0], sourceNode__title = sourceNodeTitleEX, destNode__title = resolution[sourceNodeIndexEX + 1], destNode__correctness__gte = correctState[0])
                         if possibleEdge.exists():
-                            returnList.append(possibleEdge.get(0))
-        if len(returnList) > 0:
-            return returnList.sort(key=amorzinho)[0:maxExplanations]
+                            returnList.append(possibleEdge[0])
+        if len(returnList) >= maxExplanations:
+            returnList.sort(key=amorzinhoErrorSpecificFeedback)
+            return returnList[0:maxExplanations]
         else:
             return returnList
 
@@ -829,11 +877,12 @@ class MyXBlock(XBlock):
         for answer in allAnswers:
             if answer.doubt not in allDoubtsWithAnswers:
                 allDoubtsWithAnswers.append(answer)
-        if len(allDoubts) > 0:
+        if len(allDoubts) > 0 and len(allDoubtsWithAnswers) > 0:
             CDU = allDoubts.difference(allDoubtsWithAnswers)
 
         if len(CDU) > 0:
-            return CDU.sort(key=amorzinho)[0:maxDoubts]
+            CDU.sort(key=amorzinhoTempo)
+            return CDU[0:maxDoubts]
         else:
             return CDU
 
@@ -955,7 +1004,7 @@ class MyXBlock(XBlock):
 
         r1 = Resolution(nodeIdList = nodeArray, edgeIdList = edgeArray, problem=loadedProblem, correctness=0, dateAdded=datetime.now())
         r1.save()
-        r1 = Resolution.objects.get(nodeIdList = nodeArray, problem=loadedProblem, edgeIdList = edgeArray)
+        r1 = Resolution.objects.get(id = r1.id)
         r1.correctness = self.corretudeResolucao(r1)
         r1.save()
 
