@@ -495,6 +495,26 @@ class MyXBlock(XBlock):
 
         return {'result':'success'}
 
+    @XBlock.json_handler
+    def send_feedback(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        
+        feedbackType = data.type
+
+        match feedbackType:
+            case 'minimal':
+                print("minimal")
+            case 'errorSpecific':
+                print("errorSpecific")
+            case 'explanation':
+                print("explanation")
+            case 'doubtStep':
+                print("doubtStep")
+            case 'doubtNode':
+                print("doubtNode")
+
+        return {'result':'success'}
+
     #Sistema que mostra quais dicas até o primeiro passo errado
     #Aqui ele pega a primeira resposta errada, e coloca a dica da que mais se assemelha
     #Feedback mínimo, sem dicas
@@ -735,25 +755,30 @@ class MyXBlock(XBlock):
         minimal = self.getMinimalFeedbackFromStudentResolution(answerArray)
         minimalSteps = []
         for minimalStep in minimal:
-            minimalSteps.append(minimalStep.sourceNode.title + " " + minimalStep.destNode.title)
+            minimalSteps.append(minimalStep.sourceNode.title)
+            minimalSteps.append(minimalStep.destNode.title)
 
         errorSpecific = self.getErrorSpecificFeedbackFromProblemGraph(answerArray)
         errorSpecificSteps = []
         for errorSpecificStep in errorSpecific:
-            errorSpecificSteps.append(errorSpecificStep.sourceNode.title + " " + errorSpecificStep.destNode.title)
+            errorSpecificSteps.append(errorSpecificStep.sourceNode.title)
+            errorSpecificSteps.append(errorSpecificStep.destNode.title)
 
         explanation = self.getExplanationsAndHintsFromProblemGraph(answerArray)
         explanationSteps = []
         for explanationStep in explanation:
-            explanationSteps.append(explanationStep.sourceNode.title + " " + explanationStep.destNode.title)
+            explanationSteps.append(explanationStep.sourceNode.title)
+            explanationSteps.append(explanationStep.destNode.title)
 
         doubts = self.getDoubtsFromProblemGraph()
-        doubtsReturn = []
+        doubtsStepReturn = []
+        doubtsNodeReturn = []
         for model in doubts:
             if isinstance(model, Edge):
-                doubtsReturn.append(model.sourceNode.title + " " + model.destNode.title)
+                doubtsStepReturn.append(model.sourceNode.title)
+                doubtsStepReturn.append(model.destNode.title)
             else:
-                doubtsReturn.append(model.title)
+                doubtsNodeReturn.append(model.title)
 
         #Fim da parte do updateCG
 
@@ -761,10 +786,11 @@ class MyXBlock(XBlock):
 
         self.calculateValidityAndCorrectness(answerArray)
 
-        if isAnswerCorrect:
-            return {"answer": "Correto!"}
-        else:
-            return {"answer": "Incorreto!", "minimal": minimalSteps, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubts": doubtsReturn}
+        return {"message": "Resposta enviada com sucesso!", "minimal": minimalSteps, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn}
+        #if isAnswerCorrect:
+        #    return {"answer": "Correto!"}
+        #else:
+        #    return {"answer": "Incorreto!", "minimal": minimalSteps, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubts": doubtsReturn}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution):
         askInfoSteps = []

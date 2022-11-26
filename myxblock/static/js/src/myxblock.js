@@ -60,6 +60,10 @@ function MyXBlock(runtime, element, data) {
         }
     }
 
+    function feedbackSuccess(message) {
+        alert(message)
+    }
+
     function showHint(value) {
         if (value.status == 'OK') {
 
@@ -123,7 +127,64 @@ function MyXBlock(runtime, element, data) {
         document.getElementById("nextHint").disabled = true;
         document.getElementById("prevHint").disabled = true;
         $(':radio:not(:checked)').attr('disabled', true);
-        alert(value.answer);
+        alert(value.message);
+
+        if (value.minimal.length > 0) {
+            for(var i = 0; i < value.minimal.length; i++){
+                var feedback = confirm("O seguinte passo está correto? " + value.minimal[i] + " -> " + value.minimal[++i]);
+
+                $.ajax({
+                    type: "POST",
+                    url: send_feedback,
+                    data: JSON.stringify({type: "minimal", message: feedback}),
+                    success: feedbackSuccess
+                });
+            }
+        }
+        if (value.errorSpecific.length > 0) {
+            for(var i = 0; i < value.errorSpecific.length; i++){
+                var feedback = prompt("Como você explicaria que o seguinte passo está incorreto? " + value.errorSpecific[i] + " -> " + value.errorSpecific[++i]);
+                $.ajax({
+                    type: "POST",
+                    url: send_feedback,
+                    data: JSON.stringify({type: "errorSpecific", message: feedback}),
+                    success: feedbackSuccess
+                });
+            }
+        }
+        if (value.explanation.length > 0) {
+            for(var i = 0; i < value.explanation.length; i++){
+                var feedback = prompt("Como você explicaria que o seguinte passo está correto? " + value.explanation[i] + " -> " + value.explanation[++i]);
+                $.ajax({
+                    type: "POST",
+                    url: send_feedback,
+                    data: JSON.stringify({type: "explanation", message: feedback}),
+                    success: feedbackSuccess
+                });
+            }
+        }
+        if (value.doubtsSteps.length > 0) {
+            for(var i = 0; i < value.doubtsSteps.length; i++){
+                var feedback = prompt("Como você responderia a seguinte dúvida? " + value.doubtsSteps[i] + " -> " + value.doubtsSteps[++i]);
+                $.ajax({
+                    type: "POST",
+                    url: send_feedback,
+                    data: JSON.stringify({type: "doubtStep", message: feedback}),
+                    success: feedbackSuccess
+                });
+            }
+        }
+        if (value.doubtsNodes.length > 0) {
+            for(var i = 0; i < value.doubtsNodes.length; i++){
+                var feedback = prompt("Como você responderia a seguinte dúvida? " + value.doubtsNodes[i]);
+                $.ajax({
+                    type: "POST",
+                    url: send_feedback,
+                    data: JSON.stringify({type: "doubtNode", message: feedback}),
+                    success: feedbackSuccess
+                });
+            }
+        }
     }
 
     async function create_initial_positions() {
@@ -137,6 +198,7 @@ function MyXBlock(runtime, element, data) {
     }
 
     var send_answer = runtime.handlerUrl(element, 'send_answer');
+    var send_feedback = runtime.handlerUrl(element, 'send_feedback');
     var get_hint_for_last_step = runtime.handlerUrl(element, 'get_hint_for_last_step');
     var getInitialData = runtime.handlerUrl(element, 'initial_data');
 
@@ -148,6 +210,17 @@ function MyXBlock(runtime, element, data) {
             url: getInitialData,
             data: JSON.stringify({}),
             success: defineValues
+        });
+    });
+
+    $('#sendFeedback', element).click(function(eventObject) {
+        var userAnswer = $(".userInput").val();
+
+        $.ajax({
+            type: "POST",
+            url: send_feedback,
+            data: JSON.stringify({userAnswer: userAnswer}),
+            success: feedbackSuccess
         });
     });
 
