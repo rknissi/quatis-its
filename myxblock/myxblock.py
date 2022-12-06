@@ -5,7 +5,7 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 import ast 
-from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hints, Explanations, Doubt, KnowledgeComponent
+from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent
 from .visualGraph import *
 from django.utils.timezone import now
 from datetime import datetime  
@@ -47,12 +47,12 @@ def amorzinhoMinimalFeedback(element):
     return element.correctness
 
 def amorzinhoHints(element):
-    quantity = ast.literal_eval(Hints.objects.filter(problem = element.problem, edge = element)).length()
+    quantity = ast.literal_eval(Hint.objects.filter(problem = element.problem, edge = element)).length()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
 def amorzinhoExplanations(element):
-    quantity = ast.literal_eval(Explanations.objects.filter(problem = element.problem, edge = element)).length()
+    quantity = ast.literal_eval(Explanation.objects.filter(problem = element.problem, edge = element)).length()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
@@ -277,12 +277,12 @@ class MyXBlock(XBlock):
         for node in graphData['nodes']:
             nodeModel = Node.objects.filter(problem=loadedProblem, title=node["id"])
             if not nodeModel.exists():
-                n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now())
+                n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
                 n1.save()
             else:
                 nodeModel = nodeModel.first()
                 nodeModel.correctness = float(node["correctness"])
-                nodeModel.weigth = float(node["weigth"])
+                nodeModel.fixedValue = float(node["fixedValue"])
                 nodeModel.visible = float(node["visible"])
                 nodeModel.nodePositionX = node["x"]
                 nodeModel.nodePositionY = node["y"]
@@ -311,13 +311,14 @@ class MyXBlock(XBlock):
             if not edgeModel.exists():
                 fromNode = Node.objects.get(problem=loadedProblem, title=edge["from"])
                 toNode = Node.objects.get(problem=loadedProblem, title=edge["to"])
-                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, visible=edge["visible"], dateAdded=datetime.now())
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, visible=edge["visible"], dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
                 e1.save()
             else:
                 edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=edge["from"], destNode__title=edge["to"])
                 edgeModel.correctness = float(edge["correctness"])
                 edgeModel.visible = edge["visible"]
                 edgeModel.dateModified = datetime.now()
+                edgeModel.fixedValue = float(edge["fixedValue"])
                 edgeModel.save()
 
         return {}
@@ -331,17 +332,23 @@ class MyXBlock(XBlock):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
-        loadedHints = Hints.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        loadedHints = Hint.objects.filter(problem=loadedProblem, edge=loadedEdge).order_by("-usefulness", "priority")
+        hints = []
         if loadedHints.exists():
-            hints = loadedHints[0].text
+            for hint in loadedHints:
+                hints.append({"id": hint.id, "text": hint.text, "priority": hint.priority, "usefulness": hint.usefulness})
 
-        loadedExplanations = Explanations.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        loadedExplanations = Explanation.objects.filter(problem=loadedProblem, edge=loadedEdge).order_by("-usefulness", "priority")
+        explanations = []
         if loadedExplanations.exists():
-            explanations = loadedExplanations[0].text
+            for explanation in loadedExplanations:
+                explanations.append({"id": explanation.id, "text": explanation.text, "priority": explanation.priority, "usefulness": explanation.usefulness})
 
-        loadedErrorSpecificFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        loadedErrorSpecificFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=loadedEdge).order_by("-usefulness", "priority")
+        errorSpecificFeedbacks = []
         if loadedErrorSpecificFeedbacks.exists():
-            errorSpecificFeedbacks = loadedErrorSpecificFeedbacks[0].text
+            for errorSpecificFeedback in loadedErrorSpecificFeedbacks:
+                errorSpecificFeedbacks.append({"id": errorSpecificFeedback.id, "text": errorSpecificFeedback.text, "priority": errorSpecificFeedback.priority, "usefulness": errorSpecificFeedback.usefulness})
         
         return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
 
@@ -350,35 +357,49 @@ class MyXBlock(XBlock):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
+        
+        allHints = ast.literal_eval(data.get("hints"))
+        for hint in allHints:
+            if "id" in hint and hint["id"].isnumeric():
+                loadedHint = Hint.objects.get(problem=loadedProblem, edge=loadedEdge, id=hint["id"])
+                loadedHint.dateModified = datetime.now()
+            else:
+                loadedHint = Hint(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
 
-        hints = Hints.objects.filter(problem=loadedProblem, edge=loadedEdge)
-        if not hints.exists():
-            hint = Hints(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
-        else:
-            hint = hints[0]
-            hint.dateModified = datetime.now()
-        hint.text=ast.literal_eval(data.get("hints"))
-        hint.save()
+            loadedHint.text = hint["text"]
+            loadedHint.usefulness = hint["usefulness"]
+            loadedHint.priority = hint["priority"]
+            loadedHint.save()
 
-        errorSpecificFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=loadedEdge)
-        if not errorSpecificFeedbacks.exists():
-            errorSpecificFeedback = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
-        else:
-            errorSpecificFeedback = errorSpecificFeedbacks[0]
-            errorSpecificFeedback.dateModified = datetime.now()
-        errorSpecificFeedback.text=ast.literal_eval(data.get("errorSpecificFeedbacks"))
-        errorSpecificFeedback.save()
 
-        explanations = Explanations.objects.filter(problem=loadedProblem, edge=loadedEdge)
-        if not explanations.exists():
-            explanation = Explanations(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
-        else:
-            explanation = explanations[0]
-            explanation.dateModified = datetime.now()
-        explanation.text=ast.literal_eval(data.get("explanations"))
-        explanation.save()
+        allErrorSpecificFeedbacks = ast.literal_eval(data.get("errorSpecificFeedbacks"))
+        for errorSpecificFeedback in allErrorSpecificFeedbacks:
+            if "id" in errorSpecificFeedback and errorSpecificFeedback["id"].isnumeric():
+                loadedError = ErrorSpecificFeedbacks.objects.get(problem=loadedProblem, edge=loadedEdge, id=errorSpecificFeedback["id"])
+                loadedError.dateModified = datetime.now()
+            else:
+                loadedError = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
 
-        return {"errorSpecificFeedbacks": errorSpecificFeedback.text, "explanations": explanation.text, "hints": hint.text}
+            loadedError.text = hint["text"]
+            loadedError.usefulness = hint["usefulness"]
+            loadedError.priority = hint["priority"]
+            loadedError.save()
+
+
+        allExplanations = ast.literal_eval(data.get("explanations"))
+        for explanation in allExplanations:
+            if "id" in explanation and explanation["id"].isnumeric():
+                loadedExplanation = Explanation.objects.get(problem=loadedProblem, edge=loadedEdge, id=explanation["id"])
+                loadedExplanation.dateModified = datetime.now()
+            else:
+                loadedExplanation = Explanation(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+
+            loadedExplanation.text = hint["text"]
+            loadedExplanation.usefulness = hint["usefulness"]
+            loadedExplanation.priority = hint["priority"]
+            loadedExplanation.save()
+
+        return {"status": "Done!"}
 
     @XBlock.json_handler
     def create_initial_positions(self,data,suffix=''):
@@ -396,31 +417,78 @@ class MyXBlock(XBlock):
         e2.save()
         e3.save()
 
-        hint1 = Hints(problem=problemFK, edge=e1)
-        hint1.text=["Uiaaa", "hahaha"]
-        hint1.dateAdded = datetime.now()
+        hint11 = Hint(problem=problemFK, edge=e1)
+        hint11.text="hahaha"
+        hint11.dateAdded = datetime.now()
+        hint11.priority = 1
+        hint11.usefulness = 1000
 
-        hint2 = Hints(problem=problemFK, edge=e2)
-        hint2.text=["hint 1", "Hint 2"]
-        hint2.dateAdded = datetime.now()
+        hint12 = Hint(problem=problemFK, edge=e1)
+        hint12.text="Uiaaa"
+        hint12.dateAdded = datetime.now()
+        hint12.priority = 2
+        hint12.usefulness = 1000
 
-        hint3 = Hints(problem=problemFK, edge=e3)
-        hint3.text=["Hint feedback 1", "Hint Feedback 2"]
-        hint3.dateAdded = datetime.now()
 
-        hint1.save()
-        hint2.save()
-        hint3.save()
+        hint21 = Hint(problem=problemFK, edge=e2)
+        hint21.text="hint 1"
+        hint21.dateAdded = datetime.now()
+        hint21.priority = 1
+        hint21.usefulness = 1000
+
+        hint22 = Hint(problem=problemFK, edge=e2)
+        hint22.text="Hint 2"
+        hint22.dateAdded = datetime.now()
+        hint22.priority = 2
+        hint22.usefulness = 1000
+
+
+        hint31 = Hint(problem=problemFK, edge=e3)
+        hint31.text="Hint feedback 1"
+        hint31.dateAdded = datetime.now()
+        hint31.priority = 1
+        hint31.usefulness = 1000
+
+        hint32 = Hint(problem=problemFK, edge=e3)
+        hint32.text="Hint Feedback 2"
+        hint32.dateAdded = datetime.now()
+        hint32.priority = 2
+        hint32.usefulness = 1000
+
+        hint11.save()
+        hint12.save()
+        hint21.save()
+        hint22.save()
+        hint31.save()
+        hint32.save()
 
         errorSpecificFeedback1 = ErrorSpecificFeedbacks(problem=problemFK, edge=e2)
-        errorSpecificFeedback1.text=["Error Specific feedback 1", "Error Specific Feedback 2"]
+        errorSpecificFeedback1.text="Error Specific feedback 1"
         errorSpecificFeedback1.dateAdded = datetime.now()
+        errorSpecificFeedback1.priority = 1
+        errorSpecificFeedback1.usefulness = 1000
         errorSpecificFeedback1.save()
 
-        explanations1 = Explanations(problem=problemFK, edge=e2)
-        explanations1.text=["Explanation feedback 1", "Explanation Feedback 2"]
+        errorSpecificFeedback2 = ErrorSpecificFeedbacks(problem=problemFK, edge=e2)
+        errorSpecificFeedback2.text="Error Specific Feedback 2"
+        errorSpecificFeedback2.dateAdded = datetime.now()
+        errorSpecificFeedback2.priority = 2
+        errorSpecificFeedback2.usefulness = 1000
+        errorSpecificFeedback2.save()
+
+        explanations1 = Explanation(problem=problemFK, edge=e2)
+        explanations1.text="Explanation feedback 1"
         explanations1.dateAdded = datetime.now()
+        explanations1.priority = 1
+        explanations1.usefulness = 1000
         explanations1.save()
+
+        explanations2 = Explanation(problem=problemFK, edge=e2)
+        explanations2.text="Explanation Feedback 2"
+        explanations2.dateAdded = datetime.now()
+        explanations2.priority = 2
+        explanations2.usefulness = 1000
+        explanations2.save()
 
         return [e1, e2, e3]        
 
@@ -501,17 +569,16 @@ class MyXBlock(XBlock):
         
         feedbackType = data.type
 
-        match feedbackType:
-            case 'minimal':
-                print("minimal")
-            case 'errorSpecific':
-                print("errorSpecific")
-            case 'explanation':
-                print("explanation")
-            case 'doubtStep':
-                print("doubtStep")
-            case 'doubtNode':
-                print("doubtNode")
+        if feedbackType == 'minimal':
+            print("minimal")
+        elif feedbackType == 'errorSpecific':
+            print("errorSpecific")
+        elif feedbackType == 'explanation':
+            print("explanation")
+        elif feedbackType == 'doubtStep':
+            print("doubtStep")
+        elif feedbackType == 'doubtNode':
+            print("doubtNode")
 
         return {'result':'success'}
 
@@ -592,11 +659,18 @@ class MyXBlock(XBlock):
                     minValue = actualValue
                     nextCorrectStep = step
 
-            hintForStep = Hints.objects.filter(problem=loadedProblem, edge__sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), edge__destNode__title=nextCorrectStep)
-            if hintForStep.exists():
-                hintList = ast.literal_eval(hintForStep[0].text)
+            edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), destNode__title=nextCorrectStep)
+            if edgeForStep.exists():
+                hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
+                if hintForStep.exists():
+                    hintList = []
+                    for hint in hintForStep:
+                        hintList.append(hint.text)
+                else:
+                    hintList = [self.problemDefaultHint]
             else:
                 hintList = [self.problemDefaultHint]
+
 
         try:
             #Então está tudo certo, pode dar um OK e seguir em frente
@@ -616,9 +690,16 @@ class MyXBlock(XBlock):
                 if (nextElement == "_end_"):
                     hintText = self.problemDefaultHint
                 else:
-                    hintForStep = Hints.objects.filter(problem=loadedProblem, edge__sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), edge__destNode__title=nextElement)
-                    if hintForStep.exists():
-                        hintList = ast.literal_eval(hintForStep[0].text)
+
+                    edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), destNode__title=nextCorrectStep)
+                    if edgeForStep.exists():
+                        hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
+                        if hintForStep.exists():
+                            hintList = []
+                            for hint in hintForStep:
+                                hintList.append(hint.text)
+                        else:
+                            hintList = [self.problemDefaultHint]
                     else:
                         hintList = [self.problemDefaultHint]
 
@@ -787,10 +868,6 @@ class MyXBlock(XBlock):
         self.calculateValidityAndCorrectness(answerArray)
 
         return {"message": "Resposta enviada com sucesso!", "minimal": minimalSteps, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn}
-        #if isAnswerCorrect:
-        #    return {"answer": "Correto!"}
-        #else:
-        #    return {"answer": "Incorreto!", "minimal": minimalSteps, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubts": doubtsReturn}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution):
         askInfoSteps = []
@@ -1011,14 +1088,16 @@ class MyXBlock(XBlock):
         nodeArray.append(lastNode.id)
         for node in resolution:
             currentNode = Node.objects.get(problem=loadedProblem, title=node)
-            currentNode.correctness = self.corretudeEstado(currentNode)
-            currentNode.dateAdded = datetime.now()
-            currentNode.save()
+            if currentNode.fixedValue == 0:
+                currentNode.correctness = self.corretudeEstado(currentNode)
+                currentNode.dateAdded = datetime.now()
+                currentNode.save()
             nodeArray.append(currentNode.id)
             currentEdge = Edge.objects.get(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
-            currentEdge.correctness = self.validadePasso(currentEdge)
-            currentEdge.dateAdded = datetime.now()
-            currentEdge.save()
+            if currentEdge.fixedValue == 0:
+                currentEdge.correctness = self.validadePasso(currentEdge)
+                currentEdge.dateAdded = datetime.now()
+                currentEdge.save()
             edgeArray.append(currentEdge.id)
             lastNode = currentNode
 

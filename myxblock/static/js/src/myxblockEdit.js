@@ -124,12 +124,12 @@ function MyXBlockEdit(runtime, element) {
     reApplyConfig();
   }
   
-  function changeNodeCorrectness(nodeName, value, weigth){
+  function changeNodeCorrectness(nodeName, value, fixedValue){
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
           nodeData.correctness = value;
-          nodeData.weigth = weigth;
+          nodeData.fixedValue = fixedValue;
 
           nodeData.fill = getNodeColor(value);
 
@@ -142,12 +142,13 @@ function MyXBlockEdit(runtime, element) {
     reApplyConfig();
   }
 
-  function changeStepCorrectness(sourceName, distName, value){
+  function changeStepCorrectness(sourceName, distName, value, fixedValue){
       for (i = 0; i < data.edges.length; ++i) {
         if (sourceName === data.edges[i].from && distName === data.edges[i].to) {
           edgeData = data.edges[i];
     
           edgeData.correctness = value
+          edgeData.fixedValue = fixedValue;
 
           edgeData.normal = {stroke: defaultArrowStroke + getEdgeColor(value)}
           edgeData.hovered = {stroke: {thickness: 5, color: getEdgeColor(value)}}
@@ -234,7 +235,8 @@ function MyXBlockEdit(runtime, element) {
       normal: {stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val())},
       hovered: {stroke: {thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val())}},
       selected: {stroke: {color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' }},
-      correctness: el.find('input[id=stepCorrectness]').val()
+      correctness: el.find('input[id=stepCorrectness]').val(),
+      fixedValue: el.find('input[id=stepFixedValue]').val()
     };
     addEdge(data);
     reApplyConfig();
@@ -265,7 +267,7 @@ function MyXBlockEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
-        weigth: el.find('input[id=stateWeigth]').val(),
+        fixedValue: el.find('input[id=stateFixedValue]').val(),
         visible: 1,
         x: 0,
         y: 0,
@@ -277,7 +279,7 @@ function MyXBlockEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
-        weigth: el.find('input[id=stateWeigth]').val(),
+        fixedValue: el.find('input[id=stateFixedValue]').val(),
         visible: 1,
         stroke: strokeType,
         shape: shapeType,
@@ -307,12 +309,12 @@ function MyXBlockEdit(runtime, element) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
     var value = el.find('input[id=editStateValue]').val()
-    var weigth = el.find('input[id=editStateWeigth]').val()
+    var fixedValue = el.find('input[id=editStateFixedValue]').val()
 
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
 
-    changeNodeCorrectness(id, value, weigth)
+    changeNodeCorrectness(id, value, fixedValue)
     if (dropDownValue === 'normalState') {
       changeNodeToNormal(id)
     } else if (dropDownValue === 'initialState') {
@@ -335,7 +337,8 @@ function MyXBlockEdit(runtime, element) {
     var from = el.find('input[id=editStepSource]').val()
     var to = el.find('input[id=editStepDest]').val()
     var value = el.find('input[id=editStepValue]').val()
-    changeStepCorrectness(from, to, value)
+    var fixedValue = el.find('input[id=editStepFixedValue]').val()
+    changeStepCorrectness(from, to, value, fixedValue)
   });
 
 
@@ -517,14 +520,11 @@ function MyXBlockEdit(runtime, element) {
               if (data.nodes[i].id === tag.id) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
-                document.getElementById("editStateWeigth").value = data.nodes[i].weigth;
-                if (data.nodes[i].stroke) {
-                  if (data.nodes[i].stroke === finalNodeStroke) {
-                    document.getElementById('changeStateType').value = 'finalState';
-                  } else {
-                    document.getElementById('changeStateType').value = 'initialState';
-                  }
-
+                document.getElementById("editStateFixedValue").value = data.nodes[i].fixedValue;
+                if (data.nodes[i].shape === 'diamond') {
+                  document.getElementById('changeStateType').value = 'finalState';
+                } else if (data.nodes[i].shape === 'square') {
+                  document.getElementById('changeStateType').value = 'initialState';
                 } else {
                   document.getElementById('changeStateType').value = 'normalState';
                 }
@@ -548,15 +548,17 @@ function MyXBlockEdit(runtime, element) {
               url: getEdgeInfoUrl,
               data: JSON.stringify(body),
               success: function (edgeInfo) {
-                document.getElementById("stepErrorSpecificFeedbacks").value = edgeInfo.errorSpecificFeedbacks;
-                document.getElementById("stepExplanations").value = edgeInfo.explanations;
-                document.getElementById("stepHints").value = edgeInfo.hints;
+                document.getElementById("stepErrorSpecificFeedbacks").value = JSON.stringify(edgeInfo.errorSpecificFeedbacks);
+                document.getElementById("stepExplanations").value = JSON.stringify(edgeInfo.explanations);
+                document.getElementById("stepHints").value = JSON.stringify(edgeInfo.hints);
+                document.getElementById("stepFixedValue").value = edgeInfo.hints;
               }   
             });
 
             document.getElementById("editStepSource").value = data.edges[edgePos].from;
             document.getElementById("editStepDest").value = data.edges[edgePos].to;
             document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
+            document.getElementById("editStepFixedValue").value = data.edges[edgePos].fixedValue;
 
             edgeMenu.style.display = "block";
           }

@@ -1,4 +1,4 @@
-from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hints, Explanations, Doubt, KnowledgeComponent
+from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent
 import copy
 
 #VisualGraphProperties
@@ -194,7 +194,7 @@ def getJsonFromProblemGraph(problemId):
                 nodeColor = getNodeColor(dest)
                 if dest not in addedNodes:
                     if dest.visible == 1:
-                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "fixedValue": dest.fixedValue, "visible": dest.visible}
                         if dest.nodePositionX != -1 and dest.nodePositionY != -1:
                             node["x"] = dest.nodePositionX
                             node["y"] = dest.nodePositionY
@@ -204,13 +204,13 @@ def getJsonFromProblemGraph(problemId):
                 else: 
                     if dest.visible == 1:
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                        nodeList[pos] = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "fixedValue": dest.fixedValue, "visible": dest.visible}
                 
             elif dest.title == "_end_":
                 nodeColor = getNodeColor(source)
                 if source not in addedNodes:
                     if source.visible == 1:
-                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "fixedValue": source.fixedValue, "visible": source.visible}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
@@ -220,7 +220,7 @@ def getJsonFromProblemGraph(problemId):
                 else:
                     if source.visible == 1:
                         pos = addedNodes.index(source)
-                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                        node = {"id": source.title, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "fixedValue": source.fixedValue, "visible": source.visible}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
@@ -230,7 +230,7 @@ def getJsonFromProblemGraph(problemId):
                 if source not in addedNodes:
                     if  source.visible == 1:
                         nodeColor = getNodeColor(source)
-                        node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness, "weigth": source.weigth, "visible": source.visible}
+                        node = {"id": source.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness, "fixedValue": source.fixedValue, "visible": source.visible}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
@@ -240,7 +240,7 @@ def getJsonFromProblemGraph(problemId):
                 if dest not in addedNodes:
                     if dest.visible == 1:
                         nodeColor = getNodeColor(dest)
-                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "weigth": dest.weigth, "visible": dest.visible}
+                        node = {"id": dest.title, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "fixedValue": dest.fixedValue, "visible": dest.visible}
                         if dest.nodePositionX != -1 and dest.nodePositionY != -1:
                             node["x"] = dest.nodePositionX
                             node["y"] = dest.nodePositionY
@@ -249,7 +249,7 @@ def getJsonFromProblemGraph(problemId):
                         addedNodes.append(dest)
                 
                 if source.visible == 1 and dest.visible == 1 and edgeObj.visible == 1:
-                    edge = {"from": source.title, "to": dest.title, "normal": {"stroke": defaultArrowStroke + getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness, "visible": 1}
+                    edge = {"from": source.title, "to": dest.title, "normal": {"stroke": defaultArrowStroke + getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness, "visible": 1, "fixedValue": edgeObj.fixedValue}
                     edgeList.append(edge)
 
     return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}

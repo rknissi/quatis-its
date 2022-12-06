@@ -20,7 +20,7 @@ class Node(models.Model):
 	nodePositionX = models.IntegerField(default=-1)
 	nodePositionY = models.IntegerField(default=-1)
 	correctness = models.FloatField(default=0)
-	weigth = models.IntegerField(default=1)
+	fixedValue = models.IntegerField(default=0)
 	visible = models.IntegerField(default=1)
 	alreadyCalculatedPos = models.IntegerField(default=0)
 	customPos = models.IntegerField(default=0)
@@ -36,7 +36,7 @@ class Edge(models.Model):
 	destNode = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='destNode')
 	correctness = models.FloatField(default=0)
 	visible = models.IntegerField(default=1)
-	weigth = models.IntegerField(default=1)
+	fixedValue = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 
@@ -61,26 +61,35 @@ class ErrorSpecificFeedbacks(models.Model):
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	visible = models.IntegerField(default=1)
+	priority = models.IntegerField(default=0)
+	usefulness = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
 
-class Hints(models.Model):
+class Hint(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='hintsEdge')
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	visible = models.IntegerField(default=1)
+	priority = models.IntegerField(default=0)
+	usefulness = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
 
-class Explanations(models.Model):
+class Explanation(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='explanationsEdge')
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	visible = models.IntegerField(default=1)
+	priority = models.IntegerField(default=0)
+	usefulness = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -103,6 +112,7 @@ class Answer(models.Model):
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	usefulness = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
