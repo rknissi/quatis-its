@@ -2,6 +2,7 @@
 function MyXBlock(runtime, element, data) {
 
     var hints = [];
+    var hintsIds = [];
     var actualHint = -1;
 
     function defineValues(value) {
@@ -74,6 +75,7 @@ function MyXBlock(runtime, element, data) {
             //Mostrar que a linha está OK, por agora fazer nada
             $('#hint', element).append("\n" + value.hint);
             hints.push(value.hint);
+            hintsIds.push(value.hintId);
             actualHint = hints.length - 1;
             document.getElementById('hint').innerHTML = hints[actualHint];
 
@@ -81,6 +83,7 @@ function MyXBlock(runtime, element, data) {
             //Coloca a dica na pilha
             $('#hint', element).append("\n" + value.hint);
             hints.push(value.hint);
+            hintsIds.push(value.hintId);
             actualHint = hints.length - 1;
             document.getElementById('hint').innerHTML = hints[actualHint];
 
@@ -129,16 +132,49 @@ function MyXBlock(runtime, element, data) {
         $(':radio:not(:checked)').attr('disabled', true);
         alert(value.message);
 
-        if (value.minimal.length > 0) {
-            for(var i = 0; i < value.minimal.length; i++){
-                var feedback = confirm("O seguinte passo está correto? " + value.minimal[i] + " -> " + value.minimal[++i]);
+        if (hints.length > 0) {
+            for (var i = 0; i < hints.length; i++) {
+                if (hintsIds[i] != 0) {
+                    feedback = prompt("O seguinte feedback foi útil? " + hints[i])
 
-                $.ajax({
-                    type: "POST",
-                    url: send_feedback,
-                    data: JSON.stringify({type: "minimal", message: feedback}),
-                    success: feedbackSuccess
-                });
+                    if (feedback != null) {
+                        $.ajax({
+                            type: "POST",
+                            url: recommend_feedback,
+                            data: JSON.stringify({ message: feedback, existingHint: hints[i], existingHintId: hintsIds[i] })
+                        });
+                    }
+                }
+            }
+        }
+
+
+        if (value.minimalStep.length > 0) {
+            for(var i = 0; i < value.minimalStep.length; i++){
+                feedback = prompt("O seguinte passo está correto? " + value.minimalStep[i] + " -> " + value.minimalStep[++i]);
+
+                if (feedback != null) {
+                    $.ajax({
+                        type: "POST",
+                        url: send_feedback,
+                        data: JSON.stringify({ type: "minimalStep", message: feedback, nodeFrom: value.minimalStep[i - 1], nodeTo: value.minimalStep[i] }),
+                        success: feedbackSuccess
+                    });
+                }
+            }
+        }
+        if (value.minimalState.length > 0) {
+            for(var i = 0; i < value.minimalState.length; i++){
+                feedback = prompt("O seguinte estado parece correto em uma resolução? " + value.minimalState[i]);
+
+                if (feedback != null) {
+                    $.ajax({
+                        type: "POST",
+                        url: send_feedback,
+                        data: JSON.stringify({ type: "minimalState", message: feedback, node: value.minimalState[i]}),
+                        success: feedbackSuccess
+                    });
+                }
             }
         }
         if (value.errorSpecific.length > 0) {
@@ -147,7 +183,7 @@ function MyXBlock(runtime, element, data) {
                 $.ajax({
                     type: "POST",
                     url: send_feedback,
-                    data: JSON.stringify({type: "errorSpecific", message: feedback}),
+                    data: JSON.stringify({type: "errorSpecific", message: feedback, nodeFrom: value.errorSpecific[i], nodeTo: value.errorSpecific[++i]}),
                     success: feedbackSuccess
                 });
             }
@@ -158,29 +194,29 @@ function MyXBlock(runtime, element, data) {
                 $.ajax({
                     type: "POST",
                     url: send_feedback,
-                    data: JSON.stringify({type: "explanation", message: feedback}),
+                    data: JSON.stringify({type: "explanation", message: feedback, nodeFrom: value.errorSpecific[i], nodeTo: value.errorSpecific[++i]}),
                     success: feedbackSuccess
                 });
             }
         }
         if (value.doubtsSteps.length > 0) {
             for(var i = 0; i < value.doubtsSteps.length; i++){
-                var feedback = prompt("Como você responderia a seguinte dúvida? " + value.doubtsSteps[i] + " -> " + value.doubtsSteps[++i]);
+                var feedback = prompt("Como você responderia a seguinte dúvida? " + value.doubtsSteps[i].text + " do passo " + value.doubtsSteps[i].source + " -> " + value.doubtsSteps[i].dest);
                 $.ajax({
                     type: "POST",
                     url: send_feedback,
-                    data: JSON.stringify({type: "doubtStep", message: feedback}),
+                    data: JSON.stringify({type: "doubtStep", message: feedback, doubtId: value.doubtsSteps[i].doubtId}),
                     success: feedbackSuccess
                 });
             }
         }
         if (value.doubtsNodes.length > 0) {
             for(var i = 0; i < value.doubtsNodes.length; i++){
-                var feedback = prompt("Como você responderia a seguinte dúvida? " + value.doubtsNodes[i]);
+                var feedback = prompt("Como você responderia a seguinte dúvida? " + value.doubtsNodes[i].text + " do estado " + value.doubtsNodes[i].node);
                 $.ajax({
                     type: "POST",
                     url: send_feedback,
-                    data: JSON.stringify({type: "doubtNode", message: feedback}),
+                    data: JSON.stringify({type: "doubtNode", message: feedback, doubtId: value.doubtsNodes[i].doubtId}),
                     success: feedbackSuccess
                 });
             }
@@ -199,6 +235,7 @@ function MyXBlock(runtime, element, data) {
 
     var send_answer = runtime.handlerUrl(element, 'send_answer');
     var send_feedback = runtime.handlerUrl(element, 'send_feedback');
+    var recommend_feedback = runtime.handlerUrl(element, 'recommend_feedback');
     var get_hint_for_last_step = runtime.handlerUrl(element, 'get_hint_for_last_step');
     var getInitialData = runtime.handlerUrl(element, 'initial_data');
 
@@ -210,17 +247,6 @@ function MyXBlock(runtime, element, data) {
             url: getInitialData,
             data: JSON.stringify({}),
             success: defineValues
-        });
-    });
-
-    $('#sendFeedback', element).click(function(eventObject) {
-        var userAnswer = $(".userInput").val();
-
-        $.ajax({
-            type: "POST",
-            url: send_feedback,
-            data: JSON.stringify({userAnswer: userAnswer}),
-            success: feedbackSuccess
         });
     });
 

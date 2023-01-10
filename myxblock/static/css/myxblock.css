@@ -134,6 +134,10 @@
     display: none;
 }
 
+#dialog {
+    display: none;
+}
+
 .graphModalContent {
     background-color: #fefefe;
     margin: auto;
