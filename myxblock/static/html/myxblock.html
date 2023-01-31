@@ -35,30 +35,30 @@
     <label id="labelAnswer5" for="answer5">X = ?</label><br>
     <button type="button" class='answer' id='answerButton'>Verificar resposta</button> 
 </div>
-    
+
 
 <div id="userExternalInput">
         <div>
             <b> Resolução: </b>
         </div>
-    <div id="userInputDiv"> 
-        <textarea id="userInput" class="userInput" name="userInput"></textarea>
-        <textarea id="userAnswerStatus" class="userAnswerStatus" name="userInput"></textarea>
+    <div>
+        <div id="userInputDiv"> 
+            <ul id="checkBoxList"></ul>
+            <ul id="lineList"></ul>
+        </div>
     </div>
-    
-    
-    <div id="helpButtonDiv">
-        <b> Ajuda: </b>
-        <p></p>
-        <button type="button" class='answer' id='hintButton'>Dica</button> 
+
+    <div id="askHintButtonsDiv">
+        <button type="button" id='addLine'>Adicionar uma linha</button>
+        <button type="button" id='removeLine'>Remover uma linha</button>
     </div>
     
     <div id="hintDiv">
         <span id='hint'></span>
-        <div id="hintButtonsDiv">
             <button type="button" id='prevHint'>Dica anterior</button> 
             <button type="button" id='nextHint'>Próxima dica</button>
-        </div>
+            <button type="button" class='answer' id='hintButton'>Pedir uma dica</button> 
+            <button type="button" id='askQuestion'>Tenho uma dúvida</button>
     </div>
 
 </div>

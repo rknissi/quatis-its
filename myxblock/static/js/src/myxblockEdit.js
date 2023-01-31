@@ -5,7 +5,9 @@ function MyXBlockEdit(runtime, element) {
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
   var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
   var getEdgeInfoUrl = runtime.handlerUrl(element, 'get_edge_info');
+  var getNodeInfoUrl = runtime.handlerUrl(element, 'get_doubts_and_answers_from_state');
   var submitEdgeInfoUrl = runtime.handlerUrl(element, 'submit_edge_info');
+  var submitNodeInfoUrl = runtime.handlerUrl(element, 'submit_node_info');
 
   var chart;
   var data;
@@ -305,6 +307,7 @@ function MyXBlockEdit(runtime, element) {
     removeEdge(from, to)
   });
 
+
   $('#changeStateToNormal', element).click(function(eventObject) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
@@ -322,6 +325,21 @@ function MyXBlockEdit(runtime, element) {
     } else if (dropDownValue === 'finalState') {
       changeNodeToFinal(id);
     }
+
+    var el = $(element);
+    var data = {
+      node: el.find('input[id=editState]').val(),
+      doubts: el.find('input[name=stateDoubts]').val()
+    };
+
+    $.ajax({
+      type: "POST",
+      url: submitNodeInfoUrl,
+      data: JSON.stringify(data),
+      success: function (data) {
+        alert("Dados salvos com sucesso!");
+      }   
+    });
 
   });
 
@@ -349,6 +367,7 @@ function MyXBlockEdit(runtime, element) {
       to: el.find('input[id=editStepDest]').val(),
       errorSpecificFeedbacks: el.find('input[name=stepErrorSpecificFeedbacks]').val(),
       explanations: el.find('input[name=stepExplanations]').val(),
+      doubts: el.find('input[name=stepDoubts]').val(),
       hints: el.find('input[name=stepHints]').val()
     };
 
@@ -521,6 +540,20 @@ function MyXBlockEdit(runtime, element) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
                 document.getElementById("editStateFixedValue").value = data.nodes[i].fixedValue;
+
+                var body = {
+                  node: data.nodes[i].id
+                };
+
+                $.ajax({
+                  type: "POST",
+                  url: getNodeInfoUrl,
+                  data: JSON.stringify(body),
+                  success: function (nodeInfo) {
+                    document.getElementById("stateDoubts").value = JSON.stringify(nodeInfo.doubts);
+                  }   
+                });
+
                 if (data.nodes[i].shape === 'diamond') {
                   document.getElementById('changeStateType').value = 'finalState';
                 } else if (data.nodes[i].shape === 'square') {
@@ -551,7 +584,8 @@ function MyXBlockEdit(runtime, element) {
                 document.getElementById("stepErrorSpecificFeedbacks").value = JSON.stringify(edgeInfo.errorSpecificFeedbacks);
                 document.getElementById("stepExplanations").value = JSON.stringify(edgeInfo.explanations);
                 document.getElementById("stepHints").value = JSON.stringify(edgeInfo.hints);
-                document.getElementById("stepFixedValue").value = edgeInfo.hints;
+                document.getElementById("stepFixedValue").value = JSON.stringify(edgeInfo.hints);
+                document.getElementById("stepDoubts").value = JSON.stringify(edgeInfo.doubts);
               }   
             });
 

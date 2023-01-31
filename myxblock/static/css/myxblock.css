@@ -8,14 +8,28 @@
     margin-top:70px;
 }
 
-.userAnswerStatus {
+#checkBoxList {
     font-weight: bold;
     width: 10px;
+    height: 200px;
+    float: left;
+    position: relative;
+    bottom: 50px;
+    margin-top:75px;
+}
+
+#lineList{
+    font-weight: bold;
     height: 200px;
     float: right;
     position: relative;
     bottom: 50px;
-    margin-top:70px;
+    margin-top:75px;
+    margin-right: 100px;
+}
+
+#checkBoxList, #lineList{
+    list-style-type: none;
 }
 
 #userAnswerDiv{
@@ -40,7 +54,12 @@
     border-radius: 8px;
 }
 
-#prevHint, #nextHint{
+#prevHint, #nextHint {
+    float: right;
+
+}
+
+#prevHint, #nextHint, #hintButton, #addLine, #removeLine, #askQuestion{
     background-color: darkslategrey;
     color: white;
     padding: 8px 16px;
@@ -76,12 +95,17 @@
     float: right;
     position: relative;
     display: table;
+    max-width: 400px;
 }
 
 #helpButtonDiv {
     float: left;
     position: relative;
     display: table;
+}
+
+#hintButton {
+    margin-top:0px;
 }
 
 #hint {
@@ -188,4 +212,11 @@
     font-size: 28px;
     font-weight: bold;
 }
+#askQuestion {
+    margin-top: 20px;
+    margin-right: 200px;
+}
 
+#addLine, #removeLine {
+    margin-bottom: 10px;
+}

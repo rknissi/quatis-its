@@ -96,9 +96,9 @@ class Explanation(models.Model):
 
 class Doubt(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
-	type = models.IntegerField(default=0)
-	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='doubtEdge')
-	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='doubtNode')
+	type = models.IntegerField(default=0) #0 = node, 1 = edge
+	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='doubtEdge', blank=True, null=True)
+	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='doubtNode', blank=True, null=True)
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
@@ -119,8 +119,8 @@ class Answer(models.Model):
 
 class KnowledgeComponent(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
-	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='knowledgeComponentEdge')
-	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='knowledgeComponentNode')
+	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='knowledgeComponentEdge', blank=True, null=True)
+	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='knowledgeComponentNode', blank=True, null=True)
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)

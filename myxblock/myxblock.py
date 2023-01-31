@@ -331,6 +331,47 @@ class MyXBlock(XBlock):
 
         return {}
 
+    @XBlock.json_handler
+    def get_doubts_and_answers_from_step(self,data,suffix=''):
+        edgeDoubts = self.getDoubtsAndAnswersFromStep(data)
+        return {"doubts": edgeDoubts}
+
+    def getDoubtsAndAnswersFromStep(self,data):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
+
+        loadedDoubts = Doubt.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        edgeDoubts = []
+        if loadedDoubts.exists():
+            for loadedDoubt in loadedDoubts:
+                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt)
+                edgeDoubtAnswers = []
+                for loadedAnswer in loadedAnswers:
+                    edgeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
+                edgeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": edgeDoubtAnswers})
+
+        return edgeDoubts
+
+    @XBlock.json_handler
+    def get_doubts_and_answers_from_state(self,data,suffix=''):
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedNode = Node.objects.get(problem=loadedProblem, title=data.get("node"))
+
+        loadedDoubts = Doubt.objects.filter(problem=loadedProblem, node=loadedNode)
+        nodeDoubts = []
+        if loadedDoubts.exists():
+            for loadedDoubt in loadedDoubts:
+                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt)
+                nodeDoubtAnswers = []
+                for loadedAnswer in loadedAnswers:
+                    nodeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
+
+                nodeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": nodeDoubtAnswers})
+
+        
+        return {"doubts": nodeDoubts}
+
 
     @XBlock.json_handler
     def get_edge_info(self,data,suffix=''):
@@ -357,8 +398,57 @@ class MyXBlock(XBlock):
         if loadedErrorSpecificFeedbacks.exists():
             for errorSpecificFeedback in loadedErrorSpecificFeedbacks:
                 errorSpecificFeedbacks.append({"id": errorSpecificFeedback.id, "text": errorSpecificFeedback.text, "priority": errorSpecificFeedback.priority, "usefulness": errorSpecificFeedback.usefulness})
+
+        edgeDoubts = self.getDoubtsAndAnswersFromStep(data)
         
-        return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints}
+        return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints, "doubts": edgeDoubts}
+
+    @XBlock.json_handler
+    def submit_doubt_answer_info(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
+        answerId = data.get("id")
+        loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answerId)
+        loadedAnswer.dateModified = datetime.now()
+        loadedAnswer.usefulness = data.get("usefulness")
+        loadedAnswer.text = data.get("text")
+        loadedAnswer.save()
+
+        return {"status": "Done!"}
+
+
+    @XBlock.json_handler
+    def submit_node_info(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedNode = Node.objects.get(problem=loadedProblem, title=data.get("node"))
+
+        allDoubts = ast.literal_eval(data.get("doubts"))
+        for doubt in allDoubts:
+            if "id" in doubt:
+                loadedDoubt = Doubt.objects.get(problem=loadedProblem, node=loadedNode, id=doubt["id"])
+                loadedDoubt.dateModified = datetime.now()
+            else:
+                loadedDoubt = Doubt(problem=loadedProblem, node=loadedNode, dateAdded=datetime.now())
+
+            loadedDoubt.text = doubt["text"]
+            loadedDoubt.save()
+
+            allAnswers = doubt["answers"]
+            for answer in allAnswers:
+                if "id" in answer:
+                    loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answer["id"])
+                    loadedAnswer.dateModified = datetime.now()
+                else:
+                    loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
+
+                if "usefulness" in answer:
+                    loadedAnswer.usefulness = answer["usefulness"]
+
+                loadedAnswer.text = answer["text"]
+                loadedAnswer.save()
+
+        return {"status": "Done!"}
+
 
     @XBlock.json_handler
     def submit_edge_info(self,data,suffix=''):
@@ -407,6 +497,31 @@ class MyXBlock(XBlock):
             loadedExplanation.priority = explanation["priority"]
             loadedExplanation.save()
 
+        allDoubts = ast.literal_eval(data.get("doubts"))
+        for doubt in allDoubts:
+            if "id" in doubt:
+                loadedDoubt = Doubt.objects.get(problem=loadedProblem, edge=loadedEdge, id=doubt["id"])
+                loadedDoubt.dateModified = datetime.now()
+            else:
+                loadedDoubt = Doubt(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+
+            loadedDoubt.text = doubt["text"]
+            loadedDoubt.save()
+
+            allAnswers = doubt["answers"]
+            for answer in allAnswers:
+                if "id" in answer:
+                    loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answer["id"])
+                    loadedAnswer.dateModified = datetime.now()
+                else:
+                    loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
+
+                if "usefulness" in answer:
+                    loadedAnswer.usefulness = answer["usefulness"]
+                
+                loadedAnswer.text = answer["text"]
+                loadedAnswer.save()
+
         return {"status": "Done!"}
 
     @XBlock.json_handler
@@ -425,19 +540,6 @@ class MyXBlock(XBlock):
         e2.save()
         e3.save()
 
-        #hint11 = Hint(problem=problemFK, edge=e1)
-        #hint11.text="hahaha"
-        #hint11.dateAdded = datetime.now()
-        #hint11.priority = 1
-        #hint11.usefulness = 1000
-
-        #hint12 = Hint(problem=problemFK, edge=e1)
-        #hint12.text="Uiaaa"
-        #hint12.dateAdded = datetime.now()
-        #hint12.priority = 2
-        #hint12.usefulness = 1000
-
-
         hint21 = Hint(problem=problemFK, edge=e2)
         hint21.text="hint 1"
         hint21.dateAdded = datetime.now()
@@ -450,25 +552,8 @@ class MyXBlock(XBlock):
         hint22.priority = 2
         hint22.usefulness = 1000
 
-
-        #hint31 = Hint(problem=problemFK, edge=e3)
-        #hint31.text="Hint feedback 1"
-        #hint31.dateAdded = datetime.now()
-        #hint31.priority = 1
-        #hint31.usefulness = 1000
-
-        #hint32 = Hint(problem=problemFK, edge=e3)
-        #hint32.text="Hint Feedback 2"
-        #hint32.dateAdded = datetime.now()
-        #hint32.priority = 2
-        #hint32.usefulness = 1000
-
-        #hint11.save()
-        #hint12.save()
         hint21.save()
         hint22.save()
-        #hint31.save()
-        #hint32.save()
 
         errorSpecificFeedback1 = ErrorSpecificFeedbacks(problem=problemFK, edge=e2)
         errorSpecificFeedback1.text="Error Specific feedback 1"
@@ -504,10 +589,10 @@ class MyXBlock(XBlock):
         nodeArray = []
         edgeArray = []
         for node in nodeList:
-                nodeArray.append(node.id)
+            nodeArray.append(node.id)
 
         for edge in edgeList:
-                edgeArray.append(edge.id)
+            edgeArray.append(edge.id)
 
         r1 = Resolution(nodeIdList=json.dumps(nodeArray), edgeIdList=json.dumps(edgeArray), correctness=1, problem=problemFK, dateAdded=datetime.now())
 
@@ -590,9 +675,9 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.get(id=self.problemId)
         
         feedbackType = data.get("type")
-        if feedbackType == "minimalState" or feedbackType == "doubtNode":
+        if feedbackType == "minimalState":
             loadedNode = Node.objects.get(problem=loadedProblem, title=data.get("node"))
-        else:
+        elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'minimalStep':
             loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("nodeFrom"), destNode__title=data.get("nodeTo"))
 
         if feedbackType == 'minimalStep':
@@ -621,15 +706,58 @@ class MyXBlock(XBlock):
             explanation.priority = 1
             explanation.usefulness = 0
             explanation.save()
-        elif feedbackType == 'doubtStep':
-            print("doubtStep")
-        elif feedbackType == 'doubtNode':
+        elif feedbackType == 'doubtAnswer':
             loadedDoubt = Doubt.objects.get(problem=loadedProblem, id=data.get("doubtId"))
-            answer = Answer(problem=loadedProblem, edge=loadedEdge, doubt=loadedDoubt)
+            answer = Answer(problem=loadedProblem, doubt=loadedDoubt)
             answer.dateAdded = datetime.now()
             answer.text = data.get("message")
             answer.usefulness = 0
             answer.save()
+        elif feedbackType == 'doubtStep':
+            doubt = Doubt(problem=loadedProblem)
+            step = Edge.objects.filter(problem=loadedProblem, sourceNode__title = data.get("nodeFrom"), destNode__title = data.get("nodeTo"))
+            if step.exists():
+                doubt.edge = step[0]
+            else:
+                fromState = Node.objects.filter(problem=loadedProblem, title = data.get("nodeFrom"))
+                if fromState.exists():
+                    newSourceNode = fromState[0]    
+                else:
+                    newSourceNode = Node(problem=loadedProblem, title = data.get("nodeFrom"), dateAdded = datetime.now())
+                    newSourceNode.save()
+                    newSourceNode = Node.objects.get(problem=loadedProblem, title = data.get("nodeFrom"))
+                
+                toState = Node.objects.filter(problem=loadedProblem, title = data.get("nodeTo"))
+                if toState.exists():
+                    newDestNode = toState[0]    
+                else:
+                    newDestNode = Node(problem=loadedProblem, title = data.get("nodeTo"), dateAdded = datetime.now())
+                    newDestNode.save()
+                    newDestNode = Node.objects.get(problem=loadedProblem, title = data.get("nodeTo"))
+
+                newStep = Edge(problem=loadedProblem, sourceNode = newSourceNode, destNode = newDestNode, dateAdded = datetime.now())
+                newStep.save()
+                doubt.edge = newStep
+            
+            doubt.type = 1
+            doubt.text=data.get("message")
+            doubt.dateAdded = datetime.now()
+
+            doubt.save()
+        elif feedbackType == 'doubtState':
+            doubt = Doubt(problem=loadedProblem)
+            state = Node.objects.filter(problem=loadedProblem, title = data.get("node"))
+            if state.exists():
+                doubt.node = state[0]
+            else:
+                newState = Node(problem=loadedProblem, title = data.get("node"), dateAdded = datetime.now())
+                newState.save()
+                newState = Node.objects.get(problem=loadedProblem, title = data.get("node"))
+                doubt.node = newState
+            doubt.type = 0
+            doubt.text=data.get("message")
+            doubt.dateAdded = datetime.now()
+            doubt.save()
 
         return {'result':'success'}
 
@@ -940,7 +1068,7 @@ class MyXBlock(XBlock):
         doubtsStepReturn = []
         doubtsNodeReturn = []
         for model in doubts:
-            if isinstance(model, Edge):
+            if model.type == 1:
                 edgeDoubt = {"message": model.text, "source": model.edge.sourceNode.title, "dest": model.edge.destNode.title, "doubtId": model.id}
                 doubtsStepReturn.append(edgeDoubt)
             else:
@@ -1069,15 +1197,17 @@ class MyXBlock(XBlock):
         CDU = []
         allDoubtsWithAnswers = []
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allDoubts = Doubt.objects.filter(problem=loadedProblem)
         allAnswers = Answer.objects.filter(problem=loadedProblem)
+        allDoubts = Doubt.objects.filter(problem=loadedProblem)
         for answer in allAnswers:
             if answer.doubt not in allDoubtsWithAnswers:
-                allDoubtsWithAnswers.append(answer)
+                allDoubtsWithAnswers.append(answer.doubt.id)
         if len(allDoubts) > 0 and len(allDoubtsWithAnswers) > 0:
-            CDU = allDoubts.difference(allDoubtsWithAnswers)
+            CDU = Doubt.objects.filter(problem=loadedProblem).exclude(id__in=allDoubtsWithAnswers)
+        elif len(allDoubts) > 0:
+            CDU = allDoubts
 
-        if len(CDU) > 0:
+        if len(CDU) > maxDoubts:
             CDU.sort(key=amorzinhoTempo)
             return CDU[0:maxDoubts]
         else:
