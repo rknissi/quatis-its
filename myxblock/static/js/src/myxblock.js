@@ -106,31 +106,6 @@ function MyXBlock(runtime, element, data) {
                 }
             }
 
-            //var lines = $('#userInput').val().split('\n');
-            //var endPos = 0;
-            //for(var i = 0;i < lines.length;i++){
-            //    if(value.wrongElement == lines[i]) {
-            //        //Pega as posições e imprime
-            //        endPos += lines[i].length; 
-            //        if  (i == 0) {
-            //            startPos = 0;
-            //        } else {
-            //            endPos += i;
-            //            startPos = endPos - lines[i].length;
-            //        }
-
-            //        tarea = document.getElementById("userInput");
-            //        tarea.focus();
-            //        tarea.selectionStart = startPos;
-            //        tarea.selectionEnd = endPos;
-            //        tarea.value.substring(tarea.selectionStart, tarea.selectionEnd); 
-
-            //    } else {
-            //        endPos += lines[i].length;
-            //        continue;
-            //    }
-            //}
-
         }
     }
 
@@ -311,7 +286,6 @@ function MyXBlock(runtime, element, data) {
     }
 
     $('#answerButton', element).click(function(eventObject) {
-        //var userAnswer = $(".userInput").val();
         var userAnswer = getCompleteAnswer()
         var radioAnswer = $("input:radio[name=radioAnswer]:checked").val()
 

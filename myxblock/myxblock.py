@@ -60,6 +60,8 @@ def amorzinhoExplanations(element):
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
 def amorzinhoTempo(element):
+    if element.dateModified:
+        return element.dateModified
     return element.dateAdded
 
 def levenshteinDistance(A, B):
@@ -344,7 +346,7 @@ class MyXBlock(XBlock):
         edgeDoubts = []
         if loadedDoubts.exists():
             for loadedDoubt in loadedDoubts:
-                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt)
+                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
                 edgeDoubtAnswers = []
                 for loadedAnswer in loadedAnswers:
                     edgeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
@@ -362,7 +364,7 @@ class MyXBlock(XBlock):
         nodeDoubts = []
         if loadedDoubts.exists():
             for loadedDoubt in loadedDoubts:
-                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt)
+                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
                 nodeDoubtAnswers = []
                 for loadedAnswer in loadedAnswers:
                     nodeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
@@ -413,6 +415,9 @@ class MyXBlock(XBlock):
         loadedAnswer.usefulness = data.get("usefulness")
         loadedAnswer.text = data.get("text")
         loadedAnswer.save()
+        loadedDoubt = loadedAnswer.doubt
+        loadedDoubt.dateModified = datetime.now()
+        loadedDoubt.save()
 
         return {"status": "Done!"}
 
