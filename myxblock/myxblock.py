@@ -415,9 +415,6 @@ class MyXBlock(XBlock):
         loadedAnswer.usefulness = data.get("usefulness")
         loadedAnswer.text = data.get("text")
         loadedAnswer.save()
-        loadedDoubt = loadedAnswer.doubt
-        loadedDoubt.dateModified = datetime.now()
-        loadedDoubt.save()
 
         return {"status": "Done!"}
 
@@ -718,6 +715,8 @@ class MyXBlock(XBlock):
             answer.text = data.get("message")
             answer.usefulness = 0
             answer.save()
+            loadedDoubt.dateModified = datetime.now()
+            loadedDoubt.save()
         elif feedbackType == 'doubtStep':
             doubt = Doubt(problem=loadedProblem)
             step = Edge.objects.filter(problem=loadedProblem, sourceNode__title = data.get("nodeFrom"), destNode__title = data.get("nodeTo"))
@@ -1202,21 +1201,32 @@ class MyXBlock(XBlock):
         CDU = []
         allDoubtsWithAnswers = []
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allAnswers = Answer.objects.filter(problem=loadedProblem)
-        allDoubts = Doubt.objects.filter(problem=loadedProblem)
-        for answer in allAnswers:
-            if answer.doubt not in allDoubtsWithAnswers:
-                allDoubtsWithAnswers.append(answer.doubt.id)
-        if len(allDoubts) > 0 and len(allDoubtsWithAnswers) > 0:
-            CDU = Doubt.objects.filter(problem=loadedProblem).exclude(id__in=allDoubtsWithAnswers)
-        elif len(allDoubts) > 0:
-            CDU = allDoubts
+        CDU = Doubt.objects.filter(problem=loadedProblem).order_by("dateModified")
 
         if len(CDU) > maxDoubts:
-            CDU.sort(key=amorzinhoTempo)
             return CDU[0:maxDoubts]
         else:
             return CDU
+
+
+        #CDU = []
+        #allDoubtsWithAnswers = []
+        #loadedProblem = Problem.objects.get(id=self.problemId)
+        #allAnswers = Answer.objects.filter(problem=loadedProblem)
+        #allDoubts = Doubt.objects.filter(problem=loadedProblem)
+        #for answer in allAnswers:
+        #    if answer.doubt not in allDoubtsWithAnswers:
+        #        allDoubtsWithAnswers.append(answer.doubt.id)
+        #if len(allDoubts) > 0 and len(allDoubtsWithAnswers) > 0:
+        #    CDU = Doubt.objects.filter(problem=loadedProblem).exclude(id__in=allDoubtsWithAnswers)
+        #elif len(allDoubts) > 0:
+        #    CDU = allDoubts
+
+        #if len(CDU) > maxDoubts:
+        #    CDU.sort(key=amorzinhoTempo)
+        #    return CDU[0:maxDoubts]
+        #else:
+        #    return CDU
 
     def corretudeResolucao(self, resolution):
         loadedProblem = Problem.objects.get(id=self.problemId)

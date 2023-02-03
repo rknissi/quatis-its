@@ -395,6 +395,7 @@ function MyXBlock(runtime, element, data) {
                                             url: submitDoubtAnswerInfo,
                                             data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
                                         });
+                                        j = message.doubts[i].answers.length
                                     } else if (doubtAnswer && doubtAnswer == "n") {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness--
@@ -408,7 +409,7 @@ function MyXBlock(runtime, element, data) {
                             }
                             i = message.doubts.length
                         }
-                        newDoubt = prompt("Ainda gostaria de perguntar uma dúvida?")
+                        newDoubt = prompt("Ainda lhe restam dúvidas?")
                         if (newDoubt && newDoubt == "s") {
                             var singleNode = document.getElementById("idt" + checkedBoxes[0]);
                             doubt = prompt("Qual a dúvida para o seguinte estado? " + singleNode.value);
@@ -463,6 +464,7 @@ function MyXBlock(runtime, element, data) {
                                             url: submitDoubtAnswerInfo,
                                             data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
                                         });
+                                        j = message.doubts[i].answers.length
                                     } else if (doubtAnswer && doubtAnswer == "n") {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness--
@@ -476,7 +478,7 @@ function MyXBlock(runtime, element, data) {
                             }
                             i = message.doubts.length
                         }
-                        newDoubt = prompt("Ainda gostaria de perguntar uma dúvida?")
+                        newDoubt = prompt("Ainda lhe restam dúvidas?")
                         if (newDoubt && newDoubt == "s") {
                             var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                             var destNode = document.getElementById("idt" + checkedBoxes[1]);
