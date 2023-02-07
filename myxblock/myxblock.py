@@ -11,6 +11,7 @@ from django.utils.timezone import now
 from datetime import datetime  
 from django.http import JsonResponse
 from django.core import serializers
+from unidecode import unidecode
 
 receivedMinimalFeedbackAmount = 0.1
 receivedHintUsefulnessAmount = 1
@@ -37,6 +38,12 @@ problemGraphNodePositionsDefault = {}
 problemGraphStatesCorrectnessDefault = {'_start_': correctState[1], 'Option 1': correctState[1], 'Option 2': correctState[1]}
 problemGraphStepsCorrectnessDefault = {str(('_start_', 'Option 1')): validStep[1], str(('Option 1', 'Option 2')): validStep[1], str(('Option 2', '_end_')): validStep[1]}
 allResolutionsDefault = []
+
+yesAnswer = ["sim", "s", "yes", "y", "si", "ye"]
+noAnswer = ["não", "n", "no", "nao"]
+
+yesUniversalAnswer = "yes"
+noUniversalAnswer = "no"
 
 #Ainda não salvando nada nessa variável
 allResolutionsNew = allResolutionsDefault
@@ -72,6 +79,14 @@ def levenshteinDistance(A, B):
     if (A[0] == B[0]):
         return levenshteinDistance(A[1:], B[1:])
     return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
+
+def transformToSimplerAnswer(answer):
+    withoutSpaces = answer.replace(" ", "")
+    lowerCase = withoutSpaces.lower()
+    noAccent = unidecode(lowerCase)
+
+    return noAccent
+
 
 #Colinha:
 #Scope.user_state = Dado que varia de aluno para aluno
@@ -663,9 +678,9 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedHint = Hint.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
 
-        if data.get("message") == "s":
+        if data.get("message") == yesUniversalAnswer:
             loadedHint.usefulness += receivedHintUsefulnessAmount
-        else:
+        elif data.get("message") == noUniversalAnswer:
             loadedHint.usefulness -= receivedHintUsefulnessAmount
         
         loadedHint.save()
@@ -683,17 +698,19 @@ class MyXBlock(XBlock):
             loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("nodeFrom"), destNode__title=data.get("nodeTo"))
 
         if feedbackType == 'minimalStep':
-            if data.get("message") == "s":
+            if data.get("message") == yesUniversalAnswer:
                 loadedEdge.correctness += receivedMinimalFeedbackAmount
-            else:
+            elif data.get("message") == noUniversalAnswer:
                 loadedEdge.correctness -= receivedMinimalFeedbackAmount
             loadedEdge.save()
+
         elif feedbackType == 'minimalState':
-            if data.get("message") == "s":
+            if data.get("message") == yesUniversalAnswer:
                 loadedNode.correctness += receivedMinimalFeedbackAmount
-            else:
+            elif data.get("message") == noUniversalAnswer:
                 loadedNode.correctness -= receivedMinimalFeedbackAmount
             loadedNode.save()
+
         elif feedbackType == 'errorSpecific':
             errorSpecificFeedback = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge)
             errorSpecificFeedback.text=data.get("message")
@@ -780,9 +797,6 @@ class MyXBlock(XBlock):
         for step in answerArray:
             lastNode = Node.objects.get(problem=loadedProblem, title=lastElement)
             currentNode = Node.objects.filter(problem=loadedProblem, title=step)
-
-            if  currentNode.exists() and Edge.objects.filter(problem=loadedProblem, sourceNode = currentNode.first(), destNode=endNode).exists():
-                break
 
             if currentNode.exists() and Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first()).exists() and currentNode.first().correctness >= correctState[0]:
                 lastElement = step
@@ -888,8 +902,7 @@ class MyXBlock(XBlock):
                     hintText = self.problemDefaultHint
                     hintId = 0
                 else:
-
-                    edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), destNode__title=nextCorrectStep)
+                    edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), destNode__title=nextElement)
                     if edgeForStep.exists():
                         hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
                         if hintForStep.exists():

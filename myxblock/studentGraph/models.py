@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 from django.db import models
 
 
+
 class Problem(models.Model):
 	graph = models.TextField()
 	isCalculatedPos = models.IntegerField(default=0) #deprecated, remover quanto antes possível
@@ -29,6 +30,11 @@ class Node(models.Model):
 
 	class Meta:
 		app_label  = 'studentGraph'
+
+	@property
+	def normalizedTitle(self):
+	    return self.title.replace(" ", "").lower() #Não se esquecer dos assentos
+
 
 class Edge(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)

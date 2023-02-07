@@ -8,6 +8,38 @@ function MyXBlock(runtime, element, data) {
     var minimumCheckboxLLineId = 1
     var checkboxLineId = minimumCheckboxLLineId
 
+    var send_answer = runtime.handlerUrl(element, 'send_answer');
+    var send_feedback = runtime.handlerUrl(element, 'send_feedback');
+    var recommend_feedback = runtime.handlerUrl(element, 'recommend_feedback');
+    var get_hint_for_last_step = runtime.handlerUrl(element, 'get_hint_for_last_step');
+    var getInitialData = runtime.handlerUrl(element, 'initial_data');
+    var getDoubtsAndAnswerFromStep = runtime.handlerUrl(element, 'get_doubts_and_answers_from_step');
+    var getDoubtsAndAnswerFromState = runtime.handlerUrl(element, 'get_doubts_and_answers_from_state');
+    var submitDoubtAnswerInfo = runtime.handlerUrl(element, 'submit_doubt_answer_info');
+
+    var yesAnswer = ["sim", "s", "yes", "y", "si", "ye"];
+    var noAnswer = ["não", "n", "no", "nao"];
+
+    var yesUniversalAnswer = "yes"
+    var noUniversalAnswer = "no"
+
+
+    function checkIfUserInputIsValid(input) {
+        if (yesAnswer.includes(input) || noAnswer.includes(input)) {
+            return true
+        } 
+        return false
+    }
+
+    function getUserAnswer(input) {
+        if (yesAnswer.includes(input) ) {
+            return yesUniversalAnswer
+        } else if (noAnswer.includes(input)) {
+            return noUniversalAnswer
+        }
+        return null
+    }
+
     function defineValues(value) {
         $('#question', element).text(value.title);
 
@@ -84,6 +116,7 @@ function MyXBlock(runtime, element, data) {
 
             //Mostrar que está tudo certo
             for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+                var partialAnswer = document.getElementById("idt" + i);
                 partialAnswer.style.background = "green"
             }
 
@@ -96,13 +129,18 @@ function MyXBlock(runtime, element, data) {
             document.getElementById('hint').innerHTML = hints[actualHint];
 
             //Pega cada uma das respostas do usuário
+            var removeBack = false
             for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
                 var partialAnswer = document.getElementById("idt" + i);
                 if (partialAnswer.value == value.wrongElement) {
                     partialAnswer.style.background = "red"
-                    break;
+                    removeBack = true
                 } else {
-                    partialAnswer.style.background = "green"
+                    if (removeBack) {
+                        partialAnswer.style.background = "none"
+                    } else {
+                        partialAnswer.style.background = "green"
+                    }
                 }
             }
 
@@ -139,12 +177,12 @@ function MyXBlock(runtime, element, data) {
             for (var i = 0; i < hintsToShow.length; i++) {
                 if (hintsIdToShow[i] != 0) {
                     feedback = prompt("O seguinte feedback foi útil? " + hintsToShow[i])
-
-                    if (feedback != null) {
+                    
+                    if (feedback && checkIfUserInputIsValid(feedback)) {
                         $.ajax({
                             type: "POST",
                             url: recommend_feedback,
-                            data: JSON.stringify({ message: feedback, existingHint: hintsToShow[i], existingHintId: hintsIdToShow[i] })
+                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: hintsToShow[i], existingHintId: hintsIdToShow[i] })
                         });
                     }
                 }
@@ -156,12 +194,11 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0; i < value.minimalStep.length; i++){
                 feedback = prompt("O seguinte passo está correto? " + value.minimalStep[i] + " -> " + value.minimalStep[++i]);
 
-                if (feedback != null) {
+                if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
-                        data: JSON.stringify({ type: "minimalStep", message: feedback, nodeFrom: value.minimalStep[i - 1], nodeTo: value.minimalStep[i] }),
-                        success: feedbackSuccess
+                        data: JSON.stringify({ type: "minimalStep", message: getUserAnswer(feedback), nodeFrom: value.minimalStep[i - 1], nodeTo: value.minimalStep[i] })
                     });
                 }
             }
@@ -170,38 +207,37 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0; i < value.minimalState.length; i++){
                 feedback = prompt("O seguinte estado parece correto em uma resolução? " + value.minimalState[i]);
 
-                if (feedback != null) {
+                if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
-                        data: JSON.stringify({ type: "minimalState", message: feedback, node: value.minimalState[i]}),
-                        success: feedbackSuccess
+                        data: JSON.stringify({ type: "minimalState", message: getUserAnswer(feedback), node: value.minimalState[i]})
                     });
                 }
             }
         }
         if (value.errorSpecific.length > 0) {
             for(var i = 0; i < value.errorSpecific.length; i++){
-                var feedback = prompt("Como você explicaria que o seguinte passo está incorreto? " + value.errorSpecific[i] + " -> " + value.errorSpecific[++i]);
+                var feedback = prompt("Como você explicaria que o seguinte passo está incorreto? " + value.errorSpecific[i] + " -> " + value.errorSpecific[i + 1]);
+                
                 if (feedback != null) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
-                        data: JSON.stringify({ type: "errorSpecific", message: feedback, nodeFrom: value.errorSpecific[i], nodeTo: value.errorSpecific[++i] }),
-                        success: feedbackSuccess
+                        data: JSON.stringify({ type: "errorSpecific", message: feedback, nodeFrom: value.errorSpecific[i], nodeTo: value.errorSpecific[++i] })
                     });
                 }
             }
         }
         if (value.explanation.length > 0) {
             for(var i = 0; i < value.explanation.length; i++){
-                var feedback = prompt("Como você explicaria que o seguinte passo está correto? " + value.explanation[i] + " -> " + value.explanation[++i]);
+                var feedback = prompt("Como você explicaria que o seguinte passo está correto? " + value.explanation[i] + " -> " + value.explanation[i + 1]);
+
                 if (feedback != null) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
-                        data: JSON.stringify({ type: "explanation", message: feedback, nodeFrom: value.errorSpecific[i], nodeTo: value.errorSpecific[++i] }),
-                        success: feedbackSuccess
+                        data: JSON.stringify({ type: "explanation", message: feedback, nodeFrom: value.explanation[i], nodeTo: value.explanation[++i] })
                     });
                 }
             }
@@ -213,8 +249,7 @@ function MyXBlock(runtime, element, data) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
-                        data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsSteps[i].doubtId }),
-                        success: feedbackSuccess
+                        data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsSteps[i].doubtId })
                     });
                 }
             }
@@ -226,8 +261,7 @@ function MyXBlock(runtime, element, data) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
-                        data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsNodes[i].doubtId }),
-                        success: feedbackSuccess
+                        data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsNodes[i].doubtId})
                     });
                 }
             }
@@ -243,15 +277,6 @@ function MyXBlock(runtime, element, data) {
           }   
         });
     }
-
-    var send_answer = runtime.handlerUrl(element, 'send_answer');
-    var send_feedback = runtime.handlerUrl(element, 'send_feedback');
-    var recommend_feedback = runtime.handlerUrl(element, 'recommend_feedback');
-    var get_hint_for_last_step = runtime.handlerUrl(element, 'get_hint_for_last_step');
-    var getInitialData = runtime.handlerUrl(element, 'initial_data');
-    var getDoubtsAndAnswerFromStep = runtime.handlerUrl(element, 'get_doubts_and_answers_from_step');
-    var getDoubtsAndAnswerFromState = runtime.handlerUrl(element, 'get_doubts_and_answers_from_state');
-    var submitDoubtAnswerInfo = runtime.handlerUrl(element, 'submit_doubt_answer_info');
 
 
     $(document).ready(function(eventObject) {
@@ -282,7 +307,8 @@ function MyXBlock(runtime, element, data) {
             completeAnswer = completeAnswer.concat(partialAnswer.value)
             completeAnswer = completeAnswer.concat("\n")
         }
-        return completeAnswer;
+
+        return completeAnswer.substring(0, completeAnswer.length - 1);
     }
 
     $('#answerButton', element).click(function(eventObject) {
@@ -384,10 +410,10 @@ function MyXBlock(runtime, element, data) {
                     } else {
                         for (var i = 0; i < message.doubts.length; i++) {
                             sameDoubt = prompt("Essa dúvida é a mesma que você tem? " + message.doubts[i].text)
-                            if (sameDoubt && sameDoubt == "s") {
+                            if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
                                 for (var j = 0; j < message.doubts[i].answers.length; j++) {
                                     doubtAnswer = prompt("Isso responde sua dúvida ou é útil? " + message.doubts[i].answers[j].text)
-                                    if (doubtAnswer && doubtAnswer == "s") {
+                                    if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness++
                                         $.ajax({
@@ -396,7 +422,7 @@ function MyXBlock(runtime, element, data) {
                                             data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
                                         });
                                         j = message.doubts[i].answers.length
-                                    } else if (doubtAnswer && doubtAnswer == "n") {
+                                    } else if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == noUniversalAnswer) {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness--
                                         $.ajax({
@@ -410,7 +436,7 @@ function MyXBlock(runtime, element, data) {
                             i = message.doubts.length
                         }
                         newDoubt = prompt("Ainda lhe restam dúvidas?")
-                        if (newDoubt && newDoubt == "s") {
+                        if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
                             var singleNode = document.getElementById("idt" + checkedBoxes[0]);
                             doubt = prompt("Qual a dúvida para o seguinte estado? " + singleNode.value);
 
@@ -446,17 +472,16 @@ function MyXBlock(runtime, element, data) {
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
-                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
-                            success: feedbackSuccess
+                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value })
                         });
 
                     } else {
                         for (var i = 0; i < message.doubts.length; i++) {
                             sameDoubt = prompt("Essa dúvida é a mesma que você tem? " + message.doubts[i].text)
-                            if (sameDoubt && sameDoubt == "s") {
+                            if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
                                 for (var j = 0; j < message.doubts[i].answers.length; j++) {
                                     doubtAnswer = prompt("Isso responde sua dúvida ou é útil? " + message.doubts[i].answers[j].text)
-                                    if (doubtAnswer && doubtAnswer == "s") {
+                                    if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness++
                                         $.ajax({
@@ -465,7 +490,7 @@ function MyXBlock(runtime, element, data) {
                                             data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
                                         });
                                         j = message.doubts[i].answers.length
-                                    } else if (doubtAnswer && doubtAnswer == "n") {
+                                    } else if (doubtAnswer && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == noUniversalAnswer) {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness--
                                         $.ajax({
@@ -479,7 +504,7 @@ function MyXBlock(runtime, element, data) {
                             i = message.doubts.length
                         }
                         newDoubt = prompt("Ainda lhe restam dúvidas?")
-                        if (newDoubt && newDoubt == "s") {
+                        if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
                             var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                             var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
@@ -488,8 +513,7 @@ function MyXBlock(runtime, element, data) {
                             $.ajax({
                                 type: "POST",
                                 url: send_feedback,
-                                data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
-                                success: feedbackSuccess
+                                data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value })
                             });
                         }
                     }
