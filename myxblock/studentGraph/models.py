@@ -2,7 +2,16 @@ from __future__ import unicode_literals
 
 from django.db import models
 
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+from unidecode import unidecode
 
+def transformToSimplerAnswer(answer):
+    withoutSpaces = answer.replace(" ", "")
+    lowerCase = withoutSpaces.lower()
+    noAccent = unidecode(lowerCase)
+
+    return noAccent
 
 class Problem(models.Model):
 	graph = models.TextField()
@@ -31,10 +40,14 @@ class Node(models.Model):
 	class Meta:
 		app_label  = 'studentGraph'
 
+	@staticmethod
+	def pre_save(sender, instance, **kwargs):
+		instance.title = transformToSimplerAnswer(instance.title)
+
 	@property
 	def normalizedTitle(self):
-	    return self.title.replace(" ", "").lower() #Não se esquecer dos assentos
-
+	    return self.title.replace(" ", "").lower() #Não se esquecer dos acentos
+	
 
 class Edge(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)

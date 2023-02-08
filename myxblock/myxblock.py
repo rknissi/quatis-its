@@ -12,6 +12,7 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.core import serializers
 from unidecode import unidecode
+from django.db.models.signals import pre_save, pre_init
 
 receivedMinimalFeedbackAmount = 0.1
 receivedHintUsefulnessAmount = 1
@@ -94,6 +95,8 @@ def transformToSimplerAnswer(answer):
 #Scope.content = Dado imutável
 
 class MyXBlock(XBlock):
+    pre_save.connect(Node.pre_save, Node, dispatch_uid=".studentGraph.models.Node") 
+
     #Se o aluno já fez o exercício
     alreadyAnswered = Boolean(
         default=False, scope=Scope.user_state,
@@ -300,7 +303,7 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.get(id=self.problemId)
 
         for node in graphData['nodes']:
-            nodeModel = Node.objects.filter(problem=loadedProblem, title=node["id"])
+            nodeModel = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
             if not nodeModel.exists():
                 n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
                 n1.save()
@@ -316,30 +319,30 @@ class MyXBlock(XBlock):
 
             if "stroke" in node:
                 if node["stroke"] == finalNodeStroke:
-                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=node["id"], destNode__title="_end_")
+                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
                     if not edgeModel.exists():
-                        fromNode = Node.objects.get(problem=loadedProblem, title=node["id"])
+                        fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
                         toNode = Node.objects.get(problem=loadedProblem, title="_end_")
                         e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
                         e1.save()
                 elif node["stroke"] == initialNodeStroke:
-                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=node["id"])
+                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=transformToSimplerAnswer(node["id"]))
                     if not edgeModel.exists():
                         fromNode = Node.objects.get(problem=loadedProblem, title="_start_")
-                        toNode = Node.objects.get(problem=loadedProblem, title=node["id"])
+                        toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
                         e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
                         e1.save()
 
 
         for edge in graphData['edges']:
-            edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=edge["from"], destNode__title=edge["to"])
+            edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
             if not edgeModel.exists():
-                fromNode = Node.objects.get(problem=loadedProblem, title=edge["from"])
-                toNode = Node.objects.get(problem=loadedProblem, title=edge["to"])
+                fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["from"]))
+                toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["to"]))
                 e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, visible=edge["visible"], dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
                 e1.save()
             else:
-                edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=edge["from"], destNode__title=edge["to"])
+                edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
                 edgeModel.correctness = float(edge["correctness"])
                 edgeModel.visible = edge["visible"]
                 edgeModel.dateModified = datetime.now()
@@ -355,7 +358,7 @@ class MyXBlock(XBlock):
 
     def getDoubtsAndAnswersFromStep(self,data):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
+        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("from")), destNode__title=transformToSimplerAnswer(data.get("to")))
 
         loadedDoubts = Doubt.objects.filter(problem=loadedProblem, edge=loadedEdge)
         edgeDoubts = []
@@ -373,7 +376,7 @@ class MyXBlock(XBlock):
     def get_doubts_and_answers_from_state(self,data,suffix=''):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedNode = Node.objects.get(problem=loadedProblem, title=data.get("node"))
+        loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
 
         loadedDoubts = Doubt.objects.filter(problem=loadedProblem, node=loadedNode)
         nodeDoubts = []
@@ -397,7 +400,7 @@ class MyXBlock(XBlock):
         hints = None
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
+        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("from")), destNode__title=transformToSimplerAnswer(data.get("to")))
         loadedHints = Hint.objects.filter(problem=loadedProblem, edge=loadedEdge).order_by("-usefulness", "priority")
         hints = []
         if loadedHints.exists():
@@ -437,7 +440,7 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def submit_node_info(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedNode = Node.objects.get(problem=loadedProblem, title=data.get("node"))
+        loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
 
         allDoubts = ast.literal_eval(data.get("doubts"))
         for doubt in allDoubts:
@@ -471,7 +474,7 @@ class MyXBlock(XBlock):
     def submit_edge_info(self,data,suffix=''):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("from"), destNode__title=data.get("to"))
+        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("from")), destNode__title=transformToSimplerAnswer(data.get("to")))
         
         allHints = ast.literal_eval(data.get("hints"))
         for hint in allHints:
@@ -693,9 +696,9 @@ class MyXBlock(XBlock):
         
         feedbackType = data.get("type")
         if feedbackType == "minimalState":
-            loadedNode = Node.objects.get(problem=loadedProblem, title=data.get("node"))
+            loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
         elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'minimalStep':
-            loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=data.get("nodeFrom"), destNode__title=data.get("nodeTo"))
+            loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("nodeFrom")), destNode__title=transformToSimplerAnswer(data.get("nodeTo")))
 
         if feedbackType == 'minimalStep':
             if data.get("message") == yesUniversalAnswer:
@@ -736,25 +739,25 @@ class MyXBlock(XBlock):
             loadedDoubt.save()
         elif feedbackType == 'doubtStep':
             doubt = Doubt(problem=loadedProblem)
-            step = Edge.objects.filter(problem=loadedProblem, sourceNode__title = data.get("nodeFrom"), destNode__title = data.get("nodeTo"))
+            step = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(data.get("nodeFrom")), destNode__title = transformToSimplerAnswer(data.get("nodeTo")))
             if step.exists():
                 doubt.edge = step[0]
             else:
-                fromState = Node.objects.filter(problem=loadedProblem, title = data.get("nodeFrom"))
+                fromState = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeFrom")))
                 if fromState.exists():
                     newSourceNode = fromState[0]    
                 else:
                     newSourceNode = Node(problem=loadedProblem, title = data.get("nodeFrom"), dateAdded = datetime.now())
                     newSourceNode.save()
-                    newSourceNode = Node.objects.get(problem=loadedProblem, title = data.get("nodeFrom"))
+                    newSourceNode = Node.objects.get(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeFrom")))
                 
-                toState = Node.objects.filter(problem=loadedProblem, title = data.get("nodeTo"))
+                toState = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeTo")))
                 if toState.exists():
                     newDestNode = toState[0]    
                 else:
                     newDestNode = Node(problem=loadedProblem, title = data.get("nodeTo"), dateAdded = datetime.now())
                     newDestNode.save()
-                    newDestNode = Node.objects.get(problem=loadedProblem, title = data.get("nodeTo"))
+                    newDestNode = Node.objects.get(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeTo")))
 
                 newStep = Edge(problem=loadedProblem, sourceNode = newSourceNode, destNode = newDestNode, dateAdded = datetime.now())
                 newStep.save()
@@ -767,13 +770,13 @@ class MyXBlock(XBlock):
             doubt.save()
         elif feedbackType == 'doubtState':
             doubt = Doubt(problem=loadedProblem)
-            state = Node.objects.filter(problem=loadedProblem, title = data.get("node"))
+            state = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("node")))
             if state.exists():
                 doubt.node = state[0]
             else:
                 newState = Node(problem=loadedProblem, title = data.get("node"), dateAdded = datetime.now())
                 newState.save()
-                newState = Node.objects.get(problem=loadedProblem, title = data.get("node"))
+                newState = Node.objects.get(problem=loadedProblem, title = transformToSimplerAnswer(data.get("node")))
                 doubt.node = newState
             doubt.type = 0
             doubt.text=data.get("message")
@@ -795,8 +798,8 @@ class MyXBlock(XBlock):
         endNode = Node.objects.get(problem=loadedProblem, title="_end_")
         #Ver até onde está certo
         for step in answerArray:
-            lastNode = Node.objects.get(problem=loadedProblem, title=lastElement)
-            currentNode = Node.objects.filter(problem=loadedProblem, title=step)
+            lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
+            currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
 
             if currentNode.exists() and Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first()).exists() and currentNode.first().correctness >= correctState[0]:
                 lastElement = step
@@ -810,7 +813,7 @@ class MyXBlock(XBlock):
             return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
 
         availableCorrectSteps = []
-        lastNode = Node.objects.get(problem=loadedProblem, title=lastElement)
+        lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
         nextElements = Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode)
         for element in nextElements:
             if element.destNode.correctness >= correctState[0]:
@@ -858,7 +861,7 @@ class MyXBlock(XBlock):
                     minValue = actualValue
                     nextCorrectStep = step
 
-            edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), destNode__title=nextCorrectStep)
+            edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextCorrectStep))
             if edgeForStep.exists():
                 hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
                 if hintForStep.exists():
@@ -888,13 +891,13 @@ class MyXBlock(XBlock):
             #MO passo está correto, mas agora é momento de mostrar a dica para o próximo passo.
             if (wrongElement == None):
                 loadedProblem = Problem.objects.get(id=self.problemId)
-                nextPossibleElementsEdges = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"))
+                nextPossibleElementsEdges = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")))
 
                 nextElement = None
                 for edge in nextPossibleElementsEdges:
                     element = edge.destNode.title
                     loadedProblem = Problem.objects.get(id=self.problemId)
-                    nodeElement = Node.objects.get(problem=loadedProblem, title=element)
+                    nodeElement = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(element))
                     if nodeElement.correctness >= correctState[0]:
                         nextElement = element
                 #Verificar se é o último passo, se for, sempre dar a dica padrão?
@@ -902,7 +905,7 @@ class MyXBlock(XBlock):
                     hintText = self.problemDefaultHint
                     hintId = 0
                 else:
-                    edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=possibleIncorrectAnswer.get("lastCorrectElement"), destNode__title=nextElement)
+                    edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextElement))
                     if edgeForStep.exists():
                         hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
                         if hintForStep.exists():
@@ -992,8 +995,8 @@ class MyXBlock(XBlock):
         #LEMBRAR DE FAZER O IF DE ÚLTINO ELEMENTO PARA NÃO FICAR FEIO
         for step in answerArray:
 
-            lastNode = Node.objects.filter(problem=loadedProblem, title=lastElement)
-            currentNode = Node.objects.filter(problem=loadedProblem, title=step)
+            lastNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
+            currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
 
             if not lastNode.exists():
                 n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now())
@@ -1020,7 +1023,7 @@ class MyXBlock(XBlock):
         #Adicionar o caso do últio elemento com o _end_
         finalElement = '_end_'
 
-        currentNode = Node.objects.get(problem=loadedProblem, title=lastElement)
+        currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
         edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
 
         if not edgeList.exists():
@@ -1037,8 +1040,8 @@ class MyXBlock(XBlock):
             if (step in self.problemEquivalentStates):
                 step = self.problemEquivalentStates[step]
 
-            lastNode = Node.objects.get(problem=loadedProblem, title=lastElement)
-            currentNode = Node.objects.get(problem=loadedProblem, title=step)
+            lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
+            currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(step))
             edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
 
             if (edgeList.exists() and edgeList[0].correctness >= validStep[0] and lastNode.correctness >= correctState[0] and currentNode.correctness >= correctState[0]):
@@ -1113,7 +1116,7 @@ class MyXBlock(XBlock):
                 nextStateName = "_end_"
 
             if previousStateName != "_start_":
-                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = previousStateName).exclude(destNode__title=stateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title=transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
                 for step in inforSteps1:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1121,7 +1124,7 @@ class MyXBlock(XBlock):
                         askInfoSteps.append(step.sourceNode)
                     if step.destNode.title not in resolution and step.sourceNode not in askInfoStates:
                         askInfoSteps.append(step.destNode)
-                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=stateName).exclude(sourceNode__title = previousStateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
                 for step in inforSteps2:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1137,7 +1140,7 @@ class MyXBlock(XBlock):
                 #        askInfoSteps.append(step)
             
             if nextStateName != "_end_":
-                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = nextStateName).exclude(sourceNode__title = stateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
                 for step in inforSteps4:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1145,7 +1148,7 @@ class MyXBlock(XBlock):
                         askInfoSteps.append(step.sourceNode)
                     if step.destNode.title not in resolution and step.destNode not in askInfoSteps:
                         askInfoSteps.append(step.destNode)
-                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = stateName).exclude(destNode__title = nextStateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
                 for step in inforSteps5:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1180,7 +1183,7 @@ class MyXBlock(XBlock):
                 sourceNodeIndexEE = resolution.index(sourceNodeTitleEE)
                 if sourceNodeIndexEE < len(resolution) - 1:
                     if resolution[sourceNodeIndexEE + 1] != stepEE.destNode.title:
-                        possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = sourceNodeTitleEE, destNode__title = resolution[sourceNodeIndexEE + 1], destNode__correctness__gte = correctState[0])
+                        possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = transformToSimplerAnswer(sourceNodeTitleEE), destNode__title = transformToSimplerAnswer(resolution[sourceNodeIndexEE + 1]), destNode__correctness__gte = correctState[0])
                         if possibleEdge.exists():
                             returnList.append(possibleEdge[0])
         if len(returnList) >= maxErrorSpecificFeedback:
@@ -1200,7 +1203,7 @@ class MyXBlock(XBlock):
                 sourceNodeIndexEX = resolution.index(sourceNodeTitleEX)
                 if sourceNodeIndexEX < len(resolution) - 1:
                     if resolution[sourceNodeIndexEX + 1] == stepEX.destNode.title:
-                        possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__correctness__gte = correctState[0], sourceNode__title = sourceNodeTitleEX, destNode__title = resolution[sourceNodeIndexEX + 1], destNode__correctness__gte = correctState[0])
+                        possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__correctness__gte = correctState[0], sourceNode__title = transformToSimplerAnswer(sourceNodeTitleEX), destNode__title = transformToSimplerAnswer(resolution[sourceNodeIndexEX + 1]), destNode__correctness__gte = correctState[0])
                         if possibleEdge.exists():
                             returnList.append(possibleEdge[0])
         if len(returnList) >= maxExplanations:
@@ -1336,10 +1339,10 @@ class MyXBlock(XBlock):
         nodeArray = []
         edgeArray = []
         lastNodeName = "_start_"
-        lastNode = Node.objects.get(problem=loadedProblem, title=lastNodeName)
+        lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastNodeName))
         nodeArray.append(lastNode.id)
         for node in resolution:
-            currentNode = Node.objects.get(problem=loadedProblem, title=node)
+            currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node))
             if currentNode.fixedValue == 0:
                 currentNode.correctness = self.corretudeEstado(currentNode)
                 currentNode.dateAdded = datetime.now()
