@@ -3,6 +3,7 @@ function MyXBlock(runtime, element, data) {
 
     var hints = [];
     var hintsIds = [];
+    var hintsTypes = [];
     var actualHint = -1;
 
     var minimumCheckboxLLineId = 1
@@ -111,13 +112,18 @@ function MyXBlock(runtime, element, data) {
             $('#hint', element).append("\n" + value.hint);
             hints.push(value.hint);
             hintsIds.push(value.hintId);
+            hintsTypes.push(value.hintType);
             actualHint = hints.length - 1;
             document.getElementById('hint').innerHTML = hints[actualHint];
 
             //Mostrar que está tudo certo
             for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
                 var partialAnswer = document.getElementById("idt" + i);
-                partialAnswer.style.background = "green"
+                if (partialAnswer.value) {
+                    partialAnswer.style.background = "green"
+                } else {
+                    partialAnswer.style.background = "none"
+                }
             }
 
         } else {
@@ -125,6 +131,7 @@ function MyXBlock(runtime, element, data) {
             $('#hint', element).append("\n" + value.hint);
             hints.push(value.hint);
             hintsIds.push(value.hintId);
+            hintsTypes.push(value.hintType);
             actualHint = hints.length - 1;
             document.getElementById('hint').innerHTML = hints[actualHint];
 
@@ -166,10 +173,27 @@ function MyXBlock(runtime, element, data) {
 
         var hintsToShow = []
         var hintsIdToShow = []
+
+        var explanationToShow = []
+        var explanationIdToShow = []
+
+        var specificFeedbackToShow = []
+        var specificFeedbackIdToShow = []
+
         for (var i = 0; i < hints.length; i++) {
-            if (hintsIds[i] != 0 && !hintsToShow.includes(hints[i])) {
-                hintsToShow.push(hints[i])
-                hintsIdToShow.push(hintsIds[i])
+            if (hintsIds[i] != 0) {
+                if (hintsTypes[i] == "hint" && !hintsToShow.includes(hints[i])) {
+                    hintsToShow.push(hints[i])
+                    hintsIdToShow.push(hintsIds[i])
+                }
+                else if (hintsTypes[i] == "explanation" && !hintsToShow.includes(explanationToShow[i])) {
+                    explanationToShow.push(hints[i])
+                    explanationIdToShow.push(hintsIds[i])
+                }
+                else if (hintsTypes[i] == "errorSpecificFeedback" && !hintsToShow.includes(specificFeedbackToShow[i])) {
+                    specificFeedbackToShow.push(hints[i])
+                    specificFeedbackIdToShow.push(hintsIds[i])
+                }
             }
         }
 
@@ -182,7 +206,39 @@ function MyXBlock(runtime, element, data) {
                         $.ajax({
                             type: "POST",
                             url: recommend_feedback,
-                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: hintsToShow[i], existingHintId: hintsIdToShow[i] })
+                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: hintsToShow[i], existingHintId: hintsIdToShow[i], existingType: "hint"})
+                        });
+                    }
+                }
+            }
+        }
+
+        if (explanationToShow.length > 0) {
+            for (var i = 0; i < explanationToShow.length; i++) {
+                if (explanationIdToShow[i] != 0) {
+                    feedback = prompt("A seguinte explicação foi útil? " + explanationToShow[i])
+                    
+                    if (feedback && checkIfUserInputIsValid(feedback)) {
+                        $.ajax({
+                            type: "POST",
+                            url: recommend_feedback,
+                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: explanationToShow[i], existingHintId: explanationIdToShow[i], existingType: "explanation"})
+                        });
+                    }
+                }
+            }
+        }
+
+        if (specificFeedbackToShow.length > 0) {
+            for (var i = 0; i < explanationToShow.length; i++) {
+                if (specificFeedbackIdToShow[i] != 0) {
+                    feedback = prompt("O seguinte feesback específico foi útil? " + specificFeedbackToShow[i])
+                    
+                    if (feedback && checkIfUserInputIsValid(feedback)) {
+                        $.ajax({
+                            type: "POST",
+                            url: recommend_feedback,
+                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: specificFeedbackToShow[i], existingHintId: specificFeedbackIdToShow[i], existingType: "errorSpecificFeedback"})
                         });
                     }
                 }

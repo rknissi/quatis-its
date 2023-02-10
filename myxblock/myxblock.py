@@ -50,7 +50,7 @@ noUniversalAnswer = "no"
 allResolutionsNew = allResolutionsDefault
 
 def amorzinhoErrorSpecificFeedback(element):
-    quantity = ast.literal_eval(ErrorSpecificFeedbacks.objects.filter(problem = element.problem, edge = element)).length()
+    quantity = ErrorSpecificFeedbacks.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
@@ -58,12 +58,12 @@ def amorzinhoMinimalFeedback(element):
     return abs(element.correctness)
 
 def amorzinhoHints(element):
-    quantity = ast.literal_eval(Hint.objects.filter(problem = element.problem, edge = element)).length()
+    quantity = Hint.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
 def amorzinhoExplanations(element):
-    quantity = ast.literal_eval(Explanation.objects.filter(problem = element.problem, edge = element)).length()
+    quantity = Explanation.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
@@ -118,6 +118,12 @@ class MyXBlock(XBlock):
     lastWrongElementCount = Integer(
         default=0, scope=Scope.user_state,
         help="Last wrong element count from the student",
+    )
+
+    #Qual tipo de reedback que foi mostrado
+    lastWrongElementType = String(
+        default="", scope=Scope.user_state,
+        help="Last wrong type type from the student",
     )
 
     problemId = Integer(
@@ -679,14 +685,33 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     def recommend_feedback(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedHint = Hint.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
+        if data.get("existingType") == "hint":
+            loadedHint = Hint.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
 
-        if data.get("message") == yesUniversalAnswer:
-            loadedHint.usefulness += receivedHintUsefulnessAmount
-        elif data.get("message") == noUniversalAnswer:
-            loadedHint.usefulness -= receivedHintUsefulnessAmount
+            if data.get("message") == yesUniversalAnswer:
+                loadedHint.usefulness += receivedHintUsefulnessAmount
+            elif data.get("message") == noUniversalAnswer:
+                loadedHint.usefulness -= receivedHintUsefulnessAmount
         
-        loadedHint.save()
+            loadedHint.save()
+        elif data.get("existingType") == "explanation":
+            loadedExplanation = Explanation.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
+
+            if data.get("message") == yesUniversalAnswer:
+                loadedExplanation.usefulness += receivedHintUsefulnessAmount
+            elif data.get("message") == noUniversalAnswer:
+                loadedExplanation.usefulness -= receivedHintUsefulnessAmount
+        
+            loadedExplanation.save()
+        elif data.get("existingType") == "errorSpecificFeedback":
+            loadedSpecificFeedback = ErrorSpecificFeedbacks.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
+
+            if data.get("message") == yesUniversalAnswer:
+                loadedSpecificFeedback.usefulness += receivedHintUsefulnessAmount
+            elif data.get("message") == noUniversalAnswer:
+                loadedSpecificFeedback.usefulness -= receivedHintUsefulnessAmount
+        
+            loadedSpecificFeedback.save()
 
         return {'result':'success'}
 
@@ -702,16 +727,28 @@ class MyXBlock(XBlock):
 
         if feedbackType == 'minimalStep':
             if data.get("message") == yesUniversalAnswer:
-                loadedEdge.correctness += receivedMinimalFeedbackAmount
+                if loadedEdge.correctness + receivedMinimalFeedbackAmount > validStep[1]:
+                    loadedEdge.correctness = validStep[1]
+                else:
+                    loadedEdge.correctness += receivedMinimalFeedbackAmount
             elif data.get("message") == noUniversalAnswer:
-                loadedEdge.correctness -= receivedMinimalFeedbackAmount
+                if loadedEdge.correctness - receivedMinimalFeedbackAmount < invalidStep[0]:
+                    loadedEdge.correctness = invalidStep[0]
+                else:
+                    loadedEdge.correctness -= receivedMinimalFeedbackAmount
             loadedEdge.save()
 
         elif feedbackType == 'minimalState':
             if data.get("message") == yesUniversalAnswer:
-                loadedNode.correctness += receivedMinimalFeedbackAmount
+                if loadedNode.correctness + receivedMinimalFeedbackAmount > correctState[1]:
+                    loadedNode.correctness = correctState[1]
+                else:
+                    loadedNode.correctness += receivedMinimalFeedbackAmount
             elif data.get("message") == noUniversalAnswer:
-                loadedNode.correctness -= receivedMinimalFeedbackAmount
+                if loadedNode.correctness - receivedMinimalFeedbackAmount < incorrectState[0]:
+                    loadedNode.correctness = incorrectState[0]
+                else:
+                    loadedNode.correctness -= receivedMinimalFeedbackAmount
             loadedNode.save()
 
         elif feedbackType == 'errorSpecific':
@@ -790,6 +827,7 @@ class MyXBlock(XBlock):
     #Feedback mínimo, sem dicas
     def getFirstIncorrectAnswer (self, answerArray):
 
+        beforeLast = None
         lastElement = "_start_"
         wrongElement = None
         wrongStep = 0
@@ -802,6 +840,7 @@ class MyXBlock(XBlock):
             currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
 
             if currentNode.exists() and Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first()).exists() and currentNode.first().correctness >= correctState[0]:
+                beforeLast = lastElement
                 lastElement = step
                 wrongStep = wrongStep + 1
             else:
@@ -810,7 +849,7 @@ class MyXBlock(XBlock):
 
         #Se null, então tudo certo
         if (wrongElement == None):
-            return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep}
+            return {"wrongElement": wrongElement, "lastCorrectElement": lastElement, "correctElementLine": wrongStep, "beforeLast": beforeLast}
 
         availableCorrectSteps = []
         lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
@@ -861,29 +900,47 @@ class MyXBlock(XBlock):
                     minValue = actualValue
                     nextCorrectStep = step
 
+            hintList = []
+            hintIdList = []
+            hintIdType = []
+
+            edgeForSpecificFeedback = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(wrongElement))
+            if edgeForSpecificFeedback.exists():
+                specificFeedbackForStep = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=edgeForSpecificFeedback.first()).order_by("-usefulness", "priority")
+
+                if specificFeedbackForStep.exists():
+                    for specificFeedback in specificFeedbackForStep:
+                        hintList.append(specificFeedback.text)
+                        hintIdList.append(specificFeedback.id)
+                        hintIdType.append("errorSpecificFeedback")
+
+
             edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextCorrectStep))
             if edgeForStep.exists():
                 hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
                 if hintForStep.exists():
-                    hintList = []
-                    hintIdList = []
                     for hint in hintForStep:
                         hintList.append(hint.text)
                         hintIdList.append(hint.id)
+                        hintIdType.append("hint")
                 else:
                     if possibleIncorrectAnswer.get("lastCorrectElement") == "_start_":
-                        hintList = [self.problemInitialHint]
-                        hintIdList = [0]
+                        hintList.append(self.problemInitialHint)
+                        hintIdList.append(0)
+                        hintIdType.append("hint")
                     else:
-                        hintList = [self.problemDefaultHint]
-                        hintIdList = [0]
+                        hintList.append(self.problemDefaultHint)
+                        hintIdList.append(0)
+                        hintIdType.append("hint")
             else:
                 if possibleIncorrectAnswer.get("lastCorrectElement") == "_start_":
-                    hintList = [self.problemInitialHint]
-                    hintIdList = [0]
+                    hintList.append(self.problemInitialHint)
+                    hintIdList.append(0)
+                    hintIdType.append("hint")
                 else:
-                    hintList = [self.problemDefaultHint]
-                    hintIdList = [0]
+                    hintList.append(self.problemDefaultHint)
+                    hintIdList.append(0)
+                    hintIdType.append("hint")
 
 
         try:
@@ -900,63 +957,103 @@ class MyXBlock(XBlock):
                     nodeElement = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(element))
                     if nodeElement.correctness >= correctState[0]:
                         nextElement = element
-                #Verificar se é o último passo, se for, sempre dar a dica padrão?
-                if (nextElement == "_end_"):
-                    hintText = self.problemDefaultHint
-                    hintId = 0
-                else:
+
+                hintList = []
+                hintIdList = []
+                hintIdType = []
+
+                if possibleIncorrectAnswer.get("beforeLast") is not None:
+                    beforeEdgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("beforeLast")), destNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")))
+
+                    if beforeEdgeForStep is not None and beforeEdgeForStep.exists():
+                        explanationForStep = Explanation.objects.filter(problem=loadedProblem, edge=beforeEdgeForStep.first()).order_by("-usefulness", "priority")
+
+                        if explanationForStep.exists():
+                            for explanation in explanationForStep:
+                                hintList.append(explanation.text)
+                                hintIdList.append(explanation.id)
+                                hintIdType.append("explanation")
+
+
+                if (nextElement != "_end_"):
                     edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextElement))
                     if edgeForStep.exists():
                         hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
                         if hintForStep.exists():
-                            hintList = []
-                            hintIdList = []
                             for hint in hintForStep:
                                 hintList.append(hint.text)
                                 hintIdList.append(hint.id)
+                                hintIdType.append("hint")
                         else:
-                            hintList = [self.problemDefaultHint]
-                            hintIdList = [0]
+                            hintList.append(self.problemDefaultHint)
+                            hintIdList.append(0)
+                            hintIdType.append("hint")
                     else:
-                        hintList = [self.problemDefaultHint]
-                        hintIdList = [0]
+                        hintList.append(self.problemDefaultHint)
+                        hintIdList.append(0)
+                        hintIdType.append("hint")
+                else:
+                    hintList.append(self.problemDefaultHint)
+                    hintIdList.append(0)
+                    hintIdType.append("hint")
 
-                    if (self.lastWrongElement != str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))):
-                        self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))
-                        self.lastWrongElementCount = 1
-                        hintText = hintList[0]
-                        hintId = hintIdList[0]
-                    elif (self.lastWrongElementCount < len(hintList)):
-                        hintText = hintList[self.lastWrongElementCount]
-                        hintId = hintIdList[self.lastWrongElementCount]
-                        self.lastWrongElementCount = self.lastWrongElementCount + 1
-                    else:
-                        hintText = hintList[-1]
-                        hintId = hintIdList[-1]
-                
-                return {"status": "OK", "hint": hintText, "hintId": hintId, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement")}
-            else:
-                wrongStepCount = possibleIncorrectAnswer.get("correctElementLine")
-                if (wrongStepCount == 0):
-                    hintText = self.problemInitialHint
-                    hintId = 0
-                elif (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) != self.lastWrongElement):
-                    self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))
+                if (possibleIncorrectAnswer.get("beforeLast") is not None and self.lastWrongElement != str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement"))) and hintIdType[0] == "explanation"):
+                    self.lastWrongElement = str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement")))
                     self.lastWrongElementCount = 1
                     hintText = hintList[0]
                     hintId = hintIdList[0]
+                    hintType = hintIdType[0]
+                elif (self.lastWrongElement != str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement)) and possibleIncorrectAnswer.get("beforeLast") is not None and self.lastWrongElement == str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement")))):
+                    self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))
+                    self.lastWrongElementCount = 1
+                    hintText = hintList[0]
+                    hintId = hintIdList[0]
+                    hintType = hintIdType[0]
                 elif (self.lastWrongElementCount < len(hintList)):
                     hintText = hintList[self.lastWrongElementCount]
                     hintId = hintIdList[self.lastWrongElementCount]
+                    hintType = hintIdType[self.lastWrongElementCount]
                     self.lastWrongElementCount = self.lastWrongElementCount + 1
                 else:
                     hintText = hintList[-1]
                     hintId = hintIdList[-1]
+                    hintType = hintIdType[-1]
+
+                
+                return {"status": "OK", "hint": hintText, "hintId": hintId, "hintType": hintType, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement")}
+            else:
+                wrongStepCount = possibleIncorrectAnswer.get("correctElementLine")
+                if (wrongStepCount == 0):
+                    hintList.append(self.problemInitialHint)
+                    hintIdList.append(0)
+                    hintIdType.append("hint")
+                elif (str((possibleIncorrectAnswer.get("lastCorrectElement"), wrongElement)) != self.lastWrongElement and hintIdType[0] == "errorSpecificFeedback"):
+                    self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), wrongElement))
+                    self.lastWrongElementCount = 1
+                    hintText = hintList[0]
+                    hintId = hintIdList[0]
+                    hintType = hintIdType[0]
+                elif (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) != self.lastWrongElement and str((possibleIncorrectAnswer.get("lastCorrectElement"), wrongElement)) == self.lastWrongElement):
+                    self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))
+                    self.lastWrongElementCount = 1
+                    hintText = hintList[0]
+                    hintId = hintIdList[0]
+                    hintType = hintIdType[0]
+                elif (self.lastWrongElementCount < len(hintList)):
+                    hintText = hintList[self.lastWrongElementCount]
+                    hintId = hintIdList[self.lastWrongElementCount]
+                    hintType = hintIdType[self.lastWrongElementCount]
+                    self.lastWrongElementCount = self.lastWrongElementCount + 1
+                else:
+                    hintText = hintList[-1]
+                    hintId = hintIdList[-1]
+                    hintType = hintIdType[-1]
         except IndexError:
             hintText = self.problemDefaultHint
             hintId = 0
+            hintType = "hint"
 
-        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "wrongStepCount": wrongStepCount}
+        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "wrongStepCount": wrongStepCount}
 
     #Envia a resposta final
     @XBlock.json_handler
