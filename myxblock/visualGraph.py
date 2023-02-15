@@ -16,6 +16,17 @@ graphWidthExtraValue = 100
 graphWidthExtraValueY = 67
 graphNodeMinimumDistance = 100
 
+#Step information
+correctnessMinValue = -1
+correctnessMaxValue = 1
+
+#Resolution values
+incorrectResolution = [-1, -0.75001]
+partiallyIncorrectResolution = [-0.75, -0.00001]
+partiallyCorrectResolution = [0, 0.74999]
+correctResolution = [0.75, 1]
+defaultResolutionValue = 0
+
 #Step values
 invalidStep = [-1, -0.80001]
 stronglyInvalidStep = [-0.8, -0.40001]

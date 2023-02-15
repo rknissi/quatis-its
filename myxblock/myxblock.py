@@ -21,18 +21,8 @@ receivedHintUsefulnessAmount = 1
 maxMinimumFeedback = 4
 maxErrorSpecificFeedback = 2
 maxExplanations = 2
+maxHints = 2
 maxDoubts = 2
-
-#Step information
-correctnessMinValue = -1
-correctnessMaxValue = 1
-
-#Resolution values
-incorrectResolution = [-1, -0.75001]
-partiallyIncorrectResolution = [-0.75, -0.00001]
-partiallyCorrectResolution = [0, 0.74999]
-correctResolution = [0.75, 1]
-defaultResolutionValue = 0
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
@@ -64,6 +54,11 @@ def amorzinhoHints(element):
 
 def amorzinhoExplanations(element):
     quantity = Explanation.objects.filter(problem = element.problem, edge = element).count()
+    correctness = element.correctness
+    return (1/(correctness * 10) * (1/(0.1 + quantity)))
+
+def amorzinhoHints(element):
+    quantity = Hint.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
@@ -722,7 +717,7 @@ class MyXBlock(XBlock):
         feedbackType = data.get("type")
         if feedbackType == "minimalState":
             loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
-        elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'minimalStep':
+        elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'minimalStep' or feedbackType == 'hint':
             loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("nodeFrom")), destNode__title=transformToSimplerAnswer(data.get("nodeTo")))
 
         if feedbackType == 'minimalStep':
@@ -765,6 +760,13 @@ class MyXBlock(XBlock):
             explanation.priority = 1
             explanation.usefulness = 0
             explanation.save()
+        elif feedbackType == 'hint':
+            hint = Hint(problem=loadedProblem, edge=loadedEdge)
+            hint.text=data.get("message")
+            hint.dateAdded = datetime.now()
+            hint.priority = 1
+            hint.usefulness = 0
+            hint.save()
         elif feedbackType == 'doubtAnswer':
             loadedDoubt = Doubt.objects.get(problem=loadedProblem, id=data.get("doubtId"))
             answer = Answer(problem=loadedProblem, doubt=loadedDoubt)
@@ -1159,7 +1161,9 @@ class MyXBlock(XBlock):
         else:
             isAnswerCorrect = isStepsCorrect
 
-        minimal = self.getMinimalFeedbackFromStudentResolution(answerArray)
+        generatedResolution = self.generateResolution(answerArray)
+
+        minimal = self.getMinimalFeedbackFromStudentResolution(answerArray, generatedResolution["nodeIdList"])
         minimalSteps = []
         minimalStates = []
         for model in minimal:
@@ -1175,11 +1179,17 @@ class MyXBlock(XBlock):
             errorSpecificSteps.append(errorSpecificStep.sourceNode.title)
             errorSpecificSteps.append(errorSpecificStep.destNode.title)
 
-        explanation = self.getExplanationsAndHintsFromProblemGraph(answerArray)
+        explanation = self.getExplanationsFromProblemGraph(answerArray)
         explanationSteps = []
         for explanationStep in explanation:
             explanationSteps.append(explanationStep.sourceNode.title)
             explanationSteps.append(explanationStep.destNode.title)
+
+        hints = self.getHintsFromProblemGraph(answerArray)
+        hintsSteps = []
+        for hintsStep in hints:
+            hintsSteps.append(hintsStep.sourceNode.title)
+            hintsSteps.append(hintsStep.destNode.title)
 
         doubts = self.getDoubtsFromProblemGraph()
         doubtsStepReturn = []
@@ -1196,16 +1206,19 @@ class MyXBlock(XBlock):
 
         #self.alreadyAnswered = True
 
-        self.calculateValidityAndCorrectness(answerArray)
+        self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
 
-        return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray}
+        return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
 
-    def getMinimalFeedbackFromStudentResolution(self, resolution):
+    def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
         askInfoSteps = []
-        askInfoStates = []
         loadedProblem = Problem.objects.get(id=self.problemId)
         previousStateName = "_start_"
         nextStateName = None
+        transformedResolution = []
+        for item in resolution:
+            transformedResolution.append(transformToSimplerAnswer(item))
+
         for index, stateName in enumerate(resolution):
             if index + 1 < len(resolution):
                 nextStateName = resolution[index + 1]
@@ -1217,18 +1230,29 @@ class MyXBlock(XBlock):
                 for step in inforSteps1:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    if step.sourceNode.title not in resolution and step.sourceNode not in askInfoStates:
-                        askInfoSteps.append(step.sourceNode)
-                    if step.destNode.title not in resolution and step.sourceNode not in askInfoStates:
-                        askInfoSteps.append(step.destNode)
+                    #if step.destNode.title not in transformedResolution and step.destNode not in askInfoSteps:
+                    #    askInfoSteps.append(step.destNode)
                 inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
                 for step in inforSteps2:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    if step.sourceNode.title not in resolution and step.sourceNode not in askInfoStates:
-                        askInfoSteps.append(step.sourceNode)
-                    if step.destNode.title not in resolution and step.sourceNode not in askInfoStates:
-                        askInfoSteps.append(step.destNode)
+                    #if step.destNode.title not in transformedResolution and step.destNode not in askInfoSteps:
+                    #    askInfoSteps.append(step.destNode)
+
+                #Experimental
+                commonIds = nodeIdList[:len(nodeIdList)-(len(nodeIdList) - (index))]
+                commonIdsStr = str(commonIds[:-1])
+
+                differentIds = nodeIdList[:len(nodeIdList)-(len(nodeIdList) - (index + 2))]
+                differentIdsStr = str(differentIds[:-1])
+
+                inforSteps3 = Resolution.objects.filter(problem=loadedProblem, nodeIdList__startswith=commonIdsStr).exclude(nodeIdList__startswith = differentIdsStr)
+                for resolution in inforSteps3:
+                    nodeIdlistLiteral = ast.literal_eval(resolution.nodeIdList)
+                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index], destNode__id = nodeIdlistLiteral[index + 1])
+                    if possibleEdge not in askInfoSteps:
+                        askInfoSteps.append(possibleEdge)
+                        askInfoSteps.append(possibleEdge.sourceNode)
 
                 #Como obter outros estados no mesmo nivel? Podemos fazer buscando por resolutions, mas ficaria pesado
                 #inforSteps3 = Edge.objects.filter(problem=loadedProblem).exclude(sourceNode__title = previousStateName, destNode__title=stateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
@@ -1241,19 +1265,30 @@ class MyXBlock(XBlock):
                 for step in inforSteps4:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
-                        askInfoSteps.append(step.sourceNode)
-                    if step.destNode.title not in resolution and step.destNode not in askInfoSteps:
-                        askInfoSteps.append(step.destNode)
+                    #if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
+                    #    askInfoSteps.append(step.sourceNode)
                 inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
                 for step in inforSteps5:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
-                        askInfoSteps.append(step.sourceNode)
-                    if step.destNode.title not in resolution and step.destNode not in askInfoSteps:
-                        askInfoSteps.append(step.destNode)
+                    #if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
+                    #    askInfoSteps.append(step.sourceNode)
  
+                #Experimental
+                commonIds = nodeIdList[:len(nodeIdList)-(len(nodeIdList) - (index + 1))]
+                commonIdsStr = str(commonIds[:-1])
+
+                differentIds = nodeIdList[:len(nodeIdList)-(len(nodeIdList) - (index + 3))]
+                differentIdsStr = str(differentIds[:-1])
+
+                inforSteps6 = Resolution.objects.filter(problem=loadedProblem, nodeIdList__startswith=commonIdsStr).exclude(nodeIdList__startswith = differentIdsStr)
+                for resolution in inforSteps6:
+                    nodeIdlistLiteral = ast.literal_eval(resolution.nodeIdList)
+                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index + 1], destNode__id = nodeIdlistLiteral[index + 2])
+                    if possibleEdge not in askInfoSteps:
+                        askInfoSteps.append(possibleEdge)
+                        askInfoSteps.append(possibleEdge.destNode)
+
                 #Como obter outros estados no mesmo nivel? Podemos fazer buscando por resolutions, mas ficaria pesado
                 #inforSteps6 = Edge.objects.filter(problem=loadedProblem).exclude(destNode__title = nextStateName, sourceNode__title = stateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
                 #for step in inforSteps6:
@@ -1272,39 +1307,67 @@ class MyXBlock(XBlock):
     def getErrorSpecificFeedbackFromProblemGraph(self, resolution):
         CFEE = []
         returnList = []
+        transformedResolution = []
+        for item in resolution:
+            transformedResolution.append(transformToSimplerAnswer(item))
+
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CFEE = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[0])
+        CFEE = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1])
         for stepEE in CFEE:
             sourceNodeTitleEE = stepEE.sourceNode.title 
-            if sourceNodeTitleEE in resolution:
-                sourceNodeIndexEE = resolution.index(sourceNodeTitleEE)
-                if sourceNodeIndexEE < len(resolution) - 1:
-                    if resolution[sourceNodeIndexEE + 1] != stepEE.destNode.title:
-                        possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = transformToSimplerAnswer(sourceNodeTitleEE), destNode__title = transformToSimplerAnswer(resolution[sourceNodeIndexEE + 1]), destNode__correctness__gte = correctState[0])
+            if sourceNodeTitleEE in transformedResolution:
+                sourceNodeIndexEE = transformedResolution.index(sourceNodeTitleEE)
+                if sourceNodeIndexEE < len(transformedResolution) - 1:
+                    if transformedResolution[sourceNodeIndexEE + 1] != stepEE.destNode.title:
+                        possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = sourceNodeTitleEE, destNode__title = transformedResolution[sourceNodeIndexEE + 1], destNode__correctness__gte = correctState[0])
                         if possibleEdge.exists():
-                            returnList.append(possibleEdge[0])
+                            returnList.append(stepEE)
         if len(returnList) >= maxErrorSpecificFeedback:
             returnList.sort(key=amorzinhoErrorSpecificFeedback)
             return returnList[0:maxErrorSpecificFeedback]
         else:
             return returnList
 
-    def getExplanationsAndHintsFromProblemGraph(self, resolution):
+    def getHintsFromProblemGraph(self, resolution):
+        CDI = []
+        returnList = []
+        transformedResolution = []
+        for item in resolution:
+            transformedResolution.append(transformToSimplerAnswer(item))
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        CDI = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
+        for stepHint in CDI:
+            sourceNodeTitleEX = stepHint.sourceNode.title 
+            if sourceNodeTitleEX in transformedResolution:
+                sourceNodeIndexEX = transformedResolution.index(sourceNodeTitleEX)
+                if sourceNodeIndexEX < len(transformedResolution) - 1:
+                    if transformedResolution[sourceNodeIndexEX + 1] == stepHint.destNode.title:
+                        returnList.append(stepHint)
+        if len(returnList) >= maxExplanations:
+            returnList.sort(key=amorzinhoHints)
+            return returnList[0:maxHints]
+        else:
+            return returnList
+
+    def getExplanationsFromProblemGraph(self, resolution):
         CEX = []
         returnList = []
+        transformedResolution = []
+        for item in resolution:
+            transformedResolution.append(transformToSimplerAnswer(item))
+
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CEX = Edge.objects.filter(problem=loadedProblem, correctness__gt = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
+        CEX = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
         for stepEX in CEX:
             sourceNodeTitleEX = stepEX.sourceNode.title 
-            if sourceNodeTitleEX in resolution:
-                sourceNodeIndexEX = resolution.index(sourceNodeTitleEX)
-                if sourceNodeIndexEX < len(resolution) - 1:
-                    if resolution[sourceNodeIndexEX + 1] == stepEX.destNode.title:
-                        possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__correctness__gte = correctState[0], sourceNode__title = transformToSimplerAnswer(sourceNodeTitleEX), destNode__title = transformToSimplerAnswer(resolution[sourceNodeIndexEX + 1]), destNode__correctness__gte = correctState[0])
-                        if possibleEdge.exists():
-                            returnList.append(possibleEdge[0])
+            if sourceNodeTitleEX in transformedResolution:
+                sourceNodeIndexEX = transformedResolution.index(sourceNodeTitleEX)
+                if sourceNodeIndexEX < len(transformedResolution) - 1:
+                    if transformedResolution[sourceNodeIndexEX + 1] == stepEX.destNode.title:
+                        returnList.append(stepEX)
         if len(returnList) >= maxExplanations:
-            returnList.sort(key=amorzinhoErrorSpecificFeedback)
+            returnList.sort(key=amorzinhoExplanations)
             return returnList[0:maxExplanations]
         else:
             return returnList
@@ -1312,7 +1375,6 @@ class MyXBlock(XBlock):
 
     def getDoubtsFromProblemGraph(self):
         CDU = []
-        allDoubtsWithAnswers = []
         loadedProblem = Problem.objects.get(id=self.problemId)
         CDU = Doubt.objects.filter(problem=loadedProblem).order_by("dateModified")
 
@@ -1374,16 +1436,20 @@ class MyXBlock(XBlock):
         return sum
     
     def corretudeEstado(self, state):
+        if state.fixedValue == 1:
+            return state.correctness
+
         loadedProblem = Problem.objects.get(id=self.problemId)
         allResolutions = Resolution.objects.filter(problem=loadedProblem)
         correctResolutions = []
         wrongResolutions = []
 
         for resolution in allResolutions:
-            lastStateId = ast.literal_eval(resolution.nodeIdList)[-2]
-            lastState = Node.objects.get(problem=loadedProblem, id=lastStateId)
+            lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
+            lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
 
-            if self.problemCorrectRadioAnswer == lastState.title:
+            #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
+            if lastEdge.sourceNode.correctness >= correctState[0]:
                 correctResolutions.append(resolution)
             else:
                 wrongResolutions.append(resolution)
@@ -1407,6 +1473,8 @@ class MyXBlock(XBlock):
         return step.id in ast.literal_eval(resolution.edgeIdList)
     
     def validadePasso(self, step):
+        if step.fixedValue == 1:
+            return step.correctness
         loadedProblem = Problem.objects.get(id=self.problemId)
         allResolutions = Resolution.objects.filter(problem=loadedProblem)
         correctResolutions = []
@@ -1416,7 +1484,8 @@ class MyXBlock(XBlock):
             lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
             lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
 
-            if self.problemCorrectRadioAnswer == lastEdge.sourceNode.title:
+            #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
+            if lastEdge.sourceNode.correctness >= correctState[0]:
                 correctResolutions.append(resolution)
             else:
                 wrongResolutions.append(resolution)
@@ -1429,7 +1498,7 @@ class MyXBlock(XBlock):
             return (correctValue-incorrectValue)/(correctValue + incorrectValue)
         return 0
 
-    def calculateValidityAndCorrectness(self, resolution):
+    def generateResolution(self, resolution):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
 
@@ -1461,10 +1530,14 @@ class MyXBlock(XBlock):
 
         r1 = Resolution(nodeIdList = nodeArray, edgeIdList = edgeArray, problem=loadedProblem, correctness=0, dateAdded=datetime.now())
         r1.save()
-        r1 = Resolution.objects.get(id = r1.id)
+
+        return {"resolutionId": r1.id, "nodeIdList": nodeArray, "edgeIdList": edgeArray}
+
+    def calculateValidityAndCorrectness(self, resolutionId):
+
+        r1 = Resolution.objects.get(id = resolutionId)
         r1.correctness = self.corretudeResolucao(r1)
         r1.save()
-
 
 
     @XBlock.json_handler

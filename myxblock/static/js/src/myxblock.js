@@ -285,6 +285,19 @@ function MyXBlock(runtime, element, data) {
                 }
             }
         }
+        if (value.hints.length > 0) {
+            for(var i = 0; i < value.hints.length; i++){
+                var feedback = prompt("Qual dica você daria para o seguinte passo? " + value.explanation[i] + " -> " + value.explanation[i + 1]);
+
+                if (feedback != null) {
+                    $.ajax({
+                        type: "POST",
+                        url: send_feedback,
+                        data: JSON.stringify({ type: "hint", message: feedback, nodeFrom: value.explanation[i], nodeTo: value.explanation[++i] })
+                    });
+                }
+            }
+        }
         if (value.explanation.length > 0) {
             for(var i = 0; i < value.explanation.length; i++){
                 var feedback = prompt("Como você explicaria que o seguinte passo está correto? " + value.explanation[i] + " -> " + value.explanation[i + 1]);
