@@ -137,6 +137,7 @@ function MyXBlockEdit(runtime, element) {
 
           nodeData.hovered = {stroke: {color: "#333333", thickness: 3}};
           nodeData.selected = {stroke: {color: "#333333", thickness: 3}};
+          nodeData.modifiedCorrectness = 1;
 
           break;
         }
@@ -155,6 +156,7 @@ function MyXBlockEdit(runtime, element) {
           edgeData.normal = {stroke: defaultArrowStroke + getEdgeColor(value)}
           edgeData.hovered = {stroke: {thickness: 5, color: getEdgeColor(value)}}
           edgeData.selected = {stroke: {color: getEdgeColor(value), dash: '10 3', thickness: '7' }}
+          edgeData.modifiedCorrectness = 1;
           
           break;
         }
@@ -238,7 +240,9 @@ function MyXBlockEdit(runtime, element) {
       hovered: {stroke: {thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val())}},
       selected: {stroke: {color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' }},
       correctness: el.find('input[id=stepCorrectness]').val(),
-      fixedValue: el.find('input[id=stepFixedValue]').val()
+      fixedValue: el.find('input[id=stepFixedValue]').val(),
+      visible: 1,
+      modifiedCorrectness: 0
     };
     addEdge(data);
     reApplyConfig();
@@ -273,7 +277,8 @@ function MyXBlockEdit(runtime, element) {
         visible: 1,
         x: 0,
         y: 0,
-        type: dropDownValue
+        type: dropDownValue,
+        modifiedCorrectness: 0
       };
     } else {
       data = {
@@ -287,7 +292,8 @@ function MyXBlockEdit(runtime, element) {
         shape: shapeType,
         x: 0,
         y: 0,
-        type: dropDownValue
+        type: dropDownValue,
+        modifiedCorrectness: 0
       };
     }
     addNode(data)
@@ -335,10 +341,7 @@ function MyXBlockEdit(runtime, element) {
     $.ajax({
       type: "POST",
       url: submitNodeInfoUrl,
-      data: JSON.stringify(data),
-      success: function (data) {
-        alert("Dados salvos com sucesso!");
-      }   
+      data: JSON.stringify(data)
     });
 
   });
@@ -374,10 +377,7 @@ function MyXBlockEdit(runtime, element) {
     $.ajax({
       type: "POST",
       url: submitEdgeInfoUrl,
-      data: JSON.stringify(data),
-      success: function (data) {
-        alert("Dados salvos com sucesso!");
-      }   
+      data: JSON.stringify(data)
     });
   });
 

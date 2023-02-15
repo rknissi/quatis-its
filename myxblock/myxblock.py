@@ -317,6 +317,8 @@ class MyXBlock(XBlock):
                 nodeModel.nodePositionY = node["y"]
                 nodeModel.dateModified = datetime.now()
                 nodeModel.save()
+                if node["modifiedCorrectness"] == 1:
+                    self.recalculateResolutionCorrectnessFromNode(nodeModel)
 
             if "stroke" in node:
                 if node["stroke"] == finalNodeStroke:
@@ -340,7 +342,7 @@ class MyXBlock(XBlock):
             if not edgeModel.exists():
                 fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["from"]))
                 toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["to"]))
-                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, visible=edge["visible"], dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
                 e1.save()
             else:
                 edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
@@ -349,6 +351,8 @@ class MyXBlock(XBlock):
                 edgeModel.dateModified = datetime.now()
                 edgeModel.fixedValue = float(edge["fixedValue"])
                 edgeModel.save()
+                if edge["modifiedCorrectness"] == 1:
+                    self.recalculateResolutionCorrectnessFromEdge(edgeModel)
 
         return {}
 
@@ -634,7 +638,7 @@ class MyXBlock(XBlock):
         nodeList = [n1, n2, n3, n4]
 
         edgeList = self.createInitialEdgeData(nodeList, problemFK)
-        self.createInitialResolutionData(nodeList, edgeList, problemFK)
+        #self.createInitialResolutionData(nodeList, edgeList, problemFK)
         
 
     def createInitialData(self):
@@ -1226,13 +1230,13 @@ class MyXBlock(XBlock):
                 nextStateName = "_end_"
 
             if previousStateName != "_start_":
-                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title=transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title=transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
                 for step in inforSteps1:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
                     #if step.destNode.title not in transformedResolution and step.destNode not in askInfoSteps:
                     #    askInfoSteps.append(step.destNode)
-                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
                 for step in inforSteps2:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1249,7 +1253,7 @@ class MyXBlock(XBlock):
                 inforSteps3 = Resolution.objects.filter(problem=loadedProblem, nodeIdList__startswith=commonIdsStr).exclude(nodeIdList__startswith = differentIdsStr)
                 for resolution in inforSteps3:
                     nodeIdlistLiteral = ast.literal_eval(resolution.nodeIdList)
-                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index], destNode__id = nodeIdlistLiteral[index + 1])
+                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index], destNode__id = nodeIdlistLiteral[index + 1]).exclude(fixedValue = 1)
                     if possibleEdge not in askInfoSteps:
                         askInfoSteps.append(possibleEdge)
                         askInfoSteps.append(possibleEdge.sourceNode)
@@ -1261,13 +1265,13 @@ class MyXBlock(XBlock):
                 #        askInfoSteps.append(step)
             
             if nextStateName != "_end_":
-                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
                 for step in inforSteps4:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
                     #if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
                     #    askInfoSteps.append(step.sourceNode)
-                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
+                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
                 for step in inforSteps5:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1284,7 +1288,7 @@ class MyXBlock(XBlock):
                 inforSteps6 = Resolution.objects.filter(problem=loadedProblem, nodeIdList__startswith=commonIdsStr).exclude(nodeIdList__startswith = differentIdsStr)
                 for resolution in inforSteps6:
                     nodeIdlistLiteral = ast.literal_eval(resolution.nodeIdList)
-                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index + 1], destNode__id = nodeIdlistLiteral[index + 2])
+                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index + 1], destNode__id = nodeIdlistLiteral[index + 2]).exclude(fixedValue = 1)
                     if possibleEdge not in askInfoSteps:
                         askInfoSteps.append(possibleEdge)
                         askInfoSteps.append(possibleEdge.destNode)
@@ -1402,6 +1406,35 @@ class MyXBlock(XBlock):
         #    return CDU[0:maxDoubts]
         #else:
         #    return CDU
+    
+    def recalculateResolutionCorrectnessFromNode(self, node):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        resolutionsToBeModified = []
+        for resolution in allResolutions:
+            usedNodes = ast.literal_eval(resolution.nodeIdList)
+            if node.id in usedNodes:
+                resolution.correctness = 0
+                resolution.save()
+                resolutionsToBeModified.append(resolution)
+        for resolution in resolutionsToBeModified:
+            resolution.correctness = self.corretudeResolucao(resolution)
+            resolution.save()
+
+    def recalculateResolutionCorrectnessFromEdge(self, edge):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        resolutionsToBeModified = []
+        for resolution in allResolutions:
+            usedNodes = ast.literal_eval(resolution.edgeIdList)
+            if edge.id in usedNodes:
+                resolution.correctness = 0
+                resolution.save()
+                resolutionsToBeModified.append(resolution)
+        for resolution in resolutionsToBeModified:
+            resolution.correctness = self.corretudeResolucao(resolution)
+            resolution.save()
+
 
     def corretudeResolucao(self, resolution):
         loadedProblem = Problem.objects.get(id=self.problemId)
@@ -1440,23 +1473,26 @@ class MyXBlock(XBlock):
             return state.correctness
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allResolutions = Resolution.objects.filter(problem=loadedProblem)
-        correctResolutions = []
-        wrongResolutions = []
+        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt=partiallyCorrectResolution[0])
+        incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
 
-        for resolution in allResolutions:
-            lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
-            lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
+        #allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        #correctResolutions = []
+        #wrongResolutions = []
 
-            #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
-            if lastEdge.sourceNode.correctness >= correctState[0]:
-                correctResolutions.append(resolution)
-            else:
-                wrongResolutions.append(resolution)
+        #for resolution in allResolutions:
+        #    lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
+        #    lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
+
+        #    #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
+        #    if lastEdge.sourceNode.correctness >= correctState[0]:
+        #        correctResolutions.append(resolution)
+        #    else:
+        #        wrongResolutions.append(resolution)
 
 
         correctValue = self.possuiEstadoConjunto(state, correctResolutions)
-        incorrectValue = self.possuiEstadoConjunto(state, wrongResolutions)
+        incorrectValue = self.possuiEstadoConjunto(state, incorrectResolutions)
     
         if correctValue + incorrectValue != 0:
             return (correctValue-incorrectValue)/(correctValue + incorrectValue)
@@ -1476,23 +1512,26 @@ class MyXBlock(XBlock):
         if step.fixedValue == 1:
             return step.correctness
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allResolutions = Resolution.objects.filter(problem=loadedProblem)
-        correctResolutions = []
-        wrongResolutions = []
+        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt=partiallyCorrectResolution[0])
+        incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
 
-        for resolution in allResolutions:
-            lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
-            lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
+        #allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        #correctResolutions = []
+        #wrongResolutions = []
 
-            #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
-            if lastEdge.sourceNode.correctness >= correctState[0]:
-                correctResolutions.append(resolution)
-            else:
-                wrongResolutions.append(resolution)
+        #for resolution in allResolutions:
+        #    lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
+        #    lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
+
+        #    #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
+        #    if lastEdge.sourceNode.correctness >= correctState[0]:
+        #        correctResolutions.append(resolution)
+        #    else:
+        #        wrongResolutions.append(resolution)
 
 
         correctValue = self.possuiPassoConjunto(step, correctResolutions)
-        incorrectValue = self.possuiPassoConjunto(step, wrongResolutions)
+        incorrectValue = self.possuiPassoConjunto(step, incorrectResolutions)
     
         if correctValue + incorrectValue != 0:
             return (correctValue-incorrectValue)/(correctValue + incorrectValue)
