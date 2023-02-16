@@ -6,6 +6,8 @@ function MyXBlock(runtime, element, data) {
     var hintsTypes = [];
     var actualHint = -1;
 
+    var doubtIds = []
+
     var minimumCheckboxLLineId = 1
     var checkboxLineId = minimumCheckboxLLineId
 
@@ -319,25 +321,29 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.doubtsSteps.length > 0) {
             for(var i = 0; i < value.doubtsSteps.length; i++){
-                var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsSteps[i].message + " do passo " + value.doubtsSteps[i].source + " -> " + value.doubtsSteps[i].dest);
-                if (feedback != null) {
-                    $.ajax({
-                        type: "POST",
-                        url: send_feedback,
-                        data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsSteps[i].doubtId })
-                    });
+                if (!doubtIds.includes(value.doubtsSteps[i].doubtId)) {
+                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsSteps[i].message + "\nDo passo " + value.doubtsSteps[i].source + " -> " + value.doubtsSteps[i].dest);
+                    if (feedback != null) {
+                        $.ajax({
+                            type: "POST",
+                            url: send_feedback,
+                            data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsSteps[i].doubtId })
+                        });
+                    }
                 }
             }
         }
         if (value.doubtsNodes.length > 0) {
             for(var i = 0; i < value.doubtsNodes.length; i++){
-                var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsNodes[i].message + " do estado " + value.doubtsNodes[i].node);
-                if (feedback != null) {
-                    $.ajax({
-                        type: "POST",
-                        url: send_feedback,
-                        data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsNodes[i].doubtId})
-                    });
+                if (!doubtIds.includes(value.doubtsSteps[i].doubtId)) {
+                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsNodes[i].message + "\nDo estado " + value.doubtsNodes[i].node);
+                    if (feedback != null) {
+                        $.ajax({
+                            type: "POST",
+                            url: send_feedback,
+                            data: JSON.stringify({ type: "doubtAnswer", message: feedback, doubtId: value.doubtsNodes[i].doubtId })
+                        });
+                    }
                 }
             }
         }
@@ -422,8 +428,10 @@ function MyXBlock(runtime, element, data) {
         checkbox.name = "name";
         checkbox.value = "value";
         checkbox.id = "id" + checkboxLineId;
+        checkbox.style.display = 'none'
         li.style.margin = 0
         li.style.padding = 0
+
 
         var ul2 = document.getElementById("lineList");
         var li2 = document.createElement("li");
@@ -444,10 +452,16 @@ function MyXBlock(runtime, element, data) {
 
     }
 
+    function addDoubtIdtoList(doubtId) {
+        doubtIds.append(doubtId)
+    }
+
     $('#askQuestion', element).click(function(eventObject) {
         var checkedBoxes = []
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
             var checkBox = document.getElementById("id" + i);
+            checkBox.style.display = 'inline-block'
+
             if (checkBox.checked) {
                 checkedBoxes.push(i)
             }
@@ -477,7 +491,10 @@ function MyXBlock(runtime, element, data) {
                             $.ajax({
                                 type: "POST",
                                 url: send_feedback,
-                                data: JSON.stringify({ type: "doubtState", message: doubt, node: singleNode.value })
+                                data: JSON.stringify({ type: "doubtState", message: doubt, node: singleNode.value }),
+                                success: function (value) {
+                                    addDoubtIdtoList(value.doubtId)
+                                }
                             });
                         }
 
@@ -524,6 +541,12 @@ function MyXBlock(runtime, element, data) {
                             }
                         }
                     }
+
+                    for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+                        var checkBox = document.getElementById("id" + i);
+                        checkBox.style.display = 'none'
+                        checkBox.checked = false;
+                    }
                 }
 
             } else {
@@ -547,7 +570,10 @@ function MyXBlock(runtime, element, data) {
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
-                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value })
+                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
+                            success: function (value) {
+                                addDoubtIdtoList(value.doubtId)
+                            }
                         });
 
                     } else {
@@ -591,6 +617,11 @@ function MyXBlock(runtime, element, data) {
                                 data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value })
                             });
                         }
+                    }
+                    for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+                        var checkBox = document.getElementById("id" + i);
+                        checkBox.style.display = 'none'
+                        checkBox.checked = false;
                     }
                 }
             }

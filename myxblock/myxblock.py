@@ -363,17 +363,19 @@ class MyXBlock(XBlock):
 
     def getDoubtsAndAnswersFromStep(self,data):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("from")), destNode__title=transformToSimplerAnswer(data.get("to")))
-
-        loadedDoubts = Doubt.objects.filter(problem=loadedProblem, edge=loadedEdge)
+        loadedEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("from")), destNode__title=transformToSimplerAnswer(data.get("to")))
         edgeDoubts = []
-        if loadedDoubts.exists():
-            for loadedDoubt in loadedDoubts:
-                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
-                edgeDoubtAnswers = []
-                for loadedAnswer in loadedAnswers:
-                    edgeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
-                edgeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": edgeDoubtAnswers})
+
+        if loadedEdge.exists():
+
+            loadedDoubts = Doubt.objects.filter(problem=loadedProblem, edge=loadedEdge.first())
+            if loadedDoubts.exists():
+                for loadedDoubt in loadedDoubts:
+                    loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
+                    edgeDoubtAnswers = []
+                    for loadedAnswer in loadedAnswers:
+                        edgeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
+                    edgeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": edgeDoubtAnswers})
 
         return edgeDoubts
 
@@ -381,18 +383,19 @@ class MyXBlock(XBlock):
     def get_doubts_and_answers_from_state(self,data,suffix=''):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
-
-        loadedDoubts = Doubt.objects.filter(problem=loadedProblem, node=loadedNode)
+        loadedNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
         nodeDoubts = []
-        if loadedDoubts.exists():
-            for loadedDoubt in loadedDoubts:
-                loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
-                nodeDoubtAnswers = []
-                for loadedAnswer in loadedAnswers:
-                    nodeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
+        if loadedNode.exists():
 
-                nodeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": nodeDoubtAnswers})
+            loadedDoubts = Doubt.objects.filter(problem=loadedProblem, node=loadedNode.first())
+            if loadedDoubts.exists():
+                for loadedDoubt in loadedDoubts:
+                    loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
+                    nodeDoubtAnswers = []
+                    for loadedAnswer in loadedAnswers:
+                        nodeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
+
+                    nodeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": nodeDoubtAnswers})
 
         
         return {"doubts": nodeDoubts}
@@ -811,6 +814,8 @@ class MyXBlock(XBlock):
             doubt.dateAdded = datetime.now()
 
             doubt.save()
+
+            return {'result':'success', 'doubtId': doubt.id}
         elif feedbackType == 'doubtState':
             doubt = Doubt(problem=loadedProblem)
             state = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("node")))
@@ -826,6 +831,7 @@ class MyXBlock(XBlock):
             doubt.dateAdded = datetime.now()
             doubt.save()
 
+            return {'result':'success', 'doubtId': doubt.id}
         return {'result':'success'}
 
     #Sistema que mostra quais dicas até o primeiro passo errado
