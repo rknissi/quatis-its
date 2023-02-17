@@ -8,6 +8,12 @@
     margin-top:70px;
 }
 
+.checkboxSize {
+    transform: scale(1.5);
+    -ms-transform: scale(1.5);
+    -webkit-transform: scale(1.5);
+}
+
 #checkBoxList {
     font-weight: bold;
     width: 10px;

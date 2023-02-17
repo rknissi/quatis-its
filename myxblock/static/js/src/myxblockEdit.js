@@ -233,6 +233,14 @@ function MyXBlockEdit(runtime, element) {
 
   $('#createStep', element).click(function(eventObject) {
     var el = $(element);
+
+    var fixedValueCheckbox = el.find('input[id=stepFixedValue]').is(':checked')
+    if (fixedValueCheckbox == true) {
+      fixedValueCheckbox = 1
+    } else {
+      fixedValueCheckbox = 0
+    }
+
     var data = {
       from: el.find('input[id=sourceState]').val(),
       to: el.find('input[id=destState]').val(),
@@ -240,7 +248,7 @@ function MyXBlockEdit(runtime, element) {
       hovered: {stroke: {thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val())}},
       selected: {stroke: {color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' }},
       correctness: el.find('input[id=stepCorrectness]').val(),
-      fixedValue: el.find('input[id=stepFixedValue]').val(),
+      fixedValue: fixedValueCheckbox,
       visible: 1,
       modifiedCorrectness: 0
     };
@@ -267,13 +275,20 @@ function MyXBlockEdit(runtime, element) {
 
     var data;
 
+    var fixedValueCheckbox = el.find('input[id=stateFixedValue]').is(':checked')
+    if (fixedValueCheckbox == true) {
+      fixedValueCheckbox = 1
+    } else {
+      fixedValueCheckbox = 0
+    }
+
     if (dropDownValue === 'normalState') {
       data = {
         id: el.find('input[id=stateName]').val(),
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
-        fixedValue: el.find('input[id=stateFixedValue]').val(),
+        fixedValue: fixedValueCheckbox,
         visible: 1,
         x: 0,
         y: 0,
@@ -286,7 +301,7 @@ function MyXBlockEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
-        fixedValue: el.find('input[id=stateFixedValue]').val(),
+        fixedValue: fixedValueCheckbox,
         visible: 1,
         stroke: strokeType,
         shape: shapeType,
@@ -314,11 +329,16 @@ function MyXBlockEdit(runtime, element) {
   });
 
 
-  $('#changeStateToNormal', element).click(function(eventObject) {
+  $('#saveStateinfo', element).click(function(eventObject) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
     var value = el.find('input[id=editStateValue]').val()
-    var fixedValue = el.find('input[id=editStateFixedValue]').val()
+    var fixedValue = el.find('input[id=editStateFixedValue]').is(':checked')
+    if (fixedValue == true) {
+      fixedValue = 1
+    } else {
+      fixedValue = 0
+    }
 
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
@@ -353,18 +373,20 @@ function MyXBlockEdit(runtime, element) {
     changeNodeCorrectness(id, value)
   });
 
-  $('#changeStepCorrectness', element).click(function(eventObject) {
+  $('#saveEdgeInfo', element).click(function(eventObject) {
     var el = $(element);
+
     var from = el.find('input[id=editStepSource]').val()
     var to = el.find('input[id=editStepDest]').val()
     var value = el.find('input[id=editStepValue]').val()
-    var fixedValue = el.find('input[id=editStepFixedValue]').val()
+    var fixedValue = el.find('input[id=editStepFixedValue]').is(':checked')
+    if (fixedValue == true) {
+      fixedValue = 1
+    } else {
+      fixedValue = 0
+    }
     changeStepCorrectness(from, to, value, fixedValue)
-  });
 
-
-  $('#saveEdgeInfo', element).click(function(eventObject) {
-    var el = $(element);
     var data = {
       from: el.find('input[id=editStepSource]').val(),
       to: el.find('input[id=editStepDest]').val(),
@@ -380,6 +402,7 @@ function MyXBlockEdit(runtime, element) {
       data: JSON.stringify(data)
     });
   });
+
 
   $(document).ready( function () {
     $.ajax({
@@ -485,7 +508,7 @@ function MyXBlockEdit(runtime, element) {
     }
       var nodes = chart.nodes();
 
-      chart.title("Grafo das escolhas dos estudantes");
+      chart.title("Grafo de conhecimento");
 
       // set the size of nodes
       nodes.normal().height(30);
@@ -539,7 +562,11 @@ function MyXBlockEdit(runtime, element) {
               if (data.nodes[i].id === tag.id) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
-                document.getElementById("editStateFixedValue").value = data.nodes[i].fixedValue;
+                if (data.nodes[i].fixedValue == 1) {
+                  document.getElementById("editStateFixedValue").checked = true;
+                } else {
+                  document.getElementById("editStateFixedValue").checked = false;
+                }
 
                 var body = {
                   node: data.nodes[i].id
@@ -584,7 +611,6 @@ function MyXBlockEdit(runtime, element) {
                 document.getElementById("stepErrorSpecificFeedbacks").value = JSON.stringify(edgeInfo.errorSpecificFeedbacks);
                 document.getElementById("stepExplanations").value = JSON.stringify(edgeInfo.explanations);
                 document.getElementById("stepHints").value = JSON.stringify(edgeInfo.hints);
-                document.getElementById("stepFixedValue").value = JSON.stringify(edgeInfo.hints);
                 document.getElementById("stepDoubts").value = JSON.stringify(edgeInfo.doubts);
               }   
             });
@@ -592,7 +618,11 @@ function MyXBlockEdit(runtime, element) {
             document.getElementById("editStepSource").value = data.edges[edgePos].from;
             document.getElementById("editStepDest").value = data.edges[edgePos].to;
             document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
-            document.getElementById("editStepFixedValue").value = data.edges[edgePos].fixedValue;
+            if (data.edges[edgePos].fixedValue == 1) {
+              document.getElementById("editStepFixedValue").checked = true;
+            } else {
+              document.getElementById("editStepFixedValue").checked = false;
+            }
 
             edgeMenu.style.display = "block";
           }
