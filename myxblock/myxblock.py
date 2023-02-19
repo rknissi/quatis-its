@@ -13,6 +13,7 @@ from django.http import JsonResponse
 from django.core import serializers
 from unidecode import unidecode
 from django.db.models.signals import pre_save, pre_init
+from django.db.models import Q
 
 receivedMinimalFeedbackAmount = 0.1
 receivedHintUsefulnessAmount = 1
@@ -400,6 +401,30 @@ class MyXBlock(XBlock):
         
         return {"doubts": nodeDoubts}
 
+    @XBlock.json_handler
+    def delete_doubts(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        for doubt in data.get("doubts"):
+            loadedDoubt = Doubt.objects.filter(problem=loadedProblem, id=doubt.get("id"))
+            if loadedDoubt.exists():
+                existingDoubt = loadedDoubt.first()
+                existingDoubt.edge = None
+                existingDoubt.node = None
+                existingDoubt.save();
+
+        return {"result": "success"}
+
+    @XBlock.json_handler
+    def delete_answers(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        for answer in data.get("answers"):
+            loadedAnswer = Answer.objects.filter(problem=loadedProblem, id=answer.get("id"))
+            if loadedAnswer.exists():
+                existingAnswer = loadedAnswer.first()
+                existingAnswer.doubt = None
+                existingAnswer.save();
+
+        return {"result": "success"}
 
     @XBlock.json_handler
     def get_edge_info(self,data,suffix=''):
@@ -450,7 +475,9 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
 
-        allDoubts = ast.literal_eval(data.get("doubts"))
+        newAnswers = []
+
+        allDoubts = data.get("doubts")
         for doubt in allDoubts:
             if "id" in doubt:
                 loadedDoubt = Doubt.objects.get(problem=loadedProblem, node=loadedNode, id=doubt["id"])
@@ -463,19 +490,23 @@ class MyXBlock(XBlock):
 
             allAnswers = doubt["answers"]
             for answer in allAnswers:
-                if "id" in answer:
+                newElement = False
+                if "id" in answer and answer['id'] != "":
                     loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answer["id"])
                     loadedAnswer.dateModified = datetime.now()
                 else:
                     loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
+                    newElement = True
 
                 if "usefulness" in answer:
                     loadedAnswer.usefulness = answer["usefulness"]
 
                 loadedAnswer.text = answer["text"]
                 loadedAnswer.save()
+                if newElement:
+                    newAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
 
-        return {"status": "Done!"}
+        return {"status": "Done!", "newAnswers": newAnswers}
 
 
     @XBlock.json_handler
@@ -483,74 +514,83 @@ class MyXBlock(XBlock):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("from")), destNode__title=transformToSimplerAnswer(data.get("to")))
+        newAnswers = []
         
-        allHints = ast.literal_eval(data.get("hints"))
-        for hint in allHints:
-            if "id" in hint:
-                loadedHint = Hint.objects.get(problem=loadedProblem, edge=loadedEdge, id=hint["id"])
-                loadedHint.dateModified = datetime.now()
-            else:
-                loadedHint = Hint(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
-
-            loadedHint.text = hint["text"]
-            loadedHint.usefulness = hint["usefulness"]
-            loadedHint.priority = hint["priority"]
-            loadedHint.save()
-
-
-        allErrorSpecificFeedbacks = ast.literal_eval(data.get("errorSpecificFeedbacks"))
-        for errorSpecificFeedback in allErrorSpecificFeedbacks:
-            if "id" in errorSpecificFeedback:
-                loadedError = ErrorSpecificFeedbacks.objects.get(problem=loadedProblem, edge=loadedEdge, id=errorSpecificFeedback["id"])
-                loadedError.dateModified = datetime.now()
-            else:
-                loadedError = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
-
-            loadedError.text = errorSpecificFeedback["text"]
-            loadedError.usefulness = errorSpecificFeedback["usefulness"]
-            loadedError.priority = errorSpecificFeedback["priority"]
-            loadedError.save()
-
-
-        allExplanations = ast.literal_eval(data.get("explanations"))
-        for explanation in allExplanations:
-            if "id" in explanation:
-                loadedExplanation = Explanation.objects.get(problem=loadedProblem, edge=loadedEdge, id=explanation["id"])
-                loadedExplanation.dateModified = datetime.now()
-            else:
-                loadedExplanation = Explanation(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
-
-            loadedExplanation.text = explanation["text"]
-            loadedExplanation.usefulness = explanation["usefulness"]
-            loadedExplanation.priority = explanation["priority"]
-            loadedExplanation.save()
-
-        allDoubts = ast.literal_eval(data.get("doubts"))
-        for doubt in allDoubts:
-            if "id" in doubt:
-                loadedDoubt = Doubt.objects.get(problem=loadedProblem, edge=loadedEdge, id=doubt["id"])
-                loadedDoubt.dateModified = datetime.now()
-            else:
-                loadedDoubt = Doubt(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
-
-            loadedDoubt.text = doubt["text"]
-            loadedDoubt.save()
-
-            allAnswers = doubt["answers"]
-            for answer in allAnswers:
-                if "id" in answer:
-                    loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answer["id"])
-                    loadedAnswer.dateModified = datetime.now()
+        if data.get("hints") is not None:
+            allHints = ast.literal_eval(data.get("hints"))
+            for hint in allHints:
+                if "id" in hint:
+                    loadedHint = Hint.objects.get(problem=loadedProblem, edge=loadedEdge, id=hint["id"])
+                    loadedHint.dateModified = datetime.now()
                 else:
-                    loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
+                    loadedHint = Hint(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
 
-                if "usefulness" in answer:
-                    loadedAnswer.usefulness = answer["usefulness"]
+                loadedHint.text = hint["text"]
+                loadedHint.usefulness = hint["usefulness"]
+                loadedHint.priority = hint["priority"]
+                loadedHint.save()
+
+
+        if data.get("errorSpecificFeedbacks") is not None:
+            allErrorSpecificFeedbacks = ast.literal_eval(data.get("errorSpecificFeedbacks"))
+            for errorSpecificFeedback in allErrorSpecificFeedbacks:
+                if "id" in errorSpecificFeedback:
+                    loadedError = ErrorSpecificFeedbacks.objects.get(problem=loadedProblem, edge=loadedEdge, id=errorSpecificFeedback["id"])
+                    loadedError.dateModified = datetime.now()
+                else:
+                    loadedError = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+
+                loadedError.text = errorSpecificFeedback["text"]
+                loadedError.usefulness = errorSpecificFeedback["usefulness"]
+                loadedError.priority = errorSpecificFeedback["priority"]
+                loadedError.save()
+
+
+        if data.get("explanations") is not None:
+            allExplanations = ast.literal_eval(data.get("explanations"))
+            for explanation in allExplanations:
+                if "id" in explanation:
+                    loadedExplanation = Explanation.objects.get(problem=loadedProblem, edge=loadedEdge, id=explanation["id"])
+                    loadedExplanation.dateModified = datetime.now()
+                else:
+                    loadedExplanation = Explanation(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+
+                loadedExplanation.text = explanation["text"]
+                loadedExplanation.usefulness = explanation["usefulness"]
+                loadedExplanation.priority = explanation["priority"]
+                loadedExplanation.save()
+
+        if data.get("doubts") is not None:
+            allDoubts = data.get("doubts")
+            for doubt in allDoubts:
+                if "id" in doubt:
+                    loadedDoubt = Doubt.objects.get(problem=loadedProblem, edge=loadedEdge, id=doubt["id"])
+                    loadedDoubt.dateModified = datetime.now()
+                else:
+                    loadedDoubt = Doubt(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+
+                loadedDoubt.text = doubt["text"]
+                loadedDoubt.save()
+
+                allAnswers = doubt["answers"]
+                for answer in allAnswers:
+                    newElement = False
+                    if "id" in answer and answer['id'] != "":
+                        loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answer["id"])
+                        loadedAnswer.dateModified = datetime.now()
+                    else:
+                        loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
+                        newElement = True
+
+                    if "usefulness" in answer:
+                        loadedAnswer.usefulness = answer["usefulness"]
                 
-                loadedAnswer.text = answer["text"]
-                loadedAnswer.save()
+                    loadedAnswer.text = answer["text"]
+                    loadedAnswer.save()
+                    if newElement:
+                        newAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
 
-        return {"status": "Done!"}
+        return {"status": "Done!", "newAnswers": newAnswers}
 
     @XBlock.json_handler
     def create_initial_positions(self,data,suffix=''):
@@ -1386,7 +1426,7 @@ class MyXBlock(XBlock):
     def getDoubtsFromProblemGraph(self):
         CDU = []
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CDU = Doubt.objects.filter(problem=loadedProblem).order_by("dateModified")
+        CDU = Doubt.objects.filter(problem=loadedProblem).exclude(node__isnull = True, type = 0).exclude(edge__isnull = True, type = 1).order_by("-dateModified")
 
         if len(CDU) > maxDoubts:
             return CDU[0:maxDoubts]

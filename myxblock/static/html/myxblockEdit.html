@@ -150,11 +150,66 @@
         <p></p>
 
         <label class="label setting-label" for="">Dúvidas</label>
-        <input class="inputLong" name="stateDoubts" id="stateDoubts"  type="text" />
+        <select name="stateDoubts" id="stateDoubts">
+        </select>
+        <p></p>
+        <button type="button" id='editDoubt'>Editar dúvida</button> 
         <p></p>
 
         <button type="button" id='saveStateinfo'>Atualizar estado</button> 
-        <button type="button" id='removeState'>Remover</button> 
+        <button type="button" id='removeState'>Remover estado</button> 
+      </div>
+    </div>
+
+    <div class="nodeMenu" id="doubtMenu">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="editDoubtId">ID</label>
+        <input class="input" name="editDoubtId" disabled=true id="editDoubtId" type="text" />
+        <p></p>
+        <label class="label setting-label" for="editDoubtText">Texto</label>
+        <input class="input" name="editDoubtText" id="editDoubtText"  type="text" />
+        <p></p>
+        <button type="button" id='saveDoubt'>Atualizar dúvida</button> 
+        <button type="button" id='removeDoubt'>Remover dúvida</button> 
+
+        <p></p>
+        <label class="label setting-label" for="">Respostas</label>
+        <select name="doubtAnswers" id="doubtAnswers" >
+        </select>
+
+        <p></p>
+        <label class="label setting-label" for="editAnswerId">ID da resposta</label>
+        <input class="input" name="editAnswerId" disabled=true id="editAnswerId" type="text" />
+        <p></p>
+        <label class="label setting-label" for="editAnswerText">Texto da resposta</label>
+        <input class="input" name="editAnswerText" id="editAnswerText"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="editAnswerUsefulness">Utilidade da resposta</label>
+        <input class="input" name="editAnswerUsefulness" id="editAnswerUsefulness"  type="text" />
+        <p></p>
+        <button type="button" id='saveDoubtAnswer'>Salvar resposta</button> 
+        <button type="button" id='removeDoubtAnswer'>Remover resposta</button> 
+        <p></p>
+      </div>
+    </div>
+
+    <div class="nodeMenu" id="explanationMenu">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="editExplanationId">ID</label>
+        <input class="input" name="editExplanationId" disabled=true id="editExplanationId" type="text" />
+        <p></p>
+        <label class="label setting-label" for="editExplanationText">Texto</label>
+        <input class="input" name="editExplanationText" id="editExplanationText"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="editExplanationPriority">Prioridade</label>
+        <input class="input" name="editExplanationPriority" id="editExplanationPriority"  type="text" />
+        <p></p>
+        <label class="label setting-label" for="editExplanationUtility">Utilidade</label>
+        <input class="input" name="editExplanationUtility" id="editExplanationUtility"  type="text" />
+        <p></p>
+        <button type="button" id='saveExplanation'>Atualizar explicação</button> 
+        <button type="button" id='removeExplanation'>Remover explicação</button> 
+
       </div>
     </div>
 
@@ -186,10 +241,13 @@
         <p></p>
 
         <label class="label setting-label" for="">Dúvidas</label>
-        <input class="inputLong" name="stepDoubts" id="stepDoubts"  type="text" />
+        <select name="stepDoubts" id="stepDoubts">
+        </select>
+        <p></p>
+        <button type="button" id='editDoubtStep'>Editar dúvida</button> 
         <p></p>
         <button type="button" id='saveEdgeInfo'>Atualizar passo</button> 
-        <button type="button" id='removeStep'>Remover</button> 
+        <button type="button" id='removeStep'>Remover passo</button> 
         <p></p>
       </div>
     </div>

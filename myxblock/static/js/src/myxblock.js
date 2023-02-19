@@ -335,7 +335,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.doubtsNodes.length > 0) {
             for(var i = 0; i < value.doubtsNodes.length; i++){
-                if (!doubtIds.includes(value.doubtsSteps[i].doubtId)) {
+                if (!doubtIds.includes(value.doubtsNodes[i].doubtId)) {
                     var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsNodes[i].message + "\nDo estado " + value.doubtsNodes[i].node);
                     if (feedback != null) {
                         $.ajax({
@@ -353,9 +353,7 @@ function MyXBlock(runtime, element, data) {
         $.ajax({
           type: "POST",
           url: runtime.handlerUrl(element, 'create_initial_positions'),
-          data: "{}",
-          success: function (data) {
-          }   
+          data: "{}"
         });
     }
 
@@ -453,7 +451,7 @@ function MyXBlock(runtime, element, data) {
     }
 
     function addDoubtIdtoList(doubtId) {
-        doubtIds.append(doubtId)
+        doubtIds.push(doubtId)
     }
 
     $('#askQuestion', element).click(function(eventObject) {
@@ -503,29 +501,33 @@ function MyXBlock(runtime, element, data) {
                         for (var i = 0; i < message.doubts.length; i++) {
                             sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
                             if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
-                                for (var j = 0; j < message.doubts[i].answers.length; j++) {
-                                    doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
-                                    if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
-                                        answerUsefulness = message.doubts[i].answers[j].usefulness
-                                        answerUsefulness++
-                                        $.ajax({
-                                            type: "POST",
-                                            url: submitDoubtAnswerInfo,
-                                            data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
-                                        });
-                                        j = message.doubts[i].answers.length
-                                    } else if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == noUniversalAnswer) {
-                                        answerUsefulness = message.doubts[i].answers[j].usefulness
-                                        answerUsefulness--
-                                        $.ajax({
-                                            type: "POST",
-                                            url: submitDoubtAnswerInfo,
-                                            data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
-                                        });
+                                if (message.doubts[i].answers.length == 0) {
+                                    alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
+                                } else {
+                                    for (var j = 0; j < message.doubts[i].answers.length; j++) {
+                                        doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
+                                        if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
+                                            answerUsefulness = message.doubts[i].answers[j].usefulness
+                                            answerUsefulness++
+                                            $.ajax({
+                                                type: "POST",
+                                                url: submitDoubtAnswerInfo,
+                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
+                                            });
+                                            j = message.doubts[i].answers.length
+                                        } else if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == noUniversalAnswer) {
+                                            answerUsefulness = message.doubts[i].answers[j].usefulness
+                                            answerUsefulness--
+                                            $.ajax({
+                                                type: "POST",
+                                                url: submitDoubtAnswerInfo,
+                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
+                                            });
+                                        }
                                     }
                                 }
+                                i = message.doubts.length
                             }
-                            i = message.doubts.length
                         }
                         newDoubt = prompt("Ainda lhe restam dúvidas?")
                         if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
@@ -580,29 +582,33 @@ function MyXBlock(runtime, element, data) {
                         for (var i = 0; i < message.doubts.length; i++) {
                             sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
                             if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
-                                for (var j = 0; j < message.doubts[i].answers.length; j++) {
-                                    doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
-                                    if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
-                                        answerUsefulness = message.doubts[i].answers[j].usefulness
-                                        answerUsefulness++
-                                        $.ajax({
-                                            type: "POST",
-                                            url: submitDoubtAnswerInfo,
-                                            data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
-                                        });
-                                        j = message.doubts[i].answers.length
-                                    } else if (doubtAnswer && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == noUniversalAnswer) {
-                                        answerUsefulness = message.doubts[i].answers[j].usefulness
-                                        answerUsefulness--
-                                        $.ajax({
-                                            type: "POST",
-                                            url: submitDoubtAnswerInfo,
-                                            data: JSON.stringify({id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness})
-                                        });
+                                if (message.doubts[i].answers.length == 0) {
+                                    alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
+                                } else {
+                                    for (var j = 0; j < message.doubts[i].answers.length; j++) {
+                                        doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
+                                        if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
+                                            answerUsefulness = message.doubts[i].answers[j].usefulness
+                                            answerUsefulness++
+                                            $.ajax({
+                                                type: "POST",
+                                                url: submitDoubtAnswerInfo,
+                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
+                                            });
+                                            j = message.doubts[i].answers.length
+                                        } else if (doubtAnswer && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == noUniversalAnswer) {
+                                            answerUsefulness = message.doubts[i].answers[j].usefulness
+                                            answerUsefulness--
+                                            $.ajax({
+                                                type: "POST",
+                                                url: submitDoubtAnswerInfo,
+                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
+                                            });
+                                        }
                                     }
                                 }
+                                i = message.doubts.length
                             }
-                            i = message.doubts.length
                         }
                         newDoubt = prompt("Ainda lhe restam dúvidas?")
                         if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {

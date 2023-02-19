@@ -127,7 +127,7 @@ class Doubt(models.Model):
 
 class Answer(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
-	doubt = models.ForeignKey(Doubt, on_delete=models.CASCADE, related_name='AnswerDoubt')
+	doubt = models.ForeignKey(Doubt, on_delete=models.CASCADE, related_name='AnswerDoubt', blank=True, null=True)
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
