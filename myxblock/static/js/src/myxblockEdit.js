@@ -10,8 +10,10 @@ function MyXBlockEdit(runtime, element) {
   var submitNodeInfoUrl = runtime.handlerUrl(element, 'submit_node_info');
   var deleteDoubtsUrl = runtime.handlerUrl(element, 'delete_doubts');
   var deleteAnswersUrl = runtime.handlerUrl(element, 'delete_answers');
+  var deleteFeedbacksUrl = runtime.handlerUrl(element, 'delete_feedbacks');
   
   var lastWindowBeforeDoubts = null
+  var editingFeedbackType = null
 
   var chart;
   var data;
@@ -43,6 +45,9 @@ function MyXBlockEdit(runtime, element) {
 
 
   var currentDoubtAnswers = new Map()
+  var currentHints = new Map()
+  var currentExplanations = new Map()
+  var currentErrorSpecificFeedback = new Map()
   var currentAnswers = new Map()
 
 
@@ -381,21 +386,6 @@ function MyXBlockEdit(runtime, element) {
       fixedValue = 0
     }
     changeStepCorrectness(from, to, value, fixedValue)
-
-    var data = {
-      from: el.find('input[id=editStepSource]').val(),
-      to: el.find('input[id=editStepDest]').val(),
-      errorSpecificFeedbacks: el.find('input[name=stepErrorSpecificFeedbacks]').val(),
-      explanations: el.find('input[name=stepExplanations]').val(),
-      doubts: el.find('input[name=stepDoubts]').val(),
-      hints: el.find('input[name=stepHints]').val()
-    };
-
-    $.ajax({
-      type: "POST",
-      url: submitEdgeInfoUrl,
-      data: JSON.stringify(data)
-    });
   });
 
 
@@ -549,14 +539,14 @@ function MyXBlockEdit(runtime, element) {
         var edgeMenu = document.getElementById("edgeMenu");
         var addMenu = document.getElementById("addMenu");
         var doubtMenu = document.getElementById("doubtMenu");
-        var explanationMenu = document.getElementById("explanationMenu");
+        var feedbackMenu = document.getElementById("feedbackMenu");
 
         if (tag) {
           if (tag.type === 'node') {
             edgeMenu.style.display = "none";
             addMenu.style.display = "none";
             doubtMenu.style.display = "none";
-            explanationMenu.style.display = "none";
+            feedbackMenu.style.display = "none";
 
             for (var i = 0; i < data.nodes.length; i++) {
               if (data.nodes[i].id === tag.id) {
@@ -619,7 +609,7 @@ function MyXBlockEdit(runtime, element) {
             nodeMenu.style.display = "none";
             addMenu.style.display = "none";
             doubtMenu.style.display = "none";
-            explanationMenu.style.display = "none";
+            feedbackMenu.style.display = "none";
 
             edgePos = tag.id.split("_")[1];
             var body = {
@@ -632,19 +622,38 @@ function MyXBlockEdit(runtime, element) {
               url: getEdgeInfoUrl,
               data: JSON.stringify(body),
               success: function (edgeInfo) {
-                document.getElementById("stepErrorSpecificFeedbacks").value = JSON.stringify(edgeInfo.errorSpecificFeedbacks);
-                document.getElementById("stepExplanations").value = JSON.stringify(edgeInfo.explanations);
-                document.getElementById("stepHints").value = JSON.stringify(edgeInfo.hints);
 
                 currentDoubtAnswers.clear()
-                var select = document.getElementById("stepDoubts");
-                var i, L = select.options.length - 1;
+                currentExplanations.clear()
+                currentErrorSpecificFeedback.clear()
+                currentHints.clear()
+
+                var errorSpecificSelect = document.getElementById("stepErrorSpecificFeedbacks");
+                var i, L = errorSpecificSelect.options.length - 1;
                 for (i = L; i >= 0; i--) {
-                  select.remove(i);
+                  errorSpecificSelect.remove(i);
                 }
 
-                doubts = edgeInfo.doubts
+                var explanationSelect = document.getElementById("stepExplanations");
+                var i, L = explanationSelect.options.length - 1;
+                for (i = L; i >= 0; i--) {
+                  explanationSelect.remove(i);
+                }
 
+                var hintSelect = document.getElementById("stepHints");
+                var i, L = hintSelect.options.length - 1;
+                for (i = L; i >= 0; i--) {
+                  hintSelect.remove(i);
+                }
+
+                var doubtSelect = document.getElementById("stepDoubts");
+                var i, L = doubtSelect.options.length - 1;
+                for (i = L; i >= 0; i--) {
+                  doubtSelect.remove(i);
+                }
+
+
+                var doubts = edgeInfo.doubts
                 for (var i = 0; i < doubts.length; i++) {
 
                   var id = doubts[i].id;
@@ -652,10 +661,67 @@ function MyXBlockEdit(runtime, element) {
                   var el = document.createElement("option");
                   el.textContent = text;
                   el.value = id;
-                  select.appendChild(el);
+                  doubtSelect.appendChild(el);
 
                   currentDoubtAnswers.set(id, doubts[i].answers)
                 }
+
+                var errorSpecificFeedbacks = edgeInfo.errorSpecificFeedbacks
+                for (var i = 0; i < errorSpecificFeedbacks.length; i++) {
+
+                  var id = errorSpecificFeedbacks[i].id;
+                  var text = errorSpecificFeedbacks[i].text;
+                  var el = document.createElement("option");
+                  el.textContent = text;
+                  el.value = id;
+                  errorSpecificSelect.appendChild(el);
+
+                  currentErrorSpecificFeedback.set(id, errorSpecificFeedbacks[i])
+                }
+
+                var el = document.createElement("option");
+                el.textContent = "<Adicionar um novo feedback>";
+                el.value = 0;
+                errorSpecificSelect.appendChild(el);
+                currentErrorSpecificFeedback.set(0, { "id": "", "text": "", "usefulness": 0, "priority": 0 })
+
+                var explanations = edgeInfo.explanations
+                for (var i = 0; i < explanations.length; i++) {
+
+                  var id = explanations[i].id;
+                  var text = explanations[i].text;
+                  var el = document.createElement("option");
+                  el.textContent = text;
+                  el.value = id;
+                  explanationSelect.appendChild(el);
+
+                  currentExplanations.set(id, explanations[i])
+                }
+                var el = document.createElement("option");
+                el.textContent = "<Adicionar uma nova explicação>";
+                el.value = 0;
+                explanationSelect.appendChild(el);
+                currentExplanations.set(0, { "id": "", "text": "", "usefulness": 0, "priority": 0 })
+
+                var hints = edgeInfo.hints
+                for (var i = 0; i < hints.length; i++) {
+
+                  var id = hints[i].id;
+                  var text = hints[i].text;
+                  var el = document.createElement("option");
+                  el.textContent = text;
+                  el.value = id;
+                  hintSelect.appendChild(el);
+
+                  currentHints.set(id, hints[i])
+                }
+                var el = document.createElement("option");
+                el.textContent = "<Adicionar uma nova dica>";
+                el.value = 0;
+                hintSelect.appendChild(el);
+                currentHints.set(0, { "id": "", "text": "", "usefulness": 0, "priority": 0 })
+
+
               }   
             });
 
@@ -675,7 +741,7 @@ function MyXBlockEdit(runtime, element) {
           nodeMenu.style.display = "none";
           edgeMenu.style.display = "none";
           doubtMenu.style.display = "none";
-          explanationMenu.style.display = "none";
+          feedbackMenu.style.display = "none";
         }
       });
 
@@ -850,7 +916,7 @@ function MyXBlockEdit(runtime, element) {
     var edgeMenu = document.getElementById("edgeMenu");
     var addMenu = document.getElementById("addMenu");
     var doubtMenu = document.getElementById("doubtMenu");
-    var explanationMenu = document.getElementById("explanationMenu");
+    var feedbackMenu = document.getElementById("feedbackMenu");
 
     if (nodeMenu.style.display == "block") {
       lastWindowBeforeDoubts = "node"
@@ -862,7 +928,7 @@ function MyXBlockEdit(runtime, element) {
     addMenu.style.display = "none";
     nodeMenu.style.display = "none";
     doubtMenu.style.display = "block";
-    explanationMenu.style.display = "none";
+    feedbackMenu.style.display = "none";
 
     currentAnswers.clear()
 
@@ -936,7 +1002,7 @@ function MyXBlockEdit(runtime, element) {
     var edgeMenu = document.getElementById("edgeMenu");
     var addMenu = document.getElementById("addMenu");
     var doubtMenu = document.getElementById("doubtMenu");
-    var explanationMenu = document.getElementById("explanationMenu");
+    var feedbackMenu = document.getElementById("feedbackMenu");
 
     if (nodeMenu.style.display == "block") {
       lastWindowBeforeDoubts = "node"
@@ -949,7 +1015,7 @@ function MyXBlockEdit(runtime, element) {
     addMenu.style.display = "none";
     nodeMenu.style.display = "none";
     doubtMenu.style.display = "block";
-    explanationMenu.style.display = "none";
+    feedbackMenu.style.display = "none";
 
     currentAnswers.clear()
 
@@ -1015,6 +1081,267 @@ function MyXBlockEdit(runtime, element) {
       answerUsefulnessElement.value = 0
     }
 
+
+  });
+
+  $('#editStepErrorSpecificFeedbacks', element).click(function(eventObject) {
+    var nodeMenu = document.getElementById("nodeMenu");
+    var edgeMenu = document.getElementById("edgeMenu");
+    var addMenu = document.getElementById("addMenu");
+    var doubtMenu = document.getElementById("doubtMenu");
+    var feedbackMenu = document.getElementById("feedbackMenu");
+
+    edgeMenu.style.display = "none";
+    addMenu.style.display = "none";
+    nodeMenu.style.display = "none";
+    doubtMenu.style.display = "none";
+    feedbackMenu.style.display = "block";
+
+    editingFeedbackType = "errorSpecificFeedback"
+
+    var errorSpecificDropDown = document.getElementById("stepErrorSpecificFeedbacks");
+    if (!errorSpecificDropDown.options[errorSpecificDropDown.selectedIndex]) {
+      alert("Não há feedbacks específicos para se editar")
+      return;
+    }
+
+    var errorSpecificDropDownId = errorSpecificDropDown.options[errorSpecificDropDown.selectedIndex].value;
+    
+    var errorSpecificDetails = currentErrorSpecificFeedback.get(Number(errorSpecificDropDownId))
+
+    var errorSpecificId = document.getElementById("editFeedbackId");
+    errorSpecificId.value = errorSpecificDetails.id
+
+    var errorSpecificText = document.getElementById("editFeedbackText");
+    errorSpecificText.value = errorSpecificDetails.text
+
+    var errorSpecificPriority = document.getElementById("editFeedbackPriority");
+    errorSpecificPriority.value = errorSpecificDetails.priority
+
+    var errorSpecificUsefulness = document.getElementById("editFeedbackUsefulness");
+    errorSpecificUsefulness.value = errorSpecificDetails.usefulness
+
+  });
+
+  $('#editStepHints', element).click(function(eventObject) {
+    var nodeMenu = document.getElementById("nodeMenu");
+    var edgeMenu = document.getElementById("edgeMenu");
+    var addMenu = document.getElementById("addMenu");
+    var doubtMenu = document.getElementById("doubtMenu");
+    var feedbackMenu = document.getElementById("feedbackMenu");
+
+    edgeMenu.style.display = "none";
+    addMenu.style.display = "none";
+    nodeMenu.style.display = "none";
+    doubtMenu.style.display = "none";
+    feedbackMenu.style.display = "block";
+
+    editingFeedbackType = "hint"
+
+    var hintDropDown = document.getElementById("stepHints");
+    if (!hintDropDown.options[hintDropDown.selectedIndex]) {
+      alert("Não há dicas para se editar")
+      return;
+    }
+
+    var hintDropDownId = hintDropDown.options[hintDropDown.selectedIndex].value;
+    
+    var hintDetails = currentHints.get(Number(hintDropDownId))
+
+    var hintId = document.getElementById("editFeedbackId");
+    hintId.value = hintDetails.id
+
+    var hintText = document.getElementById("editFeedbackText");
+    hintText.value = hintDetails.text
+
+    var hintPriority = document.getElementById("editFeedbackPriority");
+    hintPriority.value = hintDetails.priority
+
+    var hintUsefulness = document.getElementById("editFeedbackUsefulness");
+    hintUsefulness.value = hintDetails.usefulness
+
+  });
+
+  $('#editStepExplanations', element).click(function(eventObject) {
+    var nodeMenu = document.getElementById("nodeMenu");
+    var edgeMenu = document.getElementById("edgeMenu");
+    var addMenu = document.getElementById("addMenu");
+    var doubtMenu = document.getElementById("doubtMenu");
+    var feedbackMenu = document.getElementById("feedbackMenu");
+
+    edgeMenu.style.display = "none";
+    addMenu.style.display = "none";
+    nodeMenu.style.display = "none";
+    doubtMenu.style.display = "none";
+    feedbackMenu.style.display = "block";
+
+    editingFeedbackType = "explanation"
+
+    var explanationDropDown = document.getElementById("stepExplanations");
+    if (!explanationDropDown.options[explanationDropDown.selectedIndex]) {
+      alert("Não há explicações para se editar")
+      return;
+    }
+
+    var explanationDropDownId = explanationDropDown.options[explanationDropDown.selectedIndex].value;
+    
+    var explanationDetails = currentExplanations.get(Number(explanationDropDownId))
+
+    var explanationId = document.getElementById("editFeedbackId");
+    explanationId.value = explanationDetails.id
+
+    var explanationText = document.getElementById("editFeedbackText");
+    explanationText.value = explanationDetails.text
+
+    var explanationPriority = document.getElementById("editFeedbackPriority");
+    explanationPriority.value = explanationDetails.priority
+
+    var explanationUsefulness = document.getElementById("editFeedbackUsefulness");
+    explanationUsefulness.value = explanationDetails.usefulness
+
+  });
+
+  $('#saveFeedback', element).click(function(eventObject) {
+    var el = $(element);
+
+    if (editingFeedbackType == "errorSpecificFeedback") {
+      var data = {
+        from: el.find('input[id=editStepSource]').val(),
+        to: el.find('input[id=editStepDest]').val(),
+        errorSpecificFeedbacks: [{
+          id: el.find('input[id=editFeedbackId]').val(),
+          text: el.find('input[id=editFeedbackText]').val(),
+          usefulness: el.find('input[id=editFeedbackUsefulness]').val(),
+          priority: el.find('input[id=editFeedbackPriority]').val()
+        }]
+      };
+    } else if (editingFeedbackType == "explanation") {
+      var data = {
+        from: el.find('input[id=editStepSource]').val(),
+        to: el.find('input[id=editStepDest]').val(),
+        explanations: [{
+          id: el.find('input[id=editFeedbackId]').val(),
+          text: el.find('input[id=editFeedbackText]').val(),
+          usefulness: el.find('input[id=editFeedbackUsefulness]').val(),
+          priority: el.find('input[id=editFeedbackPriority]').val()
+        }]
+      };
+    } else if (editingFeedbackType == "hint") {
+      var data = {
+        from: el.find('input[id=editStepSource]').val(),
+        to: el.find('input[id=editStepDest]').val(),
+        hints: [{
+          id: el.find('input[id=editFeedbackId]').val(),
+          text: el.find('input[id=editFeedbackText]').val(),
+          usefulness: el.find('input[id=editFeedbackUsefulness]').val(),
+          priority: el.find('input[id=editFeedbackPriority]').val()
+        }]
+      };
+    }
+
+    $.ajax({
+      type: "POST",
+      url: submitEdgeInfoUrl,
+      data: JSON.stringify(data),
+      success: updateFeedbackSavedData
+    });
+
+  });
+
+  function updateFeedbackSavedData (value) {
+    if (value.newErrorSpecificFeedbacks) {
+      for (var i = 0; i < value.newErrorSpecificFeedbacks.length; i++) {
+
+        var feedbackIdElement = document.getElementById("editFeedbackId");
+
+        currentErrorSpecificFeedback.set(value.newErrorSpecificFeedbacks[i].id, value.newErrorSpecificFeedbacks[i])
+
+        var el = document.createElement("option");
+        el.textContent = value.newErrorSpecificFeedbacks[i].text;
+        el.value = value.newErrorSpecificFeedbacks[i].id;
+
+        $('#stepErrorSpecificFeedbacks').prepend($(el));
+
+        var errorSpecificFeedbacksList = document.getElementById("stepErrorSpecificFeedbacks");
+        errorSpecificFeedbacksList.selectedIndex = 0
+        feedbackIdElement.value = value.newErrorSpecificFeedbacks[i].id
+      }
+    }
+
+    if (value.newExplanations) {
+      for (var i = 0; i < value.newExplanations.length; i++) {
+
+        var feedbackIdElement = document.getElementById("editFeedbackId");
+
+        currentExplanations.set(value.newExplanations[i].id, value.newExplanations[i])
+
+        var el = document.createElement("option");
+        el.textContent = value.newExplanations[i].text;
+        el.value = value.newExplanations[i].id;
+
+        $('#stepExplanations').prepend($(el));
+
+        var explanationList = document.getElementById("stepExplanations");
+        explanationList.selectedIndex = 0
+        feedbackIdElement.value = value.newExplanations[i].id
+      }
+    }
+
+    if (value.newHints) {
+      for (var i = 0; i < value.newHints.length; i++) {
+
+        var feedbackIdElement = document.getElementById("editFeedbackId");
+
+        currentExplanations.set(value.newHints[i].id, value.newHints[i])
+
+        var el = document.createElement("option");
+        el.textContent = value.newHints[i].text;
+        el.value = value.newHints[i].id;
+
+        $('#stepHints').prepend($(el));
+
+        var hintList = document.getElementById("stepHints");
+        hintList.selectedIndex = 0
+        feedbackIdElement.value = value.newHints[i].id
+      }
+    }
+  }
+
+  $('#removeFeedback', element).click(function(eventObject) {
+    var el = $(element);
+
+    if (editingFeedbackType == "errorSpecificFeedback") {
+      var data = {
+        errorSpecificFeedbacks: [{
+          id: el.find('input[id=editFeedbackId]').val()
+        }]
+      };
+    } else if (editingFeedbackType == "explanation") {
+      var data = {
+        explanations: [{
+          id: el.find('input[id=editFeedbackId]').val()
+        }]
+      };
+    } else if (editingFeedbackType == "hint") {
+      var data = {
+        hints: [{
+          id: el.find('input[id=editFeedbackId]').val()
+        }]
+      };
+    }
+
+    $.ajax({
+      type: "POST",
+      url: deleteFeedbacksUrl,
+      data: JSON.stringify(data),
+      success: function (value) {
+        var addMenu = document.getElementById("addMenu");
+        var feedbackMenu = document.getElementById("feedbackMenu");
+        addMenu.style.display = "block";
+        feedbackMenu.style.display = "none";
+        //Voltar para a parte de passo e atualizar os dados corretamente (edgeMenu)
+      }   
+    });
 
   });
 

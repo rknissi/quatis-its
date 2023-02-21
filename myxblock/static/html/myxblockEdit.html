@@ -130,19 +130,25 @@
     </div>
 
     <div class="nodeMenu" id="nodeMenu">
-      <div class="wrapper-comp-setting">
+      <div class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="editState">Estado</label>
-        <input class="input" name="editState" disabled=true id="editState" type="text" />
+        <input class="input readOnly increaseInputSpace" name="editState" disabled=true id="editState" type="text" />
         <p></p>
         <label class="label setting-label" for="editStateValue">Corretude</label>
-        <input class="input" name="editStateValue" id="editStateValue"  type="text" />
+        <input class="input increaseInputSpace" name="editStateValue" id="editStateValue"  type="text" />
         <p></p>
         <label class="label setting-label" for="editStateFixedValue">Corretude Fixa</label>
         <input class="checkboxSize" name="editStateFixedValue" id="editStateFixedValue" type="checkbox" />
         <p></p>
 
+        <button type="button" id='saveStateinfo'>Atualizar estado</button> 
+        <button type="button" id='removeState'>Remover estado</button> 
+        <p></p>
+      </div>
+        <p></p>
+      <div class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="stateType">Tipo  </label>
-        <select name="changeStateType" id="changeStateType">
+        <select class="increaseInputSpace" name="changeStateType" id="changeStateType">
           <option selected="selected" value="normalState">Normal</option>
           <option value="initialState">Inicial</option>
           <option value="finalState">Final</option>
@@ -150,42 +156,41 @@
         <p></p>
 
         <label class="label setting-label" for="">Dúvidas</label>
-        <select name="stateDoubts" id="stateDoubts">
+        <select class="increaseInputSpace" name="stateDoubts" id="stateDoubts">
         </select>
         <p></p>
         <button type="button" id='editDoubt'>Editar dúvida</button> 
         <p></p>
-
-        <button type="button" id='saveStateinfo'>Atualizar estado</button> 
-        <button type="button" id='removeState'>Remover estado</button> 
       </div>
     </div>
 
     <div class="nodeMenu" id="doubtMenu">
-      <div class="wrapper-comp-setting">
+      <div class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="editDoubtId">ID</label>
-        <input class="input" name="editDoubtId" disabled=true id="editDoubtId" type="text" />
+        <input class="input readOnly increaseInputSpace" name="editDoubtId" disabled=true id="editDoubtId" type="text" />
         <p></p>
         <label class="label setting-label" for="editDoubtText">Texto</label>
-        <input class="input" name="editDoubtText" id="editDoubtText"  type="text" />
+        <input class="input increaseInputSpace" name="editDoubtText" id="editDoubtText"  type="text" />
         <p></p>
         <button type="button" id='saveDoubt'>Atualizar dúvida</button> 
         <button type="button" id='removeDoubt'>Remover dúvida</button> 
 
         <p></p>
         <label class="label setting-label" for="">Respostas</label>
-        <select name="doubtAnswers" id="doubtAnswers" >
+        <select class="increaseInputSpace" name="doubtAnswers" id="doubtAnswers" >
         </select>
-
+      </div>
+        <p></p>
+      <div class="wrapper-comp-setting extraSpace">
         <p></p>
         <label class="label setting-label" for="editAnswerId">ID da resposta</label>
-        <input class="input" name="editAnswerId" disabled=true id="editAnswerId" type="text" />
+        <input class="input readOnly increaseInputSpace" name="editAnswerId" disabled=true id="editAnswerId" type="text" />
         <p></p>
         <label class="label setting-label" for="editAnswerText">Texto da resposta</label>
-        <input class="input" name="editAnswerText" id="editAnswerText"  type="text" />
+        <input class="input increaseInputSpace" name="editAnswerText" id="editAnswerText"  type="text" />
         <p></p>
         <label class="label setting-label" for="editAnswerUsefulness">Utilidade da resposta</label>
-        <input class="input" name="editAnswerUsefulness" id="editAnswerUsefulness"  type="text" />
+        <input class="input increaseInputSpace" name="editAnswerUsefulness" id="editAnswerUsefulness"  type="text" />
         <p></p>
         <button type="button" id='saveDoubtAnswer'>Salvar resposta</button> 
         <button type="button" id='removeDoubtAnswer'>Remover resposta</button> 
@@ -193,78 +198,95 @@
       </div>
     </div>
 
-    <div class="nodeMenu" id="explanationMenu">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="editExplanationId">ID</label>
-        <input class="input" name="editExplanationId" disabled=true id="editExplanationId" type="text" />
+    <div class="nodeMenu" id="feedbackMenu">
+      <div class="wrapper-comp-setting extraSpace">
+        <label class="label setting-label" for="editFeedbackId">ID</label>
+        <input class="input readOnly increaseInputSpace" name="editFeedbackId" disabled=true id="editFeedbackId" type="text" />
         <p></p>
-        <label class="label setting-label" for="editExplanationText">Texto</label>
-        <input class="input" name="editExplanationText" id="editExplanationText"  type="text" />
+        <label class="label setting-label" for="editFeedbackText">Texto</label>
+        <input class="input increaseInputSpace" name="editFeedbackText" id="editFeedbackText"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editExplanationPriority">Prioridade</label>
-        <input class="input" name="editExplanationPriority" id="editExplanationPriority"  type="text" />
+        <label class="label setting-label" for="editFeedbackPriority">Prioridade</label>
+        <input class="input increaseInputSpace" name="editFeedbackPriority" id="editFeedbackPriority"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editExplanationUtility">Utilidade</label>
-        <input class="input" name="editExplanationUtility" id="editExplanationUtility"  type="text" />
+        <label class="label setting-label" for="editFeedbackUsefulness">Utilidade</label>
+        <input class="input increaseInputSpace" name="editFeedbackUsefulness" id="editFeedbackUsefulness"  type="text" />
         <p></p>
-        <button type="button" id='saveExplanation'>Atualizar explicação</button> 
-        <button type="button" id='removeExplanation'>Remover explicação</button> 
-
+        <button type="button" id='saveFeedback'>Salvar dado</button> 
+        <button type="button" id='removeFeedback'>Remover dado</button> 
       </div>
     </div>
 
 
     <div class="edgeMenu" id="edgeMenu">
-      <div class="wrapper-comp-setting">
+      <div class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="editStepSource">Estado inicial</label>
-        <input class="input" name="editStepSource" disabled=true id="editStepSource"  type="text" />
+        <input class="input readOnly increaseInputSpace" name="editStepSource" disabled=true id="editStepSource"  type="text" />
         <p></p>
         <label class="label setting-label" for="editStepDest">Estado final</label>
-        <input class="input" name="editStepDest" disabled=true id="editStepDest"  type="text" />
+        <input class="input readOnly increaseInputSpace" name="editStepDest" disabled=true id="editStepDest"  type="text" />
         <p></p>
         <label class="label setting-label" for="editStepValue">Corretude</label>
-        <input class="input" name="editStepValue" id="editStepValue"  type="text" />
+        <input class="input increaseInputSpace" name="editStepValue" id="editStepValue"  type="text" />
         <p></p>
         <label class="label setting-label" for="editStepFixedValue">Corretude fixa</label>
         <input class="checkboxSize" name="editStepFixedValue" id="editStepFixedValue"  type="checkbox" />
-        <p></p>
-        <label class="label setting-label" for="">Feedbacks de erro específico</label>
-        <input class="inputLong" name="stepErrorSpecificFeedbacks" id="stepErrorSpecificFeedbacks"  type="text" />
-        <p></p>
-
-        <label class="label setting-label" for="">Explicações</label>
-        <input class="inputLong" name="stepExplanations" id="stepExplanations"  type="text" />
-        <p></p>
-
-        <label class="label setting-label" for="">Dicas</label>
-        <input class="inputLong" name="stepHints" id="stepHints"  type="text" />
-        <p></p>
-
-        <label class="label setting-label" for="">Dúvidas</label>
-        <select name="stepDoubts" id="stepDoubts">
-        </select>
-        <p></p>
-        <button type="button" id='editDoubtStep'>Editar dúvida</button> 
         <p></p>
         <button type="button" id='saveEdgeInfo'>Atualizar passo</button> 
         <button type="button" id='removeStep'>Remover passo</button> 
         <p></p>
       </div>
+        <p></p>
+      <div class="wrapper-comp-setting extraSpace">
+        <label class="label setting-label" for="">Feedbacks de erro específico</label>
+        <select class="increaseInputSpace" name="stepErrorSpecificFeedbacks" id="stepErrorSpecificFeedbacks">
+        </select>
+        <p></p>
+        <button type="button" id='editStepErrorSpecificFeedbacks'>Editar feedback</button> 
+        <p></p>
+      </div>
+        <p></p>
+      <div class="wrapper-comp-setting extraSpace">
+        <label class="label setting-label" for="">Explicações</label>
+        <select class="increaseInputSpace" name="stepExplanations" id="stepExplanations">
+        </select>
+        <p></p>
+        <button type="button" id='editStepExplanations'>Editar explicação</button> 
+        <p></p>
+      </div>
+        <p></p>
+      <div class="wrapper-comp-setting extraSpace">
+        <label class="label setting-label" for="">Dicas</label>
+        <select class="increaseInputSpace" name="stepHints" id="stepHints">
+        </select>
+        <p></p>
+        <button type="button" id='editStepHints'>Editar dica</button> 
+        <p></p>
+      </div>
+        <p></p>
+      <div class="wrapper-comp-setting extraSpace">
+        <label class="label setting-label" for="">Dúvidas</label>
+        <select class="increaseInputSpace" name="stepDoubts" id="stepDoubts">
+        </select>
+        <p></p>
+        <button type="button" id='editDoubtStep'>Editar dúvida</button> 
+        <p></p>
+      </div>
     </div>
 
     <div class="addMenu" id="addMenu">
-      <div class="wrapper-comp-setting">
+      <div class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="stateName">Nome do estado  </label>
-        <input class="input" name="stateName" id="stateName"  type="text" />
+        <input class="input increaseInputSpace" name="stateName" id="stateName"  type="text" />
         <p></p>
         <label class="label setting-label" for="stateCorrectness">Corretude  </label>
-        <input class="input" name="stateCorrectness" id="stateCorrectness"  type="text" />
+        <input class="input increaseInputSpace" name="stateCorrectness" id="stateCorrectness"  type="text" />
         <p></p>
         <label class="label setting-label" for="stateFixedValue">Corretude fixa  </label>
         <input class="checkboxSize" name="stateFixedValue" id="stateFixedValue"  type="checkbox" />
         <p></p>
         <label class="label setting-label" for="stateType">Tipo  </label>
-        <select name="addStateType" id="addStateType">
+        <select class="increaseInputSpace" name="addStateType" id="addStateType">
           <option selected="selected" value="normalState">Normal</option>
           <option value="initialState">Inicial</option>
           <option value="finalState">Final</option>
@@ -274,15 +296,15 @@
 
       </div>
 
-      <div class="wrapper-comp-setting">
+      <div class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="sourceState">Estado fonte  </label>
-        <input class="input" name="sourceState" id="sourceState"  type="text" />
+        <input class="input increaseInputSpace" name="sourceState" id="sourceState"  type="text" />
         <p></p>
         <label class="label setting-label" for="destState">Estado destino  </label>
-        <input class="input" name="destState" id="destState"  type="text" />
+        <input class="input increaseInputSpace" name="destState" id="destState"  type="text" />
         <p></p>
         <label class="label setting-label" for="stepCorrectness">Corretude  </label>
-        <input class="input" name="stepCorrectness" id="stepCorrectness"  type="text" />
+        <input class="input increaseInputSpace" name="stepCorrectness" id="stepCorrectness"  type="text" />
         <p></p>
         <p></p>
         <label class="label setting-label" for="stepFixedValue">Corretude fixa</label>

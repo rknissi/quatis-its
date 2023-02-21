@@ -122,7 +122,7 @@ function MyXBlock(runtime, element, data) {
             for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
                 var partialAnswer = document.getElementById("idt" + i);
                 if (partialAnswer.value) {
-                    partialAnswer.style.background = "green"
+                    partialAnswer.style.background = "#03b803"
                 } else {
                     partialAnswer.style.background = "none"
                 }
@@ -148,7 +148,7 @@ function MyXBlock(runtime, element, data) {
                     if (removeBack) {
                         partialAnswer.style.background = "none"
                     } else {
-                        partialAnswer.style.background = "green"
+                        partialAnswer.style.background = "#03b803"
                     }
                 }
             }
@@ -165,11 +165,27 @@ function MyXBlock(runtime, element, data) {
         $("#answerButton").css("background","grey");
         $("#prevHint").css("background","grey");
         $("#nextHint").css("background","grey");
-        //document.getElementById('userInput').readOnly = true;
+        $("#askQuestion").css("background","grey");
+        $("#addLine").css("background","grey");
+        $("#removeLine").css("background","grey");
+
         document.getElementById("hintButton").disabled = true;
         document.getElementById("answerButton").disabled = true;
         document.getElementById("nextHint").disabled = true;
         document.getElementById("prevHint").disabled = true;
+        document.getElementById("askQuestion").disabled = true;
+        document.getElementById("addLine").disabled = true;
+        document.getElementById("removeLine").disabled = true;
+
+
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            var checkBox = document.getElementById("id" + i);
+            checkBox.style.display = 'none'
+            checkBox.checked = false;
+            var line = document.getElementById("idt" + i);
+            line.setAttribute("readOnly", true);
+        }
+
         $(':radio:not(:checked)').attr('disabled', true);
         alert(value.message);
 
@@ -392,6 +408,10 @@ function MyXBlock(runtime, element, data) {
 
     $('#answerButton', element).click(function(eventObject) {
         var userAnswer = getCompleteAnswer()
+        if (userAnswer.replace(/(\r\n|\n|\r)/gm, "") == "") {
+            alert("Sua resolução não pode ser vazia")
+            return
+        }
         var radioAnswer = $("input:radio[name=radioAnswer]:checked").val()
 
         $.ajax({
@@ -414,6 +434,12 @@ function MyXBlock(runtime, element, data) {
 
             checkbox.remove();
             line.remove();
+
+            for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+                var checkBox = document.getElementById("id" + i);
+                checkBox.style.display = 'none'
+                checkBox.checked = false;
+            }
         }
     }
 
@@ -448,6 +474,12 @@ function MyXBlock(runtime, element, data) {
 
         checkboxLineId++;
 
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            var checkBox = document.getElementById("id" + i);
+            checkBox.style.display = 'none'
+            checkBox.checked = false;
+        }
+
     }
 
     function addDoubtIdtoList(doubtId) {
@@ -474,6 +506,10 @@ function MyXBlock(runtime, element, data) {
             if (checkedBoxes.length == 1) {
 
                 var singleNode = document.getElementById("idt" + checkedBoxes[0]);
+                if (singleNode.value == "") {
+                    alert("Selecione apenas passos que contenham algo escrito")
+                    return
+                }
                 $.ajax({
                     type: "POST",
                     url: getDoubtsAndAnswerFromState,
@@ -555,6 +591,10 @@ function MyXBlock(runtime, element, data) {
                 var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                 var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
+                if (sourceNode.value == "" || destNode.value == "") {
+                    alert("Selecione apenas passos que contenham algo escrito")
+                    return
+                }
                 $.ajax({
                     type: "POST",
                     url: getDoubtsAndAnswerFromStep,

@@ -8,6 +8,19 @@
     margin-top:70px;
 }
 
+.readOnly {
+    color: #999 !important;
+    background: #e0e0e0 !important;
+}
+
+.extraSpace {
+    padding: 10px;
+}
+
+.increaseInputSpace {
+    width: 60% !important;
+}
+
 .checkboxSize {
     transform: scale(1.5);
     -ms-transform: scale(1.5);
@@ -53,11 +66,17 @@
 .answer {
     margin-top:30px;
     float: left;
-    background-color: green;
     color: white;
+    background-color: green !important;
+    background-image:none !important;
     padding: 15px 32px;
     text-align: center;
     border-radius: 8px;
+}
+
+.answer {
+    background-color:#025002 !important;
+    background-image:none !important;
 }
 
 #prevHint, #nextHint {
@@ -66,11 +85,17 @@
 }
 
 #prevHint, #nextHint, #hintButton, #addLine, #removeLine, #askQuestion{
-    background-color: darkslategrey;
+    background-color: #0075b4 !important;
+    background-image:none !important;
     color: white;
     padding: 8px 16px;
     text-align: center;
     border-radius: 8px;
+}
+
+#prevHint button:focus, #nextHint button:focus, #hintButton button:focus, #addLine button:focus, #removeLine button:focus, #askQuestion button:focus{
+    background-color:#014f7a !important;
+    background-image:none !important;
 }
 
 .myxblock_block .count {

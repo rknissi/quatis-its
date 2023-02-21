@@ -76,11 +76,10 @@ class Resolution(models.Model):
 
 class ErrorSpecificFeedbacks(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
-	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='errorSpecificFeedbackEdge')
+	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='errorSpecificFeedbackEdge', blank=True, null=True)
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
-	visible = models.IntegerField(default=1)
 	priority = models.IntegerField(default=0)
 	usefulness = models.IntegerField(default=0)
 
@@ -89,11 +88,10 @@ class ErrorSpecificFeedbacks(models.Model):
 
 class Hint(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
-	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='hintsEdge')
+	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='hintsEdge', blank=True, null=True)
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
-	visible = models.IntegerField(default=1)
 	priority = models.IntegerField(default=0)
 	usefulness = models.IntegerField(default=0)
 
@@ -102,11 +100,10 @@ class Hint(models.Model):
 
 class Explanation(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
-	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='explanationsEdge')
+	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='explanationsEdge', blank=True, null=True)
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
-	visible = models.IntegerField(default=1)
 	priority = models.IntegerField(default=0)
 	usefulness = models.IntegerField(default=0)
 
