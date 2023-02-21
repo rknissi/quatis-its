@@ -82,6 +82,12 @@ function MyXBlock(runtime, element, data) {
             document.getElementById("answer3").remove();
             document.getElementById("answer4").remove();
             document.getElementById("answer5").remove();
+
+            document.getElementById("labelAnswer1").remove();
+            document.getElementById("labelAnswer2").remove();
+            document.getElementById("labelAnswer3").remove();
+            document.getElementById("labelAnswer4").remove();
+            document.getElementById("labelAnswer5").remove();
         }
 
 
@@ -180,7 +186,7 @@ function MyXBlock(runtime, element, data) {
 
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
             var checkBox = document.getElementById("id" + i);
-            checkBox.style.display = 'none'
+            checkBox.style.visibility = 'hidden'
             checkBox.checked = false;
             var line = document.getElementById("idt" + i);
             line.setAttribute("readOnly", true);
@@ -427,7 +433,7 @@ function MyXBlock(runtime, element, data) {
     });
 
     function removeLineAndCheckbox() {
-        if (checkboxLineId > minimumCheckboxLLineId) { 
+        if ((checkboxLineId - 1) > minimumCheckboxLLineId) { 
             checkboxLineId--;
             var checkbox = document.getElementById("id" + checkboxLineId);
             var line = document.getElementById("idt" + checkboxLineId);
@@ -435,11 +441,16 @@ function MyXBlock(runtime, element, data) {
             checkbox.remove();
             line.remove();
 
-            for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
-                var checkBox = document.getElementById("id" + i);
-                checkBox.style.display = 'none'
-                checkBox.checked = false;
-            }
+        }
+        disableCheckbox()
+
+    }
+
+    function disableCheckbox() {
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            var checkBox = document.getElementById("id" + i);
+            checkBox.style.visibility = 'hidden'
+            checkBox.checked = false;
         }
     }
 
@@ -452,7 +463,7 @@ function MyXBlock(runtime, element, data) {
         checkbox.name = "name";
         checkbox.value = "value";
         checkbox.id = "id" + checkboxLineId;
-        checkbox.style.display = 'none'
+        checkbox.style.visibility = 'hidden'
         li.style.margin = 0
         li.style.padding = 0
 
@@ -474,12 +485,7 @@ function MyXBlock(runtime, element, data) {
 
         checkboxLineId++;
 
-        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
-            var checkBox = document.getElementById("id" + i);
-            checkBox.style.display = 'none'
-            checkBox.checked = false;
-        }
-
+        disableCheckbox()
     }
 
     function addDoubtIdtoList(doubtId) {
@@ -490,7 +496,7 @@ function MyXBlock(runtime, element, data) {
         var checkedBoxes = []
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
             var checkBox = document.getElementById("id" + i);
-            checkBox.style.display = 'inline-block'
+            checkBox.style.visibility = 'visible'
 
             if (checkBox.checked) {
                 checkedBoxes.push(i)
@@ -579,12 +585,7 @@ function MyXBlock(runtime, element, data) {
                             }
                         }
                     }
-
-                    for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
-                        var checkBox = document.getElementById("id" + i);
-                        checkBox.style.display = 'none'
-                        checkBox.checked = false;
-                    }
+                    disableCheckbox()
                 }
 
             } else {
@@ -664,11 +665,7 @@ function MyXBlock(runtime, element, data) {
                             });
                         }
                     }
-                    for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
-                        var checkBox = document.getElementById("id" + i);
-                        checkBox.style.display = 'none'
-                        checkBox.checked = false;
-                    }
+                    disableCheckbox()
                 }
             }
         }

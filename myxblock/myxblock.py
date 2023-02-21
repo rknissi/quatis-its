@@ -159,34 +159,9 @@ class MyXBlock(XBlock):
         help="Description of the problem",
     )
 
-    problemCorrectRadioAnswer = String(
-        default="Option 1", scope=Scope.content,
-        help="Correct item of the problem",
-    )
-
     problemCorrectStates = Dict(
         default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.content,
         help="List of correct states to the answer",
-    )
-
-    problemEquivalentStates = Dict(
-        default={'option1': 'Option 1', 'option2': "Option 2"}, scope=Scope.content,
-        help="For each entry, which step is equivalent to the original state representation",
-    )
-
-    problemTipsToNextState = Dict(
-        default={"Option 1": ["Dicaaaaas 1", "Dicaaaaaaa 2"], "Option 2": ["Tainted Love suaidiosadisasa bcsabcasbcascnasnc sancnsacnsn cbascbasbcsabcbascbas", "Uia"]}, scope=Scope.content,
-        help="List of tips for each state of the correct answers",
-    )
-
-    errorSpecificFeedbackFromSteps = Dict(
-        default={str(('Option 1', 'Option 2')): ["Error Specific feedback 1", "Error Specific Feedback 2"], str(('X=500-2', 'X=498')): ["Error Specific feedback 1", "Error Specific Feedback 2"]}, scope=Scope.content,
-        help="For each wrong step that the student uses, it will show a specific feedback",
-    )
-
-    explanationFromSteps = Dict(
-        default={str(('Option 1', 'Option 2')): ["Explanation feedback 1", "Explanation Feedback 2"], str(('X=500-2', 'X=498')): ["Explanation feedback 1", "Explanation Feedback 2"]}, scope=Scope.content,
-        help="For each correct step that the student uses, it will show a specific feedback",
     )
 
     problemDefaultHint = String(
@@ -196,7 +171,7 @@ class MyXBlock(XBlock):
 
     problemInitialHint = String(
         default="Inicialmente, coloque o mesmo que está no enunciado", scope=Scope.content,
-        help="If thew student dont know how to start thew process",
+        help="If thew student dont know how to start the process",
     )
 
     problemAnswer1 = String(
@@ -297,7 +272,7 @@ class MyXBlock(XBlock):
         else:
             loadedMultipleChoiceProblem = "Valor ainda não carregado"
 
-        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,problemCorrectRadioAnswer=self.problemCorrectRadioAnswer,multipleChoiceProblem=loadedMultipleChoiceProblem,problemDefaultHint=self.problemDefaultHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
+        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,multipleChoiceProblem=loadedMultipleChoiceProblem,problemDefaultHint=self.problemDefaultHint,problemInitialHint=self.problemInitialHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
         frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
 
         frag.initialize_js('MyXBlockEdit')
@@ -761,8 +736,9 @@ class MyXBlock(XBlock):
 
         self.problemTitle = data.get('problemTitle')
         self.problemDescription = data.get('problemDescription')
-        self.problemCorrectRadioAnswer = data.get('problemCorrectRadioAnswer')
         loadedProblem.multipleChoiceProblem = data.get('multipleChoiceProblem')
+        self.problemDefaultHint = data.get('problemDefaultHint')
+        self.problemInitialHint = data.get('problemInitialHint')
         self.problemAnswer1 = data.get('problemAnswer1')
         self.problemAnswer2 = data.get('problemAnswer2')
         self.problemAnswer3 = data.get('problemAnswer3')
@@ -1258,9 +1234,6 @@ class MyXBlock(XBlock):
         lastElement = '_start_'
         #Verifica se a resposta está correta
         for step in answerArray:
-            #Substitui o que existe na resposta do aluno pelos estados equivalentes cadastrados
-            if (step in self.problemEquivalentStates):
-                step = self.problemEquivalentStates[step]
 
             lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
             currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(step))
@@ -1279,10 +1252,7 @@ class MyXBlock(XBlock):
                 wrongElement = step
                 break
 
-        if loadedProblem.multipleChoiceProblem == 1:
-            isAnswerCorrect = isStepsCorrect and self.answerRadio == self.problemCorrectRadioAnswer
-        else:
-            isAnswerCorrect = isStepsCorrect
+        isAnswerCorrect = isStepsCorrect
 
         generatedResolution = self.generateResolution(answerArray)
 

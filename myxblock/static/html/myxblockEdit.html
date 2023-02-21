@@ -31,18 +31,13 @@
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="multipleChoiceProblem">Problema de multipla escolha</label>
-        <input class="input setting-input" name="multipleChoiceProblem" id="multipleChoiceProblem" value="{multipleChoiceProblem}" type="text" />
+        <label class="label setting-label" for="multipleChoiceProblem">Problema de multipla escolha (valor atual: {multipleChoiceProblem})</label>
+        <select class="input setting-input" name="multipleChoiceProblem" id="multipleChoiceProblem" value="{multipleChoiceProblem}">
+          <option value="1">Sim</option>
+          <option value="0">Não</option>
+        </select>
       </div>
       <span class="tip setting-help">Decidir se é um problema de multipla escolha ou nao (1 para sim, 0 para nao)</span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemCorrectRadioAnswer">Alternativa correta  </label>
-        <input class="input setting-input" name="problemCorrectRadioAnswer" id="problemCorrectRadioAnswer" value="{problemCorrectRadioAnswer}" type="text" />
-      </div>
-      <span class="tip setting-help">Coloque a alternativa correta. Essa opcao e ignorada caso nao seja um problema de multipla escolha</span>
     </li>
 
     <li class="field comp-setting-entry is-set">
@@ -51,6 +46,14 @@
         <input class="input setting-input" name="problemDefaultHint" id="problemDefaultHint" value="{problemDefaultHint}" type="text" />
       </div>
       <span class="tip setting-help">Dica padrao </span>
+    </li>
+
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="problemInitialHint">Dicas inicial  </label>
+        <input class="input setting-input" name="problemInitialHint" id="problemInitialHint" value="{problemInitialHint}" type="text" />
+      </div>
+      <span class="tip setting-help">Dica inicial </span>
     </li>
 
     <li class="field comp-setting-entry is-set">

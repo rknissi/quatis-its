@@ -30,21 +30,24 @@
 #checkBoxList {
     font-weight: bold;
     width: 10px;
-    height: 200px;
+    height: auto;
     float: left;
     position: relative;
     bottom: 50px;
     margin-top:75px;
+    min-height: 60px;
+    margin-right: 60px;
 }
 
 #lineList{
     font-weight: bold;
-    height: 200px;
+    height: auto;
     float: right;
     position: relative;
     bottom: 50px;
     margin-top:75px;
     margin-right: 100px;
+    min-height: 60px;
 }
 
 #checkBoxList, #lineList{
@@ -79,9 +82,13 @@
     background-image:none !important;
 }
 
-#prevHint, #nextHint {
+#prevHint, #nextHint, #innerHintDiv {
     float: right;
 
+}
+
+#prevHint {
+    margin-right: 5px;
 }
 
 #prevHint, #nextHint, #hintButton, #addLine, #removeLine, #askQuestion{
@@ -127,6 +134,7 @@
     position: relative;
     display: table;
     max-width: 400px;
+    margin-top: 40px;
 }
 
 #helpButtonDiv {
@@ -136,11 +144,23 @@
 }
 
 #hintButton {
-    margin-top:0px;
+    margin-right: 5px;
+}
+
+#innerHintAndQuestion {
+    float: left;
+}
+
+#innerHintDiv {
+    margin-bottom: 0px;
+}
+
+#askHintButtonsDiv {
+    text-align: center;
 }
 
 #hint {
-    margin: 0px 0px 40px 0px;
+    margin: 15px 0px 15px 0px;
     border: solid black 1px;
     min-width: 400px;
     min-height: 100px;
@@ -244,8 +264,8 @@
     font-weight: bold;
 }
 #askQuestion {
-    margin-top: 20px;
-    margin-right: 200px;
+    margin-top: 0px;
+    margin-right: 0px;
 }
 
 #addLine, #removeLine {

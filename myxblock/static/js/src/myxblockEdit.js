@@ -404,14 +404,16 @@ function MyXBlockEdit(runtime, element) {
   });
 
   $('#save_button', element).click(function(eventObject) {
+    multipleChoiceElement = document.getElementById("multipleChoiceProblem");
+    multipleChoice = multipleChoiceElement.options[multipleChoiceElement.selectedIndex].value;
+ 
     var el = $(element);
     var data = {
       problemTitle: el.find('input[name=problemTitle]').val(),
       problemDescription: el.find('input[id=problemDescription]').val(),
-      problemCorrectRadioAnswer: el.find('input[id=problemCorrectRadioAnswer]').val(),
-      multipleChoiceProblem: el.find('input[id=multipleChoiceProblem]').val(),
-      problemTipsToNextStep: el.find('input[id=problemTipsToNextStep]').val(),
+      multipleChoiceProblem: multipleChoice,
       problemDefaultHint: el.find('input[id=problemDefaultHint]').val(),
+      problemInitialHint: el.find('input[id=problemInitialHint]').val(),
       problemAnswer1: el.find('input[id=problemAnswer1]').val(),
       problemAnswer2: el.find('input[id=problemAnswer2]').val(),
       problemAnswer3: el.find('input[id=problemAnswer3]').val(),
