@@ -24,6 +24,7 @@ maxErrorSpecificFeedback = 2
 maxExplanations = 2
 maxHints = 2
 maxDoubts = 2
+maxKnowledgeComponent = 2
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
@@ -47,6 +48,9 @@ def amorzinhoErrorSpecificFeedback(element):
 
 def amorzinhoMinimalFeedback(element):
     return abs(element.correctness)
+
+def amorzinhoKnowledgeComponent(element):
+    return 1 - (abs(element.correctness))
 
 def amorzinhoHints(element):
     quantity = Hint.objects.filter(problem = element.problem, edge = element).count()
@@ -792,8 +796,10 @@ class MyXBlock(XBlock):
         feedbackType = data.get("type")
         if feedbackType == "minimalState":
             loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
-        elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'minimalStep' or feedbackType == 'hint':
+        elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'minimalStep' or feedbackType == 'hint' or feedbackType == 'knowledgeComponent':
             loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("nodeFrom")), destNode__title=transformToSimplerAnswer(data.get("nodeTo")))
+        elif feedbackType == 'knowledgeComponent':
+            loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("nodeFrom")))
 
         if feedbackType == 'minimalStep':
             if data.get("message") == yesUniversalAnswer:
@@ -828,6 +834,13 @@ class MyXBlock(XBlock):
             errorSpecificFeedback.priority = 1
             errorSpecificFeedback.usefulness = 0
             errorSpecificFeedback.save()
+        elif feedbackType == 'knowledgeComponent':
+            knowledgeComponent = KnowledgeComponent(problem=loadedProblem, edge=loadedEdge, node=loadedNode)
+            knowledgeComponent.text=data.get("message")
+            knowledgeComponent.dateAdded = datetime.now()
+            knowledgeComponent.priority = 1
+            knowledgeComponent.usefulness = 0
+            knowledgeComponent.save()
         elif feedbackType == 'explanation':
             explanation = Explanation(problem=loadedProblem, edge=loadedEdge)
             explanation.text=data.get("message")
@@ -1295,13 +1308,19 @@ class MyXBlock(XBlock):
                 nodeDoubt = {"message": model.text, "node": model.node.title, "doubtId": model.id}
                 doubtsNodeReturn.append(nodeDoubt)
 
+        #Não ativado por enquanto por não ter uso
+        #KnowledgeComponents = self.getKnowledgeComponentFromProblemGraph(answerArray)
+        #KnowledgeComponentSteps= []
+        #for KnowledgeComponent in KnowledgeComponents:
+        #    KnowledgeComponentSteps.append(KnowledgeComponent.sourceNode.title)
+        #    KnowledgeComponentSteps.append(KnowledgeComponent.destNode.title)
         #Fim da parte do updateCG
 
         #self.alreadyAnswered = True
 
         self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
 
-        return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
+        return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "knowledgeComponent": KnowledgeComponentSteps}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
         askInfoSteps = []
@@ -1495,6 +1514,46 @@ class MyXBlock(XBlock):
         #    return CDU[0:maxDoubts]
         #else:
         #    return CDU
+
+    def getKnowledgeComponentFromProblemGraph(self, resolution):
+        relatedSteps = []
+        usefulRelatedSteps = []
+        transformedResolution = []
+        for item in resolution:
+            transformedResolution.append(transformToSimplerAnswer(item))
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
+        CCC1 = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1])
+        CCC2 = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
+
+        for stepCC in CCC2:
+            sourceNodeTitleEX = stepCC.sourceNode.title 
+            if sourceNodeTitleEX in transformedResolution:
+                sourceNodeIndexEX = transformedResolution.index(sourceNodeTitleEX)
+                if sourceNodeIndexEX < len(transformedResolution) - 1:
+                    if transformedResolution[sourceNodeIndexEX + 1] == stepCC.destNode.title:
+                        relatedSteps.append(stepCC)
+
+        for stepCC in CCC1:
+            sourceNodeTitleEE = stepCC.sourceNode.title 
+            if sourceNodeTitleEE in transformedResolution:
+                sourceNodeIndexEE = transformedResolution.index(sourceNodeTitleEE)
+                if sourceNodeIndexEE < len(transformedResolution) - 1:
+                    if transformedResolution[sourceNodeIndexEE + 1] != stepCC.destNode.title:
+                        possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = sourceNodeTitleEE, destNode__title = transformedResolution[sourceNodeIndexEE + 1], destNode__correctness__gte = correctState[0])
+                        if possibleEdge.exists():
+                            usefulRelatedSteps.append(stepCC)
+
+
+        relatedSteps.append(usefulRelatedSteps)
+
+
+        if len(relatedSteps) >= maxKnowledgeComponent:
+            relatedSteps.sort(key=amorzinhoKnowledgeComponent)
+            return relatedSteps[0:maxKnowledgeComponent]
+        else:
+            return relatedSteps
     
     def recalculateResolutionCorrectnessFromNode(self, node):
         loadedProblem = Problem.objects.get(id=self.problemId)
