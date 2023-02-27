@@ -296,6 +296,7 @@ function MyXBlock(runtime, element, data) {
                 }
             }
         }
+
         if (value.errorSpecific.length > 0) {
             for(var i = 0; i < value.errorSpecific.length; i++){
                 var feedback = prompt("Como você explicaria que o seguinte passo está incorreto?\n" + value.errorSpecific[i] + " -> " + value.errorSpecific[i + 1]);
@@ -311,6 +312,23 @@ function MyXBlock(runtime, element, data) {
                 }
             }
         }
+
+        if (value.knowledgeComponent.length > 0) {
+            for(var i = 0; i < value.knowledgeComponent.length; i++){
+                var feedback = prompt("Para o seguinte passo, qual elemento básico você considera necessário para resolvê-lo?\n" + value.knowledgeComponent[i] + " -> " + value.knowledgeComponent[i + 1]);
+
+                if (feedback != null) {
+                    $.ajax({
+                        type: "POST",
+                        url: send_feedback,
+                        data: JSON.stringify({ type: "knowledgeComponent", message: feedback, nodeFrom: value.knowledgeComponent[i], nodeTo: value.knowledgeComponent[++i] })
+                    });
+                } else {
+                    i++;
+                }
+            }
+        }
+
         if (value.hints.length > 0) {
             for(var i = 0; i < value.hints.length; i++){
                 var feedback = prompt("Qual dica você daria para o seguinte passo?\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
