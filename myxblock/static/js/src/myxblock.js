@@ -251,81 +251,6 @@ function MyXBlock(runtime, element, data) {
         $(':radio:not(:checked)').attr('disabled', true);
         alert(value.message);
 
-        //var hintsToShow = []
-        //var hintsIdToShow = []
-
-        //var explanationToShow = []
-        //var explanationIdToShow = []
-
-        //var specificFeedbackToShow = []
-        //var specificFeedbackIdToShow = []
-
-        //for (var i = 0; i < hints.length; i++) {
-        //    if (hintsIds[i] != 0) {
-        //        if (hintsTypes[i] == "hint" && !hintsToShow.includes(hints[i])) {
-        //            hintsToShow.push(hints[i])
-        //            hintsIdToShow.push(hintsIds[i])
-        //        }
-        //        else if (hintsTypes[i] == "explanation" && !hintsToShow.includes(explanationToShow[i])) {
-        //            explanationToShow.push(hints[i])
-        //            explanationIdToShow.push(hintsIds[i])
-        //        }
-        //        else if (hintsTypes[i] == "errorSpecificFeedback" && !hintsToShow.includes(specificFeedbackToShow[i])) {
-        //            specificFeedbackToShow.push(hints[i])
-        //            specificFeedbackIdToShow.push(hintsIds[i])
-        //        }
-        //    }
-        //}
-
-        //if (hintsToShow.length > 0) {
-        //    for (var i = 0; i < hintsToShow.length; i++) {
-        //        if (hintsIdToShow[i] != 0) {
-        //            feedback = prompt("O seguinte feedback foi útil?\n" + hintsToShow[i])
-        //            
-        //            if (feedback && checkIfUserInputIsValid(feedback)) {
-        //                $.ajax({
-        //                    type: "POST",
-        //                    url: recommend_feedback,
-        //                    data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: hintsToShow[i], existingHintId: hintsIdToShow[i], existingType: "hint"})
-        //                });
-        //            }
-        //        }
-        //    }
-        //}
-
-        //if (explanationToShow.length > 0) {
-        //    for (var i = 0; i < explanationToShow.length; i++) {
-        //        if (explanationIdToShow[i] != 0) {
-        //            feedback = prompt("A seguinte explicação foi útil?\n" + explanationToShow[i])
-        //            
-        //            if (feedback && checkIfUserInputIsValid(feedback)) {
-        //                $.ajax({
-        //                    type: "POST",
-        //                    url: recommend_feedback,
-        //                    data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: explanationToShow[i], existingHintId: explanationIdToShow[i], existingType: "explanation"})
-        //                });
-        //            }
-        //        }
-        //    }
-        //}
-
-        //if (specificFeedbackToShow.length > 0) {
-        //    for (var i = 0; i < explanationToShow.length; i++) {
-        //        if (specificFeedbackIdToShow[i] != 0) {
-        //            feedback = prompt("O seguinte feesback específico foi útil?\n" + specificFeedbackToShow[i])
-        //            
-        //            if (feedback && checkIfUserInputIsValid(feedback)) {
-        //                $.ajax({
-        //                    type: "POST",
-        //                    url: recommend_feedback,
-        //                    data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: specificFeedbackToShow[i], existingHintId: specificFeedbackIdToShow[i], existingType: "errorSpecificFeedback"})
-        //                });
-        //            }
-        //        }
-        //    }
-        //}
-
-
         if (value.minimalStep.length > 0) {
             for(var i = 0; i < value.minimalStep.length; i++){
                 feedback = prompt("O seguinte passo está correto?\n" + value.minimalStep[i] + " -> " + value.minimalStep[++i]);
@@ -592,14 +517,6 @@ function MyXBlock(runtime, element, data) {
             checkedBoxes.push(lastStep)
         }
 
-        //for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
-        //    var checkBox = document.getElementById("id" + i);
-        //    checkBox.style.visibility = 'visible'
-
-        //    if (checkBox.checked) {
-        //        checkedBoxes.push(i)
-        //    }
-        //}
         if (checkedBoxes.length == 0) {
             alert("Selecione as linhas no qual você tem dúvida!")
         } else if (checkedBoxes.length > 2) {
