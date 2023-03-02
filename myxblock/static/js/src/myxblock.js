@@ -4,6 +4,7 @@ function MyXBlock(runtime, element, data) {
     var hints = [];
     var hintsIds = [];
     var hintsTypes = [];
+    var hintsSentFeedback = [];
     var actualHint = -1;
 
     var doubtIds = []
@@ -25,6 +26,11 @@ function MyXBlock(runtime, element, data) {
 
     var yesUniversalAnswer = "yes"
     var noUniversalAnswer = "no"
+
+    var wrongAnswerColor = "red"
+    var rightAnswerColor = "#03b803" 
+    var noneAnswerColor = "none"
+    var doubtAnswerColor = "yellow"
 
 
     function checkIfUserInputIsValid(input) {
@@ -103,6 +109,9 @@ function MyXBlock(runtime, element, data) {
             document.getElementById("prevHint").disabled = true;
             $(':radio:not(:checked)').attr('disabled', true);
         }
+
+        document.getElementById("hintThumbsDown").disabled = true;
+        document.getElementById("hintThumbsUp").disabled = true;
     }
 
     function feedbackSuccess(message) {
@@ -110,6 +119,16 @@ function MyXBlock(runtime, element, data) {
     }
 
     function showHint(value) {
+        var askQuestionButton = document.getElementById("askQuestion");
+        var hintButton = document.getElementById("hintButton");
+        if (value.lastHint == true) {
+            askQuestionButton.style.display = 'block';
+            hintButton.style.display = 'none';
+        } else {
+            askQuestionButton.style.display = 'none';
+            hintButton.style.display = 'block';
+        }
+         
         if (value.status == 'OK') {
 
             //Tratar os cassos
@@ -117,48 +136,81 @@ function MyXBlock(runtime, element, data) {
             //Tenho tudo certo, e apago para ter dica do último passo (faz sentido?)
 
             //Mostrar que a linha está OK, por agora fazer nada
-            $('#hint', element).append("\n" + value.hint);
-            hints.push(value.hint);
-            hintsIds.push(value.hintId);
-            hintsTypes.push(value.hintType);
-            actualHint = hints.length - 1;
+            //$('#hint', element).append("\n" + value.hint);
+            if (hintsIds.includes(value.hintId) && value.hintId != 0) {
+                actualHint = hintsIds.indexOf(value.hintId)
+            } else if (hints.includes(value.hint) && value.hintId == 0) {
+                actualHint = hints.indexOf(value.hint)
+            } else {
+                hints.push(value.hint);
+                hintsIds.push(value.hintId);
+                hintsTypes.push(value.hintType);
+                hintsSentFeedback.push(false);
+                actualHint = hints.length - 1;
+            }
             document.getElementById('hint').innerHTML = hints[actualHint];
+            
+            if (value.hintId == 0 || hintsSentFeedback[actualHint]) {
+                document.getElementById("hintThumbsDown").disabled = true;
+                document.getElementById("hintThumbsUp").disabled = true;
+            } else {
+                document.getElementById("hintThumbsDown").disabled = false;
+                document.getElementById("hintThumbsUp").disabled = false;
+            }
 
             //Mostrar que está tudo certo
             for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
                 var partialAnswer = document.getElementById("idt" + i);
                 if (partialAnswer.value) {
-                    partialAnswer.style.background = "#03b803"
+                    partialAnswer.style.background = rightAnswerColor
                 } else {
-                    partialAnswer.style.background = "none"
+                    partialAnswer.style.background = noneAnswerColor
                 }
             }
 
         } else {
             //Coloca a dica na pilha
-            $('#hint', element).append("\n" + value.hint);
-            hints.push(value.hint);
-            hintsIds.push(value.hintId);
-            hintsTypes.push(value.hintType);
-            actualHint = hints.length - 1;
+            //$('#hint', element).append("\n" + value.hint);
+            if (hintsIds.includes(value.hintId)) {
+                actualHint = hintsIds.indexOf(value.hintId)
+            } else if (hints.includes(value.hint) && value.hintId == 0) {
+                actualHint = hints.indexOf(value.hint)
+            } else {
+                hints.push(value.hint);
+                hintsIds.push(value.hintId);
+                hintsTypes.push(value.hintType);
+                hintsSentFeedback.push(false);
+                actualHint = hints.length - 1;
+            }
             document.getElementById('hint').innerHTML = hints[actualHint];
+
+            if (value.hintId == 0 || hintsSentFeedback[actualHint]) {
+                document.getElementById("hintThumbsDown").disabled = true;
+                document.getElementById("hintThumbsUp").disabled = true;
+            } else {
+                document.getElementById("hintThumbsDown").disabled = false;
+                document.getElementById("hintThumbsUp").disabled = false;
+            }
 
             //Pega cada uma das respostas do usuário
             var removeBack = false
             for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
                 var partialAnswer = document.getElementById("idt" + i);
                 if (partialAnswer.value == value.wrongElement) {
-                    partialAnswer.style.background = "red"
+                    if (value.wrongElementCorrectness < 0) {
+                        partialAnswer.style.background = wrongAnswerColor
+                    } else {
+                        partialAnswer.style.background = doubtAnswerColor
+                    }
                     removeBack = true
                 } else {
                     if (removeBack) {
-                        partialAnswer.style.background = "none"
+                        partialAnswer.style.background = noneAnswerColor
                     } else {
-                        partialAnswer.style.background = "#03b803"
+                        partialAnswer.style.background = rightAnswerColor
                     }
                 }
             }
-
         }
     }
 
@@ -174,6 +226,8 @@ function MyXBlock(runtime, element, data) {
         $("#askQuestion").css("background","grey");
         $("#addLine").css("background","grey");
         $("#removeLine").css("background","grey");
+        $("#hintThumbsDown").css("background","grey");
+        $("#hintThumbsUp").css("background","grey");
 
         document.getElementById("hintButton").disabled = true;
         document.getElementById("answerButton").disabled = true;
@@ -182,6 +236,8 @@ function MyXBlock(runtime, element, data) {
         document.getElementById("askQuestion").disabled = true;
         document.getElementById("addLine").disabled = true;
         document.getElementById("removeLine").disabled = true;
+        document.getElementById("hintThumbsDown").disabled = true;
+        document.getElementById("hintThumbsUp").disabled = true;
 
 
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
@@ -195,79 +251,79 @@ function MyXBlock(runtime, element, data) {
         $(':radio:not(:checked)').attr('disabled', true);
         alert(value.message);
 
-        var hintsToShow = []
-        var hintsIdToShow = []
+        //var hintsToShow = []
+        //var hintsIdToShow = []
 
-        var explanationToShow = []
-        var explanationIdToShow = []
+        //var explanationToShow = []
+        //var explanationIdToShow = []
 
-        var specificFeedbackToShow = []
-        var specificFeedbackIdToShow = []
+        //var specificFeedbackToShow = []
+        //var specificFeedbackIdToShow = []
 
-        for (var i = 0; i < hints.length; i++) {
-            if (hintsIds[i] != 0) {
-                if (hintsTypes[i] == "hint" && !hintsToShow.includes(hints[i])) {
-                    hintsToShow.push(hints[i])
-                    hintsIdToShow.push(hintsIds[i])
-                }
-                else if (hintsTypes[i] == "explanation" && !hintsToShow.includes(explanationToShow[i])) {
-                    explanationToShow.push(hints[i])
-                    explanationIdToShow.push(hintsIds[i])
-                }
-                else if (hintsTypes[i] == "errorSpecificFeedback" && !hintsToShow.includes(specificFeedbackToShow[i])) {
-                    specificFeedbackToShow.push(hints[i])
-                    specificFeedbackIdToShow.push(hintsIds[i])
-                }
-            }
-        }
+        //for (var i = 0; i < hints.length; i++) {
+        //    if (hintsIds[i] != 0) {
+        //        if (hintsTypes[i] == "hint" && !hintsToShow.includes(hints[i])) {
+        //            hintsToShow.push(hints[i])
+        //            hintsIdToShow.push(hintsIds[i])
+        //        }
+        //        else if (hintsTypes[i] == "explanation" && !hintsToShow.includes(explanationToShow[i])) {
+        //            explanationToShow.push(hints[i])
+        //            explanationIdToShow.push(hintsIds[i])
+        //        }
+        //        else if (hintsTypes[i] == "errorSpecificFeedback" && !hintsToShow.includes(specificFeedbackToShow[i])) {
+        //            specificFeedbackToShow.push(hints[i])
+        //            specificFeedbackIdToShow.push(hintsIds[i])
+        //        }
+        //    }
+        //}
 
-        if (hintsToShow.length > 0) {
-            for (var i = 0; i < hintsToShow.length; i++) {
-                if (hintsIdToShow[i] != 0) {
-                    feedback = prompt("O seguinte feedback foi útil?\n" + hintsToShow[i])
-                    
-                    if (feedback && checkIfUserInputIsValid(feedback)) {
-                        $.ajax({
-                            type: "POST",
-                            url: recommend_feedback,
-                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: hintsToShow[i], existingHintId: hintsIdToShow[i], existingType: "hint"})
-                        });
-                    }
-                }
-            }
-        }
+        //if (hintsToShow.length > 0) {
+        //    for (var i = 0; i < hintsToShow.length; i++) {
+        //        if (hintsIdToShow[i] != 0) {
+        //            feedback = prompt("O seguinte feedback foi útil?\n" + hintsToShow[i])
+        //            
+        //            if (feedback && checkIfUserInputIsValid(feedback)) {
+        //                $.ajax({
+        //                    type: "POST",
+        //                    url: recommend_feedback,
+        //                    data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: hintsToShow[i], existingHintId: hintsIdToShow[i], existingType: "hint"})
+        //                });
+        //            }
+        //        }
+        //    }
+        //}
 
-        if (explanationToShow.length > 0) {
-            for (var i = 0; i < explanationToShow.length; i++) {
-                if (explanationIdToShow[i] != 0) {
-                    feedback = prompt("A seguinte explicação foi útil?\n" + explanationToShow[i])
-                    
-                    if (feedback && checkIfUserInputIsValid(feedback)) {
-                        $.ajax({
-                            type: "POST",
-                            url: recommend_feedback,
-                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: explanationToShow[i], existingHintId: explanationIdToShow[i], existingType: "explanation"})
-                        });
-                    }
-                }
-            }
-        }
+        //if (explanationToShow.length > 0) {
+        //    for (var i = 0; i < explanationToShow.length; i++) {
+        //        if (explanationIdToShow[i] != 0) {
+        //            feedback = prompt("A seguinte explicação foi útil?\n" + explanationToShow[i])
+        //            
+        //            if (feedback && checkIfUserInputIsValid(feedback)) {
+        //                $.ajax({
+        //                    type: "POST",
+        //                    url: recommend_feedback,
+        //                    data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: explanationToShow[i], existingHintId: explanationIdToShow[i], existingType: "explanation"})
+        //                });
+        //            }
+        //        }
+        //    }
+        //}
 
-        if (specificFeedbackToShow.length > 0) {
-            for (var i = 0; i < explanationToShow.length; i++) {
-                if (specificFeedbackIdToShow[i] != 0) {
-                    feedback = prompt("O seguinte feesback específico foi útil?\n" + specificFeedbackToShow[i])
-                    
-                    if (feedback && checkIfUserInputIsValid(feedback)) {
-                        $.ajax({
-                            type: "POST",
-                            url: recommend_feedback,
-                            data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: specificFeedbackToShow[i], existingHintId: specificFeedbackIdToShow[i], existingType: "errorSpecificFeedback"})
-                        });
-                    }
-                }
-            }
-        }
+        //if (specificFeedbackToShow.length > 0) {
+        //    for (var i = 0; i < explanationToShow.length; i++) {
+        //        if (specificFeedbackIdToShow[i] != 0) {
+        //            feedback = prompt("O seguinte feesback específico foi útil?\n" + specificFeedbackToShow[i])
+        //            
+        //            if (feedback && checkIfUserInputIsValid(feedback)) {
+        //                $.ajax({
+        //                    type: "POST",
+        //                    url: recommend_feedback,
+        //                    data: JSON.stringify({ message: getUserAnswer(feedback), existingHint: specificFeedbackToShow[i], existingHintId: specificFeedbackIdToShow[i], existingType: "errorSpecificFeedback"})
+        //                });
+        //            }
+        //        }
+        //    }
+        //}
 
 
         if (value.minimalStep.length > 0) {
@@ -465,6 +521,11 @@ function MyXBlock(runtime, element, data) {
     }
 
     function disableCheckbox() {
+        var askQuestionButton = document.getElementById("askQuestion");
+        var hintButton = document.getElementById("hintButton");
+        askQuestionButton.style.display = 'none';
+        hintButton.style.display = 'block';
+
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
             var checkBox = document.getElementById("id" + i);
             checkBox.style.visibility = 'hidden'
@@ -511,15 +572,34 @@ function MyXBlock(runtime, element, data) {
     }
 
     $('#askQuestion', element).click(function(eventObject) {
+        var currentStep = null
+        var lastStep = null
         var checkedBoxes = []
-        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
-            var checkBox = document.getElementById("id" + i);
-            checkBox.style.visibility = 'visible'
 
-            if (checkBox.checked) {
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            currentStep = document.getElementById("idt" + i);
+            if (currentStep.style.background == wrongAnswerColor || currentStep.style.background == doubtAnswerColor) {
+                if (i > minimumCheckboxLLineId) {
+                    checkedBoxes.push(lastStep)
+                }
                 checkedBoxes.push(i)
+                i = checkboxLineId
+            } else if (currentStep.value != "") {
+                lastStep = i
             }
         }
+        if (checkedBoxes.length == 0) {
+            checkedBoxes.push(lastStep)
+        }
+
+        //for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+        //    var checkBox = document.getElementById("id" + i);
+        //    checkBox.style.visibility = 'visible'
+
+        //    if (checkBox.checked) {
+        //        checkedBoxes.push(i)
+        //    }
+        //}
         if (checkedBoxes.length == 0) {
             alert("Selecione as linhas no qual você tem dúvida!")
         } else if (checkedBoxes.length > 2) {
@@ -628,15 +708,16 @@ function MyXBlock(runtime, element, data) {
 
                         doubt = prompt("Qual a dúvida para o seguinte passo?\n" + sourceNode.value + " -> " + destNode.value);
 
-                        $.ajax({
-                            type: "POST",
-                            url: send_feedback,
-                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
-                            success: function (value) {
-                                addDoubtIdtoList(value.doubtId)
-                            }
-                        });
-
+                        if (doubt != null) {
+                            $.ajax({
+                                type: "POST",
+                                url: send_feedback,
+                                data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
+                                success: function (value) {
+                                    addDoubtIdtoList(value.doubtId)
+                                }
+                            });
+                        }
                     } else {
                         for (var i = 0; i < message.doubts.length; i++) {
                             sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
@@ -698,6 +779,78 @@ function MyXBlock(runtime, element, data) {
         removeLineAndCheckbox()
     });
 
+    $('#hintThumbsUp', element).click(function(eventObject) {
+        if (hintsIds[actualHint] != 0) {
+            var sentFeedback = false
+            if (hintsTypes[actualHint] == "hint") {
+                $.ajax({
+                    type: "POST",
+                    url: recommend_feedback,
+                    data: JSON.stringify({ message: yesUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "hint" })
+                });
+                sentFeedback = true
+            } else if (hintsTypes[actualHint] == "explanation") {
+                $.ajax({
+                    type: "POST",
+                    url: recommend_feedback,
+                    data: JSON.stringify({ message: yesUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "explanation" })
+                });
+                sentFeedback = true
+            } else if (hintsTypes[actualHint] == "errorSpecificFeedback") {
+                $.ajax({
+                    type: "POST",
+                    url: recommend_feedback,
+                    data: JSON.stringify({ message: yesUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "explanation" })
+                });
+                sentFeedback = true
+            }
+
+            if (sentFeedback) {
+                hintsSentFeedback[actualHint] = true;
+                $("#hintThumbsDown").css("background","grey");
+                $("#hintThumbsUp").css("background","grey");
+                document.getElementById("hintThumbsDown").disabled = true;
+                document.getElementById("hintThumbsUp").disabled = true;
+            }
+        }
+    });
+
+    $('#hintThumbsDown', element).click(function(eventObject) {
+        if (hintsIds[actualHint] != 0) {
+            var sentFeedback = false
+            if (hintsTypes[actualHint] == "hint") {
+                $.ajax({
+                    type: "POST",
+                    url: recommend_feedback,
+                    data: JSON.stringify({ message: noUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "hint" })
+                });
+                sentFeedback = true
+            } else if (hintsTypes[actualHint] == "explanation") {
+                $.ajax({
+                    type: "POST",
+                    url: recommend_feedback,
+                    data: JSON.stringify({ message: noUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "explanation" })
+                });
+                sentFeedback = true
+            } else if (hintsTypes[actualHint] == "errorSpecificFeedback") {
+                $.ajax({
+                    type: "POST",
+                    url: recommend_feedback,
+                    data: JSON.stringify({ message: noUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "explanation" })
+                });
+                sentFeedback = true
+            }
+
+            if (sentFeedback) {
+                hintsSentFeedback[actualHint] = true;
+                $("#hintThumbsDown").css("background","grey");
+                $("#hintThumbsUp").css("background","grey");
+                document.getElementById("hintThumbsDown").disabled = true;
+                document.getElementById("hintThumbsUp").disabled = true;
+            }
+        }
+    });
+
     $('#prevHint', element).click(function(eventObject) {
         if (actualHint == -1) {
             return;
@@ -708,6 +861,14 @@ function MyXBlock(runtime, element, data) {
             actualHint--;
         }
         document.getElementById('hint').innerHTML = hints[actualHint];
+
+        if (hintsSentFeedback[actualHint] || hintsIds[actualHint] == 0) {
+            document.getElementById("hintThumbsDown").disabled = true;
+            document.getElementById("hintThumbsUp").disabled = true;
+        } else {
+            document.getElementById("hintThumbsDown").disabled = false;
+            document.getElementById("hintThumbsUp").disabled = false;
+        }
     });
 
     $('#nextHint', element).click(function(eventObject) {
@@ -720,6 +881,14 @@ function MyXBlock(runtime, element, data) {
             actualHint++;
         }
         document.getElementById('hint').innerHTML = hints[actualHint];
+
+        if (hintsSentFeedback[actualHint] || hintsIds[actualHint] == 0) {
+            document.getElementById("hintThumbsDown").disabled = true;
+            document.getElementById("hintThumbsUp").disabled = true;
+        } else {
+            document.getElementById("hintThumbsDown").disabled = false;
+            document.getElementById("hintThumbsUp").disabled = false;
+        }
     });
     return {};
 }
