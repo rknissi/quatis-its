@@ -975,6 +975,7 @@ class MyXBlock(XBlock):
         possibleIncorrectAnswer = self.getFirstIncorrectAnswer(answerArray)
         
         wrongElement = possibleIncorrectAnswer.get("wrongElement")
+        lastCorrectElement = possibleIncorrectAnswer.get("lastCorrectElement")
 
         hintText = self.problemDefaultHint
         hintId = 0
@@ -995,6 +996,27 @@ class MyXBlock(XBlock):
             hintList = []
             hintIdList = []
             hintIdType = []
+
+
+            possibleState = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(wrongElement))
+            if not possibleState.exists():
+                newNode = Node(title=transformToSimplerAnswer(wrongElement), problem=loadedProblem, dateAdded=datetime.now())
+                newNode.save()
+            else:
+                newNode = possibleState.first()
+
+            possibleStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(lastCorrectElement), destNode=newNode)
+            if not possibleStep.exists():
+                possibleLastState = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(lastCorrectElement))
+                if not possibleLastState.exists():
+                    lastState = Node(problem=loadedProblem, title=transformToSimplerAnswer(lastCorrectElement), dateAdded=datetime.now())
+                    lastState.save()
+                else:
+                    lastState = possibleLastState.first()
+
+                newEdge = Edge(problem=loadedProblem, sourceNode=lastState, destNode=newNode, dateAdded=datetime.now())
+                newEdge.save()
+
 
             edgeForSpecificFeedback = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(wrongElement))
             if edgeForSpecificFeedback.exists():
@@ -1038,6 +1060,8 @@ class MyXBlock(XBlock):
         try:
             #Então está tudo certo, pode dar um OK e seguir em frente
             #MO passo está correto, mas agora é momento de mostrar a dica para o próximo passo.
+            
+            lastHint = False
             if (wrongElement == None):
                 loadedProblem = Problem.objects.get(id=self.problemId)
                 nextPossibleElementsEdges = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")))
@@ -1119,13 +1143,16 @@ class MyXBlock(XBlock):
                     hintId = hintIdList[self.lastWrongElementCount]
                     hintType = hintIdType[self.lastWrongElementCount]
                     self.lastWrongElementCount = self.lastWrongElementCount + 1
+                    if (self.lastWrongElementCount == len(hintList)):
+                        lastHint = True
                 else:
+                    lastHint = True
                     hintText = hintList[-1]
                     hintId = hintIdList[-1]
                     hintType = hintIdType[-1]
 
                 
-                return {"status": "OK", "hint": hintText, "hintId": hintId, "hintType": hintType, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement")}
+                return {"status": "OK", "hint": hintText, "hintId": hintId, "hintType": hintType, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement"), "lastHint": lastHint}
             else:
                 if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) != self.lastWrongElement):
                     self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))
@@ -1147,7 +1174,10 @@ class MyXBlock(XBlock):
                     hintId = hintIdList[self.lastWrongElementCount]
                     hintType = hintIdType[self.lastWrongElementCount]
                     self.lastWrongElementCount = self.lastWrongElementCount + 1
+                    if (self.lastWrongElementCount == len(hintList)):
+                        lastHint = True
                 else:
+                    lastHint = True
                     hintText = hintList[-1]
                     hintId = hintIdList[-1]
                     hintType = hintIdType[-1]
@@ -1156,7 +1186,7 @@ class MyXBlock(XBlock):
             hintId = 0
             hintType = "hint"
 
-        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType}
+        return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "lastHint": lastHint, "wrongElementCorrectness": newNode.correctness}
     
     def saveCurrentHints (self, data):
         self.currentHints = []
@@ -1188,7 +1218,7 @@ class MyXBlock(XBlock):
         if loadedProblem.multipleChoiceProblem == 1:
             self.answerRadio = data['radioAnswer']
 
-        isStepsCorrect = False
+        isStepsCorrect = None
 
         currentStep = 0
 
@@ -1262,10 +1292,16 @@ class MyXBlock(XBlock):
                     currentStep = currentStep + 1
                     continue
             else:
-                wrongElement = step
-                break
-
-        isAnswerCorrect = isStepsCorrect
+                if ((edgeList.exists() and edgeList[0].correctness > possiblyInvalidStep[0] and edgeList[0].correctness <= possiblyValidStep[0]) or (lastNode.correctness >= unknownState[0] and lastNode.correctness <= unknownState[1]) or (currentNode.correctness >= unknownState[0] and currentNode.correctness <= unknownState[1])):
+                    wrongElement = step
+                    break
+                else:
+                    isStepsCorrect = False
+        
+        if isStepsCorrect is None:
+            isAnswerCorrect = None
+        else:
+            isAnswerCorrect = isStepsCorrect and transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(answerArray[-1])
 
         generatedResolution = self.generateResolution(answerArray)
 
@@ -1319,8 +1355,15 @@ class MyXBlock(XBlock):
         #self.alreadyAnswered = True
 
         self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
+        if isAnswerCorrect == None:
+            message = "Sua resposta e resolução estão em análise"
+        elif isAnswerCorrect:
+            message = "Sua resposta e resolução estão ambas corretas! Parabéns"
+        elif not isAnswerCorrect:
+            message = "Sua resolução e/ou resposta final estão incorretos"
 
-        return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "knowledgeComponent": KnowledgeComponentSteps}
+        #return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "knowledgeComponent": KnowledgeComponentSteps}
+        return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
         askInfoSteps = []

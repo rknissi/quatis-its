@@ -82,16 +82,20 @@
     background-image:none !important;
 }
 
-#prevHint, #nextHint, #innerHintDiv {
+#prevHint, #nextHint, #innerHintDiv, #hintThumbsUp, #hintThumbsDown {
     float: right;
 
 }
 
-#prevHint {
+#prevHint, #hintThumbsUp, #hintThumbsDown {
     margin-right: 5px;
 }
 
-#prevHint, #nextHint, #hintButton, #addLine, #removeLine, #askQuestion{
+#askQuestion {
+    display: none;
+}
+
+#prevHint, #nextHint, #hintButton, #addLine, #removeLine, #askQuestion, #hintThumbsUp, #hintThumbsDown{
     background-color: #0075b4 !important;
     background-image:none !important;
     color: white;
@@ -160,13 +164,18 @@
 }
 
 #hint {
-    margin: 15px 0px 15px 0px;
-    border: solid black 1px;
     min-width: 400px;
-    min-height: 100px;
+    min-height: 120px;
     max-width: 400px;
-    max-height: 100px;
+    max-height: 120px;
     display: inline-block;
+}
+
+#innerHintBox {
+    border: solid black 1px;
+    min-height: 165px;
+    margin-top: 50px;
+    margin-bottom: 10px;
 }
 
 #hintButtonsDiv {
