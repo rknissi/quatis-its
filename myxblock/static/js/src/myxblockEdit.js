@@ -52,7 +52,8 @@ function MyXBlockEdit(runtime, element) {
 
 
   function reApplyConfig() {
-    createOrReloadGraph()
+    saveGraph()
+    //createOrReloadGraph()
   }
 
   function removeNode(nodeName){
@@ -65,37 +66,37 @@ function MyXBlockEdit(runtime, element) {
     reApplyConfig();
   }
 
-  function changeNodeValue(nodeName, value){
-    for (i = 0; i < data.nodes.length; ++i) {
-      if (nodeName === data.nodes[i].id) {
-        nodeData = data.nodes[i];
-        data.nodes.splice(i, 1);
-        nodeData.id = value;
-        addNode(nodeData);
-        changeNodeNameInEdges(nodeName, value)
-        break;
-      }
-    }
-    reApplyConfig();
-  }
+  //function changeNodeValue(nodeName, value){
+  //  for (i = 0; i < data.nodes.length; ++i) {
+  //    if (nodeName === data.nodes[i].id) {
+  //      nodeData = data.nodes[i];
+  //      data.nodes.splice(i, 1);
+  //      nodeData.id = value;
+  //      addNode(nodeData);
+  //      changeNodeNameInEdges(nodeName, value)
+  //      break;
+  //    }
+  //  }
+  //  reApplyConfig();
+  //}
 
-  function changeNodeNameInEdges(oldName, newName){
-    for (i = 0; i < data.edges.length; ++i) {
-      if (oldName === data.edges[i].from) {
-        edgeData = data.edges[i];
-        data.edges.splice(i, 1);
-        edgeData.from = newName;
-        addEdge(edgeData);
-      }
-      if (oldName === data.edges[i].to) {
-        edgeData = data.edges[i];
-        data.edges.splice(i, 1);
-        edgeData.to = newName;
-        addEdge(edgeData);
-      }
-    }
-    reApplyConfig();
-  }
+  //function changeNodeNameInEdges(oldName, newName){
+  //  for (i = 0; i < data.edges.length; ++i) {
+  //    if (oldName === data.edges[i].from) {
+  //      edgeData = data.edges[i];
+  //      data.edges.splice(i, 1);
+  //      edgeData.from = newName;
+  //      addEdge(edgeData);
+  //    }
+  //    if (oldName === data.edges[i].to) {
+  //      edgeData = data.edges[i];
+  //      data.edges.splice(i, 1);
+  //      edgeData.to = newName;
+  //      addEdge(edgeData);
+  //    }
+  //  }
+  //  reApplyConfig();
+  //}
 
   function changeNodeToNormal(nodeName){
     for (i = 0; i < data.nodes.length; ++i) {
@@ -108,7 +109,6 @@ function MyXBlockEdit(runtime, element) {
         break;
       }
     }
-    reApplyConfig();
   }
 
   function changeNodeToInitial(nodeName){
@@ -122,7 +122,6 @@ function MyXBlockEdit(runtime, element) {
           break;
         }
     }
-    reApplyConfig();
   }
 
   function changeNodeToFinal(nodeName){
@@ -136,15 +135,15 @@ function MyXBlockEdit(runtime, element) {
           break;
         }
     }
-    reApplyConfig();
   }
   
-  function changeNodeCorrectness(nodeName, value, fixedValue){
+  function changeNodeCorrectness(nodeName, value, fixedValue, equivalentTo){
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
           nodeData.correctness = value;
           nodeData.fixedValue = fixedValue;
+          nodeData.equivalentTo = equivalentTo;
 
           nodeData.fill = getNodeColor(value);
 
@@ -239,6 +238,7 @@ function MyXBlockEdit(runtime, element) {
       url: submitGraphDataUrl,
       data: JSON.stringify(body),
       success: function (data) {
+        creategraph(data)
       }   
     });
   }
@@ -302,6 +302,7 @@ function MyXBlockEdit(runtime, element) {
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
         fixedValue: fixedValueCheckbox,
+        equivalentTo: null,
         visible: 1,
         x: 0,
         y: 0,
@@ -316,6 +317,7 @@ function MyXBlockEdit(runtime, element) {
         correctness: el.find('input[id=stateCorrectness]').val(),
         fixedValue: fixedValueCheckbox,
         visible: 1,
+        equivalentTo: null,
         stroke: strokeType,
         shape: shapeType,
         x: 0,
@@ -346,6 +348,7 @@ function MyXBlockEdit(runtime, element) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
     var value = el.find('input[id=editStateValue]').val()
+    var equivalentTo = el.find('input[id=editStateEquivalentTo]').val()
     var fixedValue = el.find('input[id=editStateFixedValue]').is(':checked')
     if (fixedValue == true) {
       fixedValue = 1
@@ -356,7 +359,6 @@ function MyXBlockEdit(runtime, element) {
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
 
-    changeNodeCorrectness(id, value, fixedValue)
     if (dropDownValue === 'normalState') {
       changeNodeToNormal(id)
     } else if (dropDownValue === 'initialState') {
@@ -364,13 +366,7 @@ function MyXBlockEdit(runtime, element) {
     } else if (dropDownValue === 'finalState') {
       changeNodeToFinal(id);
     }
-  });
-
-  $('#changeStateCorrectness', element).click(function(eventObject) {
-    var el = $(element);
-    var id = el.find('input[id=editState]').val()
-    var value = el.find('input[id=editStateValue]').val()
-    changeNodeCorrectness(id, value)
+    changeNodeCorrectness(id, value, fixedValue, equivalentTo)
   });
 
   $('#saveEdgeInfo', element).click(function(eventObject) {
@@ -450,6 +446,7 @@ function MyXBlockEdit(runtime, element) {
   function createOrReloadGraph(value) {
     if (value != null) {
 
+      document.getElementById("graph").innerHTML = "";
       chart = anychart.graph(value.teste);
       data = value.teste;
 
@@ -554,6 +551,7 @@ function MyXBlockEdit(runtime, element) {
               if (data.nodes[i].id === tag.id) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                document.getElementById("editStateEquivalentTo").value = data.nodes[i].equivalentTo;
                 if (data.nodes[i].fixedValue == 1) {
                   document.getElementById("editStateFixedValue").checked = true;
                 } else {

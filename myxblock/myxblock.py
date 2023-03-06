@@ -282,6 +282,52 @@ class MyXBlock(XBlock):
         frag.initialize_js('MyXBlockEdit')
         return frag
 
+    def updateNodeCorrectness(self, node, newCorrectness, fixedCorrectness):
+        if node.equivalentTo is not None:
+            masterNode = node.equivalentTo
+            masterNode.correctness = newCorrectness
+            if (fixedCorrectness is not None):
+                masterNode.fixedValue = fixedCorrectness
+            masterNode.save()
+
+            followerNodes = Node.objects.filter(equivalentTo = masterNode)
+
+        else:
+            node.correctness = newCorrectness
+            if (fixedCorrectness is not None):
+                node.fixedValue = fixedCorrectness
+            node.save()
+
+            followerNodes = Node.objects.filter(equivalentTo = node)
+
+        for followerNode in followerNodes:
+            followerNode.correctness = newCorrectness
+            if (fixedCorrectness is not None):
+                followerNode.fixedValue = fixedCorrectness
+            followerNode.save()
+    
+
+    def setEquivalentToValue(self, node, name):
+        if name is not None and name:
+            possibleNode = Node.objects.filter(problem=node.problem, title=transformToSimplerAnswer(name))
+            if not possibleNode.exists():
+                masterNode = Node(title=name, dateAdded=datetime.now(), problem=node.problem)
+                masterNode.save()
+                node.equivalentTo = masterNode
+                node.save()
+            else:
+                if possibleNode.first().equivalentTo is None:
+                    node.equivalentTo = possibleNode.first()
+                    node.save();
+                else:
+                    node.equivalentTo = possibleNode.first().equivalentTo
+                    node.save();
+        elif name is not None and not name:
+            if node.equivalentTo is not None:
+                node.equivalentTo = None
+                node.save()
+
+
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
         graphData = data.get('graphData')
@@ -293,16 +339,20 @@ class MyXBlock(XBlock):
             if not nodeModel.exists():
                 n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
                 n1.save()
+                self.setEquivalentToValue(n1, node["equivalentTo"])
+
             else:
                 nodeModel = nodeModel.first()
-                nodeModel.correctness = float(node["correctness"])
-                nodeModel.fixedValue = float(node["fixedValue"])
+                #nodeModel.correctness = float(node["correctness"])
+                #nodeModel.fixedValue = float(node["fixedValue"])
                 nodeModel.visible = float(node["visible"])
                 nodeModel.nodePositionX = node["x"]
                 nodeModel.nodePositionY = node["y"]
                 nodeModel.dateModified = datetime.now()
                 nodeModel.save()
-                if node["modifiedCorrectness"] == 1:
+                self.setEquivalentToValue(nodeModel, node["equivalentTo"])
+                if node["modifiedCorrectness"] == 1 or nodeModel.fixedValue != float(node["fixedValue"]):
+                    self.updateNodeCorrectness(nodeModel, float(node["correctness"]), node["modifiedCorrectness"])
                     self.recalculateResolutionCorrectnessFromNode(nodeModel)
 
             if "stroke" in node:
@@ -339,7 +389,8 @@ class MyXBlock(XBlock):
                 if edge["modifiedCorrectness"] == 1:
                     self.recalculateResolutionCorrectnessFromEdge(edgeModel)
 
-        return {}
+        #return getJsonFromProblemGraph(self.problemId)
+        return {"teste": getJsonFromProblemGraph(self.problemId)}
 
     @XBlock.json_handler
     def get_doubts_and_answers_from_step(self,data,suffix=''):
@@ -817,14 +868,18 @@ class MyXBlock(XBlock):
         elif feedbackType == 'minimalState':
             if data.get("message") == yesUniversalAnswer:
                 if loadedNode.correctness + receivedMinimalFeedbackAmount > correctState[1]:
-                    loadedNode.correctness = correctState[1]
+                    #loadedNode.correctness = correctState[1]
+                    self.updateNodeCorrectness(loadedNode, correctState[1], None)
                 else:
-                    loadedNode.correctness += receivedMinimalFeedbackAmount
+                    #loadedNode.correctness += receivedMinimalFeedbackAmount
+                    self.updateNodeCorrectness(loadedNode, loadedNode.correctness + receivedMinimalFeedbackAmount, None)
             elif data.get("message") == noUniversalAnswer:
                 if loadedNode.correctness - receivedMinimalFeedbackAmount < incorrectState[0]:
-                    loadedNode.correctness = incorrectState[0]
+                    #loadedNode.correctness = incorrectState[0]
+                    self.updateNodeCorrectness(loadedNode, incorrectState[0], None)
                 else:
-                    loadedNode.correctness -= receivedMinimalFeedbackAmount
+                    #loadedNode.correctness -= receivedMinimalFeedbackAmount
+                    self.updateNodeCorrectness(loadedNode, - (loadedNode.correctness + receivedMinimalFeedbackAmount), None)
             loadedNode.save()
 
         elif feedbackType == 'errorSpecific':
@@ -1744,7 +1799,8 @@ class MyXBlock(XBlock):
         for node in resolution:
             currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node))
             if currentNode.fixedValue == 0:
-                currentNode.correctness = self.corretudeEstado(currentNode)
+                #currentNode.correctness = self.corretudeEstado(currentNode)
+                self.updateNodeCorrectness(currentNode, self.corretudeEstado(currentNode), None)
                 currentNode.dateAdded = datetime.now()
                 currentNode.save()
             nodeArray.append(currentNode.id)

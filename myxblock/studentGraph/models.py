@@ -36,6 +36,7 @@ class Node(models.Model):
 	customPos = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	equivalentTo = models.ForeignKey("Node", on_delete=models.CASCADE, default=None, blank=True, null=True)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -48,7 +49,6 @@ class Node(models.Model):
 	def normalizedTitle(self):
 	    return self.title.replace(" ", "").lower() #Não se esquecer dos acentos
 	
-
 class Edge(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	sourceNode = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='sourceNode')
