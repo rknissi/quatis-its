@@ -342,6 +342,80 @@ class MyXBlock(XBlock):
         return {}
 
     @XBlock.json_handler
+    def import_data(self,data,suffix=''):
+        problemData = ast.literal_eval(data.get('problemData'))
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        startNode = Node.objects.get(problem=loadedProblem, title="_start_")
+        endNode = Node.objects.get(problem=loadedProblem, title="_end_")
+
+        #return {"debug": problemData}
+
+        for node in problemData['nodes']:
+            nodeModel = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node["title"]))
+            if not nodeModel.exists():
+                n1 = Node(title=node["title"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
+                n1.save()
+            else:
+                n1 = nodeModel.first()
+
+            if "type" in node:
+                if node["type"] == "initial":
+                    e1 = Edge(sourceNode=startNode, destNode=n1, problem=loadedProblem, dateAdded=datetime.now())
+                    e1.save()
+                elif node["type"] == "final":
+                    e1 = Edge(sourceNode=n1, destNode=endNode, problem=loadedProblem, dateAdded=datetime.now())
+                    e1.save()
+
+            if "doubts" in node:
+                for doubt in node["doubts"]:
+                    d1 = Doubt(node=n1, type=0, text=doubt["text"], problem=loadedProblem, dateAdded=datetime.now())
+                    d1.save()
+
+                    if "answers" in doubt:
+                        for answer in doubt["answers"]:
+                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=answer["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                            a1.save()
+
+        for edge in problemData['edges']:
+            edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
+            if not edgeModel.exists():
+                fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["from"]))
+                toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["to"]))
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
+                e1.save()
+            else:
+                e1 = edgeModel.first()
+
+            if "hints" in edge:
+                for hint in edge["hints"]:
+                    h1 = Hint(edge=e1, text=hint["text"], priority=hint["priority"], usefulness=hint["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                    h1.save()
+
+            if "explanations" in edge:
+                for explanation in edge["explanations"]:
+                    ex1 = Explanation(edge=e1, text=explanation["text"], priority=explanation["priority"], usefulness=explanation["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                    ex1.save()
+
+            if "errorSpecificFeedbacks" in edge:
+                for errorSpecificFeedback in edge["errorSpecificFeedbacks"]:
+                    esf1 = ErrorSpecificFeedbacks(edge=e1, text=errorSpecificFeedback["text"], priority=errorSpecificFeedback["priority"], usefulness=errorSpecificFeedback["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                    esf1.save()
+
+            if "doubts" in edge:
+                for doubt in edge["doubts"]:
+                    d1 = Doubt(edge=e1, type=1, text=doubt["text"], problem=loadedProblem, dateAdded=datetime.now())
+                    d1.save()
+
+                    if "answers" in doubt:
+                        for answer in doubt["answers"]:
+                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=answer["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                            a1.save()
+
+
+        createGraphInitialPositions(self.problemId)
+        return {}
+
+    @XBlock.json_handler
     def get_doubts_and_answers_from_step(self,data,suffix=''):
         edgeDoubts = self.getDoubtsAndAnswersFromStep(data)
         return {"doubts": edgeDoubts}

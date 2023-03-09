@@ -1,6 +1,7 @@
 function MyXBlockEdit(runtime, element) {
 
   var submitDataUrl = runtime.handlerUrl(element, 'submit_data');
+  var importDataUrl = runtime.handlerUrl(element, 'import_data');
   var generateProblemId = runtime.handlerUrl(element, 'generate_problem_id');
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
   var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
@@ -399,6 +400,22 @@ function MyXBlockEdit(runtime, element) {
           alert("Dados iniciais gerados com sucesso! Recarregando a página...");
           window.location.reload(false);
         }
+      }   
+    });
+  });
+
+  $('#import_graph', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {
+      problemData: el.find('input[name=importProblemData]').val()
+    };
+
+    $.ajax({
+      type: "POST",
+      url: importDataUrl,
+      data: JSON.stringify(data),
+      success: function (data) {
+        window.alert("Dados importados com sucesso")
       }   
     });
   });
