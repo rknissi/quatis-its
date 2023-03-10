@@ -340,6 +340,9 @@ class MyXBlock(XBlock):
                     self.recalculateResolutionCorrectnessFromEdge(edgeModel)
 
         return {}
+    
+    def setDataOrUseDefault(self, data, key, defaultValue):
+        return data[key] if key in data else defaultValue
 
     @XBlock.json_handler
     def import_data(self,data,suffix=''):
@@ -348,21 +351,48 @@ class MyXBlock(XBlock):
         startNode = Node.objects.get(problem=loadedProblem, title="_start_")
         endNode = Node.objects.get(problem=loadedProblem, title="_end_")
 
+        self.problemTitle = self.setDataOrUseDefault(problemData, "problemTitle", self.problemTitle)
+        self.problemDescription = self.setDataOrUseDefault(problemData, "problemDescription", self.problemDescription)
+        loadedProblem.multipleChoiceProblem = self.setDataOrUseDefault(problemData, "multipleChoiceProblem", loadedProblem.multipleChoiceProblem)
+        self.problemDefaultHint = self.setDataOrUseDefault(problemData, "problemDefaultHint", self.problemDefaultHint)
+        self.problemInitialHint = self.setDataOrUseDefault(problemData, "problemInitialHint", self.problemInitialHint)
+        self.problemAnswer1 = self.setDataOrUseDefault(problemData, "problemAnswer1", self.problemAnswer1)
+        self.problemAnswer2 = self.setDataOrUseDefault(problemData, "problemAnswer2", self.problemAnswer2)
+        self.problemAnswer3 = self.setDataOrUseDefault(problemData, "problemAnswer3", self.problemAnswer3)
+        self.problemAnswer4 = self.setDataOrUseDefault(problemData, "problemAnswer4", self.problemAnswer4)
+        self.problemAnswer5 = self.setDataOrUseDefault(problemData, "problemAnswer5", self.problemAnswer5)
+        self.problemSubject = self.setDataOrUseDefault(problemData, "problemSubject", self.problemSubject)
+        self.problemTags = ast.literal_eval(self.setDataOrUseDefault(problemData, "problemTags", self.problemTags))
+
+
         #return {"debug": problemData}
 
         for node in problemData['nodes']:
             nodeModel = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node["title"]))
             if not nodeModel.exists():
-                n1 = Node(title=node["title"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
+                n1 = Node(title=node["title"], correctness=float(self.setDataOrUseDefault(node,"correctness", 0)), problem=loadedProblem, nodePositionX=self.setDataOrUseDefault(node, "x", -1), nodePositionY=self.setDataOrUseDefault(node, "y", -1), dateAdded=datetime.now(), fixedValue=self.setDataOrUseDefault(node, "fixedValue", 0))
                 n1.save()
             else:
                 n1 = nodeModel.first()
+                n1.correctness = float(self.setDataOrUseDefault(nodeModel, "correctness", n1.correctness))
+                n1.fixedValue = self.setDataOrUseDefault(nodeModel, "fixedValue", n1.fixedValue)
+                n1.visible = self.setDataOrUseDefault(nodeModel, "visible", n1.visible)
+                n1.nodePositionX = self.setDataOrUseDefault(nodeModel, "x", n1.nodePositionX)
+                n1.nodePositionY = self.setDataOrUseDefault(nodeModel, "y", n1.nodePositionY)
+                n1.dateModified = datetime.now()
+                n1.save()
 
             if "type" in node:
                 if node["type"] == "initial":
+                    possibleFinalEdge = Edge.objects.filter(sourceNode=n1, destNode=endNode, problem=loadedProblem)
+                    if possibleFinalEdge.exists():
+                        possibleFinalEdge.first().delete()
                     e1 = Edge(sourceNode=startNode, destNode=n1, problem=loadedProblem, dateAdded=datetime.now())
                     e1.save()
                 elif node["type"] == "final":
+                    possibleInitialEdge = Edge.objects.filter(sourceNode=startNode, destNode=n1, problem=loadedProblem)
+                    if possibleInitialEdge.exists():
+                        possibleInitialEdge.first().delete()
                     e1 = Edge(sourceNode=n1, destNode=endNode, problem=loadedProblem, dateAdded=datetime.now())
                     e1.save()
 
@@ -373,7 +403,7 @@ class MyXBlock(XBlock):
 
                     if "answers" in doubt:
                         for answer in doubt["answers"]:
-                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=answer["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=self.setDataOrUseDefault(answer, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                             a1.save()
 
         for edge in problemData['edges']:
@@ -381,24 +411,29 @@ class MyXBlock(XBlock):
             if not edgeModel.exists():
                 fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["from"]))
                 toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["to"]))
-                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(self.setDataOrUseDefault(edge, "correctness", 0)), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=self.setDataOrUseDefault(edge, "fixedValue", 0))
                 e1.save()
             else:
                 e1 = edgeModel.first()
+                e1.correctness = float(self.setDataOrUseDefault(edge, "correctness", e1.correctness))
+                e1.visible = self.setDataOrUseDefault(edge, "visible", e1.visible)
+                e1.dateModified = datetime.now()
+                e1.fixedValue = self.setDataOrUseDefault(edge, "fixedValue", e1.fixedValue)
+                e1.save()
 
             if "hints" in edge:
                 for hint in edge["hints"]:
-                    h1 = Hint(edge=e1, text=hint["text"], priority=hint["priority"], usefulness=hint["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                    h1 = Hint(edge=e1, text=hint["text"], priority=self.setDataOrUseDefault(hint, "priority", 0), usefulness=self.setDataOrUseDefault(hint, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                     h1.save()
 
             if "explanations" in edge:
                 for explanation in edge["explanations"]:
-                    ex1 = Explanation(edge=e1, text=explanation["text"], priority=explanation["priority"], usefulness=explanation["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                    ex1 = Explanation(edge=e1, text=explanation["text"], priority=self.setDataOrUseDefault(explanation, "priority", 0), usefulness=self.setDataOrUseDefault(explanation, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                     ex1.save()
 
             if "errorSpecificFeedbacks" in edge:
                 for errorSpecificFeedback in edge["errorSpecificFeedbacks"]:
-                    esf1 = ErrorSpecificFeedbacks(edge=e1, text=errorSpecificFeedback["text"], priority=errorSpecificFeedback["priority"], usefulness=errorSpecificFeedback["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                    esf1 = ErrorSpecificFeedbacks(edge=e1, text=errorSpecificFeedback["text"], priority=self.setDataOrUseDefault(errorSpecificFeedback, "priority", 0), usefulness=self.setDataOrUseDefault(errorSpecificFeedback, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                     esf1.save()
 
             if "doubts" in edge:
@@ -408,11 +443,15 @@ class MyXBlock(XBlock):
 
                     if "answers" in doubt:
                         for answer in doubt["answers"]:
-                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=answer["usefulness"], problem=loadedProblem, dateAdded=datetime.now())
+                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=self.setDataOrUseDefault(answer, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                             a1.save()
 
-
         createGraphInitialPositions(self.problemId)
+
+
+        loadedProblem.dateModified=datetime.now()
+        loadedProblem.save()
+
         return {}
 
     @XBlock.json_handler
