@@ -35,6 +35,7 @@ class Node(models.Model):
 	alreadyCalculatedPos = models.IntegerField(default=0)
 	customPos = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
+	linkedSolution = models.TextField(default=None, blank=True, null=True)
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 
 	class Meta:

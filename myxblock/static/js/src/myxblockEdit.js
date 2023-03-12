@@ -140,12 +140,13 @@ function MyXBlockEdit(runtime, element) {
     reApplyConfig();
   }
   
-  function changeNodeCorrectness(nodeName, value, fixedValue){
+  function changeNodeCorrectness(nodeName, value, fixedValue, linkedSolution){
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
           nodeData.correctness = value;
           nodeData.fixedValue = fixedValue;
+          nodeData.linkedSolution = linkedSolution;
 
           nodeData.fill = getNodeColor(value);
 
@@ -348,6 +349,7 @@ function MyXBlockEdit(runtime, element) {
     var id = el.find('input[id=editState]').val()
     var value = el.find('input[id=editStateValue]').val()
     var fixedValue = el.find('input[id=editStateFixedValue]').is(':checked')
+    var linkedSolution = el.find('input[id=editStateLinkedSolution]').val()
     if (fixedValue == true) {
       fixedValue = 1
     } else {
@@ -357,7 +359,7 @@ function MyXBlockEdit(runtime, element) {
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
 
-    changeNodeCorrectness(id, value, fixedValue)
+    changeNodeCorrectness(id, value, fixedValue, linkedSolution)
     if (dropDownValue === 'normalState') {
       changeNodeToNormal(id)
     } else if (dropDownValue === 'initialState') {
@@ -365,13 +367,6 @@ function MyXBlockEdit(runtime, element) {
     } else if (dropDownValue === 'finalState') {
       changeNodeToFinal(id);
     }
-  });
-
-  $('#changeStateCorrectness', element).click(function(eventObject) {
-    var el = $(element);
-    var id = el.find('input[id=editState]').val()
-    var value = el.find('input[id=editStateValue]').val()
-    changeNodeCorrectness(id, value)
   });
 
   $('#saveEdgeInfo', element).click(function(eventObject) {
@@ -416,6 +411,7 @@ function MyXBlockEdit(runtime, element) {
       data: JSON.stringify(data),
       success: function (data) {
         window.alert("Dados importados com sucesso")
+        window.location.reload(false);
       }   
     });
   });
@@ -571,6 +567,7 @@ function MyXBlockEdit(runtime, element) {
               if (data.nodes[i].id === tag.id) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                document.getElementById("editStateLinkedSolution").value = data.nodes[i].linkedSolution;
                 if (data.nodes[i].fixedValue == 1) {
                   document.getElementById("editStateFixedValue").checked = true;
                 } else {

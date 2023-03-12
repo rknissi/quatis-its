@@ -291,7 +291,7 @@ class MyXBlock(XBlock):
         for node in graphData['nodes']:
             nodeModel = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
             if not nodeModel.exists():
-                n1 = Node(title=node["id"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
+                n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
                 n1.save()
             else:
                 nodeModel = nodeModel.first()
@@ -300,6 +300,7 @@ class MyXBlock(XBlock):
                 nodeModel.visible = float(node["visible"])
                 nodeModel.nodePositionX = node["x"]
                 nodeModel.nodePositionY = node["y"]
+                nodeModel.linkedSolution = node["linkedSolution"]
                 nodeModel.dateModified = datetime.now()
                 nodeModel.save()
                 if node["modifiedCorrectness"] == 1:
@@ -370,7 +371,7 @@ class MyXBlock(XBlock):
         for node in problemData['nodes']:
             nodeModel = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node["title"]))
             if not nodeModel.exists():
-                n1 = Node(title=node["title"], correctness=float(self.setDataOrUseDefault(node,"correctness", 0)), problem=loadedProblem, nodePositionX=self.setDataOrUseDefault(node, "x", -1), nodePositionY=self.setDataOrUseDefault(node, "y", -1), dateAdded=datetime.now(), fixedValue=self.setDataOrUseDefault(node, "fixedValue", 0))
+                n1 = Node(title=node["title"], linkedSolution=self.setDataOrUseDefault(node, "linkedSolution", None), correctness=float(self.setDataOrUseDefault(node,"correctness", 0)), problem=loadedProblem, nodePositionX=self.setDataOrUseDefault(node, "x", -1), nodePositionY=self.setDataOrUseDefault(node, "y", -1), dateAdded=datetime.now(), fixedValue=self.setDataOrUseDefault(node, "fixedValue", 0))
                 n1.save()
             else:
                 n1 = nodeModel.first()
@@ -379,6 +380,7 @@ class MyXBlock(XBlock):
                 n1.visible = self.setDataOrUseDefault(nodeModel, "visible", n1.visible)
                 n1.nodePositionX = self.setDataOrUseDefault(nodeModel, "x", n1.nodePositionX)
                 n1.nodePositionY = self.setDataOrUseDefault(nodeModel, "y", n1.nodePositionY)
+                n1.linkedSolution = self.setDataOrUseDefault(nodeModel, "linkedSolution", n1.linkedSolution)
                 n1.dateModified = datetime.now()
                 n1.save()
 
@@ -814,7 +816,7 @@ class MyXBlock(XBlock):
     def createInitialNodeData(self, problemFK):
         n1 = Node(title="_start_", correctness=1, fixedValue=1, alreadyCalculatedPos = 1, problem=problemFK, dateAdded=datetime.now())
         n2 = Node(title="Option 1", correctness=1, fixedValue=1, problem=problemFK, dateAdded=datetime.now())
-        n3 = Node(title="Option 2", correctness=1, fixedValue=1, problem=problemFK, dateAdded=datetime.now())
+        n3 = Node(title="Option 2", correctness=1, fixedValue=1, problem=problemFK, dateAdded=datetime.now(), linkedSolution="Option 2")
         n4 = Node(title="_end_", correctness=1, fixedValue=1, alreadyCalculatedPos = 1, problem=problemFK, dateAdded=datetime.now())
 
         n1.save()
@@ -1414,7 +1416,8 @@ class MyXBlock(XBlock):
         if isStepsCorrect is None:
             isAnswerCorrect = None
         else:
-            isAnswerCorrect = isStepsCorrect and transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(answerArray[-1])
+            lastNode = Node.objects.get(problem = loadedProblem, title = transformToSimplerAnswer(answerArray[-1]))
+            isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNode.linkedSolution))
 
         generatedResolution = self.generateResolution(answerArray)
 
@@ -1469,11 +1472,20 @@ class MyXBlock(XBlock):
 
         self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
         if isAnswerCorrect == None:
-            message = "Sua resposta e resolução estão em análise"
+            if loadedProblem.multipleChoiceProblem == 0:
+                message = "Sua resolução está em análise"
+            else:
+                message = "Sua resposta e resolução estão em análise"
         elif isAnswerCorrect:
-            message = "Sua resposta e resolução estão ambas corretas! Parabéns"
+            if loadedProblem.multipleChoiceProblem == 0:
+                message = "Sua resolução está correta! Parabéns"
+            else:
+                message = "Sua resposta e resolução estão ambas corretas! Parabéns"
         elif not isAnswerCorrect:
-            message = "Sua resolução e/ou resposta final estão incorretos"
+            if loadedProblem.multipleChoiceProblem == 0:
+                message = "Sua resolução está incorreta"
+            else:
+                message = "Sua resolução e/ou resposta final estão incorretos"
 
         #return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "knowledgeComponent": KnowledgeComponentSteps}
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
