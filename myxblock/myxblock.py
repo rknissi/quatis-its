@@ -52,11 +52,6 @@ def amorzinhoMinimalFeedback(element):
 def amorzinhoKnowledgeComponent(element):
     return 1 - (abs(element.correctness))
 
-def amorzinhoHints(element):
-    quantity = Hint.objects.filter(problem = element.problem, edge = element).count()
-    correctness = element.correctness
-    return (1/(correctness * 10) * (1/(0.1 + quantity)))
-
 def amorzinhoExplanations(element):
     quantity = Explanation.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
@@ -1314,6 +1309,228 @@ class MyXBlock(XBlock):
                 return False
         return True
 
+    @XBlock.json_handler
+    def generate_report(self, data, suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        incorrectSortedNodes = Node.objects.filter(problem=loadedProblem, correctness__lte = incorrectState[1]).exclude(title = "_start_").exclude(title = "_end_").order_by("-usageCount")[:5]
+        incorrectSortedEdges = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0]).exclude(sourceNode__title = "_start_").exclude(destNode__title = "_end_").order_by("-usageCount")[:5]
+
+        correctSortedNodes = Node.objects.filter(problem=loadedProblem, correctness__gte = correctState[0]).exclude(title = "_start_").exclude(title = "_end_").order_by("-usageCount")[:5]
+        correctSortedEdges = Edge.objects.filter(problem=loadedProblem, correctness__gte = validStep[0]).exclude(sourceNode__title = "_start_").exclude(destNode__title = "_end_").order_by("-usageCount")[:5]
+
+        errorSpecificFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem).order_by("-usefulness", "priority")[:5]
+        hints = Hint.objects.filter(problem=loadedProblem).order_by("-usefulness", "priority")[:5]
+        explanations = Explanation.objects.filter(problem=loadedProblem).order_by("-usefulness", "priority")[:5]
+
+        doubts = Doubt.objects.filter(problem=loadedProblem).order_by("dateAdded")[:5]
+
+
+        incorrectSortedNodesJson = []
+        incorrectSortedEdgesJson = []
+
+        correctSortedNodesJson = []
+        correctSortedEdgesJson = []
+
+        errorSpecificFeedbacksJson = []
+        hintJsons = []
+        explanationsJson = []
+
+        doubtsJson = []
+
+
+        for node in incorrectSortedNodes:
+            incorrectSortedNodesJson.append({"title": node.title, "usageCount": node.usageCount})
+
+        for edge in incorrectSortedEdges:
+            incorrectSortedEdgesJson.append({"source": edge.sourceNode.title, "dest": edge.destNode.title, "usageCount": edge.usageCount})
+
+        for node in correctSortedNodes:
+            correctSortedNodesJson.append({"title": node.title, "usageCount": node.usageCount})
+
+        for edge in correctSortedEdges:
+            correctSortedEdgesJson.append({"source": edge.sourceNode.title, "dest": edge.destNode.title, "usageCount": edge.usageCount})
+
+        for errorSpecificFeedback in errorSpecificFeedbacks:
+            if errorSpecificFeedback.edge is not None:
+                errorSpecificFeedbacksJson.append({"source": errorSpecificFeedback.edge.sourceNode.title, "dest": errorSpecificFeedback.edge.destNode.title, "text": errorSpecificFeedback.text, "priority": errorSpecificFeedback.priority, "usefulness": errorSpecificFeedback.usefulness})
+            
+        for hint in hints:
+            if hint.edge is not None:
+                hintJsons.append({"source": hint.edge.sourceNode.title, "dest": hint.edge.destNode.title, "text": hint.text, "priority": hint.priority, "usefulness": hint.usefulness})
+
+        for explanation in explanations:
+            if explanation.edge is not None:
+                explanationsJson.append({"source": explanation.edge.sourceNode.title, "dest": explanation.edge.destNode.title, "text": explanation.text, "priority": explanation.priority, "usefulness": explanation.usefulness})
+
+        for doubt in doubts:
+            answersJson = []
+            if (doubt.type == 1 and doubt.edge is not None):
+                answers = Answer.objects.filter(problem=loadedProblem, doubt=doubt).order_by("-usefulness")[:5]
+                if answers.exists():
+                    for answer in answers:
+                        answersJson.append({"text": answer.text, "usefulness": answer.usefulness})
+                doubtsJson.append({"source": doubt.edge.sourceNode.title, "dest": doubt.edge.destNode.title, "text": doubt.text, "answers": answersJson})
+            elif (doubt.type == 0 and doubt.node is not None):
+                answers = Answer.objects.filter(problem=loadedProblem, doubt=doubt).order_by("-usefulness")[:5]
+                if answers.exists():
+                    for answer in answers:
+                        answersJson.append({"text": answer.text, "usefulness": answer.usefulness})
+                doubtsJson.append({"node": doubt.node.title, "text": doubt.text})
+
+
+        return {"incorrectNodes": incorrectSortedNodesJson, "incorrectEdges": incorrectSortedEdgesJson, "correctNodes": correctSortedNodesJson, "correctEdges": correctSortedEdgesJson, "errorSpecificFeedbacks": errorSpecificFeedbacksJson, "hints": hintJsons, "explanations": explanationsJson, "doubts": doubtsJson}
+
+
+    @XBlock.json_handler
+    def export_data(self, data, suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        startNode = Node.objects.get(problem=loadedProblem, title="_start_")
+        endNode = Node.objects.get(problem=loadedProblem, title="_end_")
+
+        allNodes = Node.objects.filter(problem=loadedProblem).exclude(title = "_start_").exclude(title = "_end_")
+        allEdges = Edge.objects.filter(problem=loadedProblem).exclude(sourceNode__title = "_start_").exclude(destNode__title = "_end_")
+
+        returnjson = {}
+        allNodesJson = []
+        allEdgesJson = []
+
+        returnjson["problemTitle"] = self.problemTitle
+        returnjson["problemDescription"] = self.problemDescription
+        returnjson["multipleChoiceProblem"] = loadedProblem.multipleChoiceProblem
+        returnjson["problemDefaultHint"] = self.problemDefaultHint
+        returnjson["problemInitialHint"] = self.problemInitialHint
+        returnjson["problemAnswer1"] = self.problemAnswer1
+        returnjson["problemAnswer2"] = self.problemAnswer2
+        returnjson["problemAnswer3"] = self.problemAnswer3
+        returnjson["problemAnswer4"] = self.problemAnswer4
+        returnjson["problemAnswer5"] = self.problemAnswer5
+        returnjson["problemSubject"] = self.problemSubject
+        returnjson["problemTags"] = str(self.problemTags)
+
+        for node in allNodes:
+            nodeJson = {}
+            nodeDoubtJson = []
+
+            possibleInitial = Edge.objects.filter(problem=loadedProblem, sourceNode = startNode, destNode = node)
+            possibleEnd = Edge.objects.filter(problem=loadedProblem, sourceNode = node, destNode = endNode)
+            
+            nodeJson["title"] = node.title
+            nodeJson["correctness"] = node.correctness
+            nodeJson["fixedValue"] = node.fixedValue
+
+            if possibleInitial.exists():
+                nodeJson["type"] = "initial"
+            elif possibleEnd.exists():
+                nodeJson["type"] = "final"
+            else:
+                nodeJson["type"] = "normal"
+
+            if node.linkedSolution is not None:
+                nodeJson["linkedSolution"] = node.linkedSolution
+
+            nodeDoubts = Doubt.objects.filter(problem=loadedProblem, node = node)
+            if nodeDoubts.exists():
+                for nodeDoubt in nodeDoubts:
+                    doubtJson = {}
+                    answersJson = []
+
+                    doubtJson["text"] = nodeDoubt.text
+                    nodeDoubtAnswers = Answer.objects.filter(problem=loadedProblem, doubt = nodeDoubt)
+                    if nodeDoubtAnswers.exists():
+                        for nodeDoubtAnswer in nodeDoubtAnswers:
+                            answerJsonInner = {}
+                            answerJsonInner["text"] = nodeDoubtAnswer.text
+                            answerJsonInner["usefulness"] = nodeDoubtAnswer.usefulness
+                            answersJson.append(answerJsonInner)
+                    
+                    if answersJson:
+                        doubtJson["answers"] = answersJson
+
+                    nodeDoubtJson.append(doubtJson)
+                    
+            if nodeDoubtJson:
+                nodeJson["doubts"] = nodeDoubtJson
+            
+            allNodesJson.append(nodeJson)
+
+        returnjson["nodes"] = allNodesJson
+        
+        for edge in allEdges:
+            edgeJson = {}
+            edgeHintJson = []
+            edgeExplanationJson = []
+            edgeDoubtJson = []
+            edgeErrorSpecificFeedbackJson = []
+
+            edgeJson["from"] = edge.sourceNode.title
+            edgeJson["to"] = edge.destNode.title
+            edgeJson["correctness"] = edge.correctness
+            edgeJson["fixedValue"] = edge.fixedValue
+
+            edgeHints = Hint.objects.filter(problem=loadedProblem, edge = edge)
+            if edgeHints.exists():
+                for edgeHint in edgeHints:
+                    hintJson = {}
+                    hintJson["text"] = edgeHint.text
+                    hintJson["priority"] = edgeHint.priority
+                    hintJson["usefulness"] = edgeHint.usefulness
+                    edgeHintJson.append(hintJson)
+            if edgeHintJson:
+                edgeJson["hints"] = edgeHintJson
+
+
+            edgeExplanations = Explanation.objects.filter(problem=loadedProblem, edge = edge)
+            if edgeExplanations.exists():
+                for edgeExplanation in edgeExplanations:
+                    explanationJson = {}
+                    explanationJson["text"] = edgeExplanation.text
+                    explanationJson["priority"] = edgeExplanation.priority
+                    explanationJson["usefulness"] = edgeExplanation.usefulness
+                    edgeExplanationJson.append(explanationJson)
+            if edgeExplanationJson:
+                edgeJson["explanations"] = edgeExplanationJson
+
+            edgeErrorSpecifiFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge = edge)
+            if edgeErrorSpecifiFeedbacks.exists():
+                for edgeErrorSpecifiFeedback in edgeErrorSpecifiFeedbacks:
+                    errorSpecificFeedbackJson = {}
+                    errorSpecificFeedbackJson["text"] = edgeErrorSpecifiFeedback.text
+                    errorSpecificFeedbackJson["priority"] = edgeErrorSpecifiFeedback.priority
+                    errorSpecificFeedbackJson["usefulness"] = edgeErrorSpecifiFeedback.usefulness
+                    edgeErrorSpecificFeedbackJson.append(errorSpecificFeedbackJson)
+            if edgeErrorSpecificFeedbackJson:
+                edgeJson["errorSpecificFeedbacks"] = edgeErrorSpecificFeedbackJson
+
+            edgeDoubts = Doubt.objects.filter(problem=loadedProblem, edge = edge)
+            if edgeDoubts.exists():
+                for edgeDoubt in edgeDoubts:
+                    doubtJson = {}
+                    answersJson = []
+
+                    doubtJson["text"] = edgeDoubt.text
+                    edgeDoubtAnswers = Answer.objects.filter(problem=loadedProblem, doubt = edgeDoubt)
+                    if edgeDoubtAnswers.exists():
+                        for edgeDoubtAnswer in edgeDoubtAnswers:
+                            answerJson = {}
+                            answerJson["text"] = edgeDoubtAnswer.text
+                            answerJson["usefulness"] = edgeDoubtAnswer.usefulness
+                            answersJson.append(answerJson)
+                    
+                    if answerJson:
+                        doubtJson["answers"] = answersJson
+
+                    edgeDoubtJson.append(doubtJson)
+                    
+            if edgeDoubtJson:
+                edgeJson["doubts"] = edgeDoubtJson
+            
+            allEdgesJson.append(edgeJson)
+
+
+        returnjson["edges"] = allEdgesJson
+
+        return returnjson
+
     #Envia a resposta final
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
@@ -1362,15 +1579,23 @@ class MyXBlock(XBlock):
 
             if lastNode.exists() and not currentNode.exists():
                 n2 = Node(title=step, problem=loadedProblem, dateAdded=datetime.now())
-                n2.save()
             else:
                 n2 = currentNode.first()
+            
+            n2.usageCount+= 1
+            n2.save()
 
             
             currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
             if not currentEdge.exists():
                 e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
+                e1.usageCount += 1
                 e1.save()
+            else:
+                e1 = currentEdge.first()
+                e1.usageCount += 1
+                e1.save()
+
 
 
             self.studentResolutionsSteps.append(str((lastElement, step)))
@@ -1416,8 +1641,8 @@ class MyXBlock(XBlock):
         if isStepsCorrect is None:
             isAnswerCorrect = None
         else:
-            lastNode = Node.objects.get(problem = loadedProblem, title = transformToSimplerAnswer(answerArray[-1]))
-            isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNode.linkedSolution))
+            lastNodes = Node.objects.get(problem = loadedProblem, title = transformToSimplerAnswer(answerArray[-1]))
+            isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNodes.linkedSolution))
 
         generatedResolution = self.generateResolution(answerArray)
 
@@ -1487,7 +1712,6 @@ class MyXBlock(XBlock):
             else:
                 message = "Sua resolução e/ou resposta final estão incorretos"
 
-        #return {"message": "Resposta enviada com sucesso!", "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "knowledgeComponent": KnowledgeComponentSteps}
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):

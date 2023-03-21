@@ -2,6 +2,8 @@ function MyXBlockEdit(runtime, element) {
 
   var submitDataUrl = runtime.handlerUrl(element, 'submit_data');
   var importDataUrl = runtime.handlerUrl(element, 'import_data');
+  var exportDataUrl = runtime.handlerUrl(element, 'export_data');
+  var generateReportUrl = runtime.handlerUrl(element, 'generate_report');
   var generateProblemId = runtime.handlerUrl(element, 'generate_problem_id');
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
   var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
@@ -413,6 +415,29 @@ function MyXBlockEdit(runtime, element) {
         window.alert("Dados importados com sucesso")
         window.location.reload(false);
       }   
+    });
+  });
+
+  $('#generate_report', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {
+    };
+
+    $.ajax({
+      type: "POST",
+      url: generateReportUrl,
+      data: JSON.stringify(data)
+    });
+  });
+
+  $('#export_graph', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {};
+
+    $.ajax({
+      type: "POST",
+      url: exportDataUrl,
+      data: JSON.stringify(data)
     });
   });
 
