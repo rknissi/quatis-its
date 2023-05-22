@@ -33,8 +33,10 @@ class Node(models.Model):
 	fixedValue = models.IntegerField(default=0)
 	visible = models.IntegerField(default=1)
 	alreadyCalculatedPos = models.IntegerField(default=0)
+	usageCount = models.IntegerField(default=0)
 	customPos = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
+	linkedSolution = models.TextField(default=None, blank=True, null=True)
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 
 	class Meta:
@@ -56,6 +58,7 @@ class Edge(models.Model):
 	correctness = models.FloatField(default=0)
 	visible = models.IntegerField(default=1)
 	fixedValue = models.IntegerField(default=0)
+	usageCount = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 

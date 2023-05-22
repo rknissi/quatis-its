@@ -1,6 +1,9 @@
 function MyXBlockEdit(runtime, element) {
 
   var submitDataUrl = runtime.handlerUrl(element, 'submit_data');
+  var importDataUrl = runtime.handlerUrl(element, 'import_data');
+  var exportDataUrl = runtime.handlerUrl(element, 'export_data');
+  var generateReportUrl = runtime.handlerUrl(element, 'generate_report');
   var generateProblemId = runtime.handlerUrl(element, 'generate_problem_id');
   var getGraphurl = runtime.handlerUrl(element, 'generate_graph');
   var submitGraphDataUrl = runtime.handlerUrl(element, 'submit_graph_data');
@@ -139,12 +142,13 @@ function MyXBlockEdit(runtime, element) {
     reApplyConfig();
   }
   
-  function changeNodeCorrectness(nodeName, value, fixedValue){
+  function changeNodeCorrectness(nodeName, value, fixedValue, linkedSolution){
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
           nodeData.correctness = value;
           nodeData.fixedValue = fixedValue;
+          nodeData.linkedSolution = linkedSolution;
 
           nodeData.fill = getNodeColor(value);
 
@@ -254,19 +258,39 @@ function MyXBlockEdit(runtime, element) {
       fixedValueCheckbox = 0
     }
 
-    var data = {
-      from: el.find('input[id=sourceState]').val(),
-      to: el.find('input[id=destState]').val(),
-      normal: {stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val())},
-      hovered: {stroke: {thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val())}},
-      selected: {stroke: {color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' }},
-      correctness: el.find('input[id=stepCorrectness]').val(),
-      fixedValue: fixedValueCheckbox,
-      visible: 1,
-      modifiedCorrectness: 0
-    };
-    addEdge(data);
-    reApplyConfig();
+    var sourceStateExists = false
+    var destStateExists = false
+
+    var sourceState = el.find('input[id=sourceState]').val()
+    var destState = el.find('input[id=destState]').val()
+
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (sourceState === data.nodes[i].id) {
+        sourceStateExists = true
+      }
+      else if (destState === data.nodes[i].id) {
+        destStateExists = true
+      }
+    }
+
+    if (sourceStateExists && destStateExists) {
+      var data = {
+        from: sourceState,
+        to: destState,
+        normal: { stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()) },
+        hovered: { stroke: { thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()) } },
+        selected: { stroke: { color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' } },
+        correctness: el.find('input[id=stepCorrectness]').val(),
+        fixedValue: fixedValueCheckbox,
+        visible: 1,
+        modifiedCorrectness: 0
+      };
+      addEdge(data);
+      reApplyConfig();
+    } else {
+      window.alert("Um dos estados do passo não existe. Crie o estado antes de criar o passo")
+    }
+
   });
 
 
@@ -277,6 +301,14 @@ function MyXBlockEdit(runtime, element) {
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
     var strokeType;
     var shapeType;
+
+    var stateName = el.find('input[id=stateName]').val().toLowerCase().replaceAll(' ', '')
+
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (stateName === data.nodes[i].id) {
+        window.alert("Você já dicionou um estado com o mesmo nome")
+      }
+    }
 
     if (dropDownValue === 'initialState') {
         strokeType = initialNodeStroke;
@@ -297,11 +329,12 @@ function MyXBlockEdit(runtime, element) {
 
     if (dropDownValue === 'normalState') {
       data = {
-        id: el.find('input[id=stateName]').val(),
+        id: stateName,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
         fixedValue: fixedValueCheckbox,
+        linkedSolution: null,
         visible: 1,
         x: 0,
         y: 0,
@@ -310,11 +343,12 @@ function MyXBlockEdit(runtime, element) {
       };
     } else {
       data = {
-        id: el.find('input[id=stateName]').val(),
+        id: stateName,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
         fixedValue: fixedValueCheckbox,
+        linkedSolution: null,
         visible: 1,
         stroke: strokeType,
         shape: shapeType,
@@ -347,6 +381,7 @@ function MyXBlockEdit(runtime, element) {
     var id = el.find('input[id=editState]').val()
     var value = el.find('input[id=editStateValue]').val()
     var fixedValue = el.find('input[id=editStateFixedValue]').is(':checked')
+    var linkedSolution = el.find('input[id=editStateLinkedSolution]').val()
     if (fixedValue == true) {
       fixedValue = 1
     } else {
@@ -356,7 +391,7 @@ function MyXBlockEdit(runtime, element) {
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
 
-    changeNodeCorrectness(id, value, fixedValue)
+    changeNodeCorrectness(id, value, fixedValue, linkedSolution)
     if (dropDownValue === 'normalState') {
       changeNodeToNormal(id)
     } else if (dropDownValue === 'initialState') {
@@ -364,13 +399,6 @@ function MyXBlockEdit(runtime, element) {
     } else if (dropDownValue === 'finalState') {
       changeNodeToFinal(id);
     }
-  });
-
-  $('#changeStateCorrectness', element).click(function(eventObject) {
-    var el = $(element);
-    var id = el.find('input[id=editState]').val()
-    var value = el.find('input[id=editStateValue]').val()
-    changeNodeCorrectness(id, value)
   });
 
   $('#saveEdgeInfo', element).click(function(eventObject) {
@@ -400,6 +428,46 @@ function MyXBlockEdit(runtime, element) {
           window.location.reload(false);
         }
       }   
+    });
+  });
+
+  $('#import_graph', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {
+      problemData: el.find('input[name=importProblemData]').val()
+    };
+
+    $.ajax({
+      type: "POST",
+      url: importDataUrl,
+      data: JSON.stringify(data),
+      success: function (data) {
+        window.alert("Dados importados com sucesso")
+        window.location.reload(false);
+      }   
+    });
+  });
+
+  $('#generate_report', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {
+    };
+
+    $.ajax({
+      type: "POST",
+      url: generateReportUrl,
+      data: JSON.stringify(data)
+    });
+  });
+
+  $('#export_graph', element).click(function(eventObject) {
+    var el = $(element);
+    var data = {};
+
+    $.ajax({
+      type: "POST",
+      url: exportDataUrl,
+      data: JSON.stringify(data)
     });
   });
 
@@ -554,6 +622,7 @@ function MyXBlockEdit(runtime, element) {
               if (data.nodes[i].id === tag.id) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                document.getElementById("editStateLinkedSolution").value = data.nodes[i].linkedSolution;
                 if (data.nodes[i].fixedValue == 1) {
                   document.getElementById("editStateFixedValue").checked = true;
                 } else {

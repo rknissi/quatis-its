@@ -112,6 +112,21 @@
       <span class="tip setting-help">Os textos dos tags da pergunta, como Problema ou Algebra </span>
     </li>
 
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="importProblemData">Importar grafo por um JSON</label>
+        <input class="input setting-input" name="importProblemData" id="importProblemData" type="text" />
+      </div>
+      <span class="tip setting-help">Caso deseja importar um problema em formato JSON</span>
+      <p></p>
+      <button type="button" id='import_graph'>Importar</button> 
+    </li>
+    <p></p>
+    <button type="button" id='generate_report'>Gerar relatório</button>
+    <p></p>
+    <button type="button" id='export_graph'>Exportar grafo</button>
+    <p></p>
+
   <div>
     <li class="action-item">
       <button type="button" id='createGraph'>Gerar grafo de conhecimento</button> 
@@ -142,6 +157,9 @@
         <p></p>
         <label class="label setting-label" for="editStateFixedValue">Corretude Fixa</label>
         <input class="checkboxSize" name="editStateFixedValue" id="editStateFixedValue" type="checkbox" />
+        <p></p>
+        <label class="label setting-label" for="editStateLinkedSolution">Ligado a resposta final</label>
+        <input class="input increaseInputSpace" name="editStateLinkedSolution" id="editStateLinkedSolution" type="text" />
         <p></p>
 
         <button type="button" id='saveStateinfo'>Atualizar estado</button> 
@@ -229,10 +247,10 @@
         <label class="label setting-label" for="editStepDest">Estado final</label>
         <input class="input readOnly increaseInputSpace" name="editStepDest" disabled=true id="editStepDest"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editStepValue">Corretude</label>
+        <label class="label setting-label" for="editStepValue">Validade</label>
         <input class="input increaseInputSpace" name="editStepValue" id="editStepValue"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editStepFixedValue">Corretude fixa</label>
+        <label class="label setting-label" for="editStepFixedValue">Validade fixa</label>
         <input class="checkboxSize" name="editStepFixedValue" id="editStepFixedValue"  type="checkbox" />
         <p></p>
         <button type="button" id='saveEdgeInfo'>Atualizar passo</button> 
@@ -306,11 +324,11 @@
         <label class="label setting-label" for="destState">Estado destino  </label>
         <input class="input increaseInputSpace" name="destState" id="destState"  type="text" />
         <p></p>
-        <label class="label setting-label" for="stepCorrectness">Corretude  </label>
+        <label class="label setting-label" for="stepCorrectness">Validade  </label>
         <input class="input increaseInputSpace" name="stepCorrectness" id="stepCorrectness"  type="text" />
         <p></p>
         <p></p>
-        <label class="label setting-label" for="stepFixedValue">Corretude fixa</label>
+        <label class="label setting-label" for="stepFixedValue">Validade fixa</label>
         <input class="checkboxSize" name="stepFixedValue" id="stepFixedValue"  type="checkbox" />
         <p></p>
         <button type="button" id='createStep'>Criar passo</button> 
