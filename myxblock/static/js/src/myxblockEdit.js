@@ -258,19 +258,39 @@ function MyXBlockEdit(runtime, element) {
       fixedValueCheckbox = 0
     }
 
-    var data = {
-      from: el.find('input[id=sourceState]').val(),
-      to: el.find('input[id=destState]').val(),
-      normal: {stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val())},
-      hovered: {stroke: {thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val())}},
-      selected: {stroke: {color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' }},
-      correctness: el.find('input[id=stepCorrectness]').val(),
-      fixedValue: fixedValueCheckbox,
-      visible: 1,
-      modifiedCorrectness: 0
-    };
-    addEdge(data);
-    reApplyConfig();
+    var sourceStateExists = false
+    var destStateExists = false
+
+    var sourceState = el.find('input[id=sourceState]').val()
+    var destState = el.find('input[id=destState]').val()
+
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (sourceState === data.nodes[i].id) {
+        sourceStateExists = true
+      }
+      else if (destState === data.nodes[i].id) {
+        destStateExists = true
+      }
+    }
+
+    if (sourceStateExists && destStateExists) {
+      var data = {
+        from: sourceState,
+        to: destState,
+        normal: { stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()) },
+        hovered: { stroke: { thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()) } },
+        selected: { stroke: { color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' } },
+        correctness: el.find('input[id=stepCorrectness]').val(),
+        fixedValue: fixedValueCheckbox,
+        visible: 1,
+        modifiedCorrectness: 0
+      };
+      addEdge(data);
+      reApplyConfig();
+    } else {
+      window.alert("Um dos estados do passo não existe. Crie o estado antes de criar o passo")
+    }
+
   });
 
 
@@ -281,6 +301,14 @@ function MyXBlockEdit(runtime, element) {
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
     var strokeType;
     var shapeType;
+
+    var stateName = el.find('input[id=stateName]').val().toLowerCase().replaceAll(' ', '')
+
+    for (i = 0; i < data.nodes.length; ++i) {
+      if (stateName === data.nodes[i].id) {
+        window.alert("Você já dicionou um estado com o mesmo nome")
+      }
+    }
 
     if (dropDownValue === 'initialState') {
         strokeType = initialNodeStroke;
@@ -301,7 +329,7 @@ function MyXBlockEdit(runtime, element) {
 
     if (dropDownValue === 'normalState') {
       data = {
-        id: el.find('input[id=stateName]').val(),
+        id: stateName,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
@@ -315,7 +343,7 @@ function MyXBlockEdit(runtime, element) {
       };
     } else {
       data = {
-        id: el.find('input[id=stateName]').val(),
+        id: stateName,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),

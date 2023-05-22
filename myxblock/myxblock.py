@@ -1717,7 +1717,7 @@ class MyXBlock(XBlock):
             if loadedProblem.multipleChoiceProblem == 0:
                 message = "Sua resolução está incorreta"
             else:
-                message = "Sua resolução e/ou resposta final estão incorretos"
+                message = "Sua resolução e/ou resposta final estão incorretas"
 
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
 
@@ -1737,13 +1737,13 @@ class MyXBlock(XBlock):
                 nextStateName = "_end_"
 
             if previousStateName != "_start_":
-                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title=transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
+                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title=transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)
                 for step in inforSteps1:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
                     #if step.destNode.title not in transformedResolution and step.destNode not in askInfoSteps:
                     #    askInfoSteps.append(step.destNode)
-                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
+                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)
                 for step in inforSteps2:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1760,7 +1760,7 @@ class MyXBlock(XBlock):
                 inforSteps3 = Resolution.objects.filter(problem=loadedProblem, nodeIdList__startswith=commonIdsStr).exclude(nodeIdList__startswith = differentIdsStr)
                 for resolution in inforSteps3:
                     nodeIdlistLiteral = ast.literal_eval(resolution.nodeIdList)
-                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index], destNode__id = nodeIdlistLiteral[index + 1]).exclude(fixedValue = 1)
+                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index], destNode__id = nodeIdlistLiteral[index + 1]).exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)
                     if possibleEdge not in askInfoSteps:
                         askInfoSteps.append(possibleEdge)
                         askInfoSteps.append(possibleEdge.sourceNode)
@@ -1772,13 +1772,13 @@ class MyXBlock(XBlock):
                 #        askInfoSteps.append(step)
             
             if nextStateName != "_end_":
-                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
+                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)
                 for step in inforSteps4:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
                     #if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
                     #    askInfoSteps.append(step.sourceNode)
-                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1)
+                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)
                 for step in inforSteps5:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -1795,7 +1795,7 @@ class MyXBlock(XBlock):
                 inforSteps6 = Resolution.objects.filter(problem=loadedProblem, nodeIdList__startswith=commonIdsStr).exclude(nodeIdList__startswith = differentIdsStr)
                 for resolution in inforSteps6:
                     nodeIdlistLiteral = ast.literal_eval(resolution.nodeIdList)
-                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index + 1], destNode__id = nodeIdlistLiteral[index + 2]).exclude(fixedValue = 1)
+                    possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index + 1], destNode__id = nodeIdlistLiteral[index + 2]).exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)
                     if possibleEdge not in askInfoSteps:
                         askInfoSteps.append(possibleEdge)
                         askInfoSteps.append(possibleEdge.destNode)
