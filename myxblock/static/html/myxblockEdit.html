@@ -8,6 +8,16 @@
 <link href="https://cdn.anychart.com/releases/v8/css/anychart-ui.min.css" type="text/css" rel="stylesheet">
 <link href="https://cdn.anychart.com/releases/v8/fonts/css/anychart-font.min.css" type="text/css" rel="stylesheet">
 
+<!--
+<script type="text/javascript" src="/static/js/anychart-base.min.js"></script>
+<script src="../../../anychart-installation-package-8.11.0/js/anychart-core.min.js"></script>
+<script src="../../../anychart-installation-package-8.11.0/js/anychart-bundle.min.js"></script>
+<script src="../../../anychart-installation-package-8.11.0/js/anychart-graph.min.js"></script>
+<script src="../../../anychart-installation-package-8.11.0/js/anychart-data-adapter.min.js"></script>
+<script src="../../../anychart-installation-package-8.11.0/js/anychart-ui.min.js"></script>
+<script src="../../../anychart-installation-package-8.11.0/js/anychart-exports.min.js"></script>
+<link href="../../../anychart-installation-package-8.11.0/js/anychart-ui.min.css" type="text/css" rel="stylesheet">
+-->
 
 <script type="module" src="/static/js/src/myxblock.js"></script>
 
@@ -114,6 +124,30 @@
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="callOpenAiExplanation">Utilizar IA para criar uma explicação  </label>
+        <input class="input setting-input" name="callOpenAiExplanation" id="callOpenAiExplanation" value="{callOpenAiExplanation}" type="text" />
+      </div>
+      <span class="tip setting-help">Se terá a funcionalidade de explicação por IA </span>
+    </li>
+
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="questionToAsk">Se sim, qual será a pergunta feita para a IA?  </label>
+        <input class="input setting-input" name="questionToAsk" id="questionToAsk" value="{questionToAsk}" type="text" />
+      </div>
+      <span class="tip setting-help">Qual a pergunta que será dada a IA </span>
+    </li>
+
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
+        <label class="label setting-label" for="openApiToken">Token da OpenApi  </label>
+        <input class="input setting-input" name="openApiToken" id="openApiToken" value="{openApiToken}" type="text" />
+      </div>
+      <span class="tip setting-help">Indicar qual o token utilizado </span>
+    </li>
+
+    <li class="field comp-setting-entry is-set">
+      <div class="wrapper-comp-setting">
         <label class="label setting-label" for="importProblemData">Importar grafo por um JSON</label>
         <input class="input setting-input" name="importProblemData" id="importProblemData" type="text" />
       </div>
@@ -161,13 +195,6 @@
         <label class="label setting-label" for="editStateLinkedSolution">Ligado a resposta final</label>
         <input class="input increaseInputSpace" name="editStateLinkedSolution" id="editStateLinkedSolution" type="text" />
         <p></p>
-
-        <button type="button" id='saveStateinfo'>Atualizar estado</button> 
-        <button type="button" id='removeState'>Remover estado</button> 
-        <p></p>
-      </div>
-        <p></p>
-      <div class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="stateType">Tipo  </label>
         <select class="increaseInputSpace" name="changeStateType" id="changeStateType">
           <option selected="selected" value="normalState">Normal</option>
@@ -175,6 +202,13 @@
           <option value="finalState">Final</option>
         </select>
         <p></p>
+
+        <button type="button" id='saveStateinfo'>Atualizar estado</button> 
+        <button type="button" id='removeState'>Remover estado</button> 
+        <p></p>
+      </div>
+        <p></p>
+      <div class="wrapper-comp-setting extraSpace">
 
         <label class="label setting-label" for="">Dúvidas</label>
         <select class="increaseInputSpace" name="stateDoubts" id="stateDoubts">
@@ -215,6 +249,7 @@
         <p></p>
         <button type="button" id='saveDoubtAnswer'>Salvar resposta</button> 
         <button type="button" id='removeDoubtAnswer'>Remover resposta</button> 
+        <button type="button" id='generateDoubtAnswer'>Gerar resposta</button> 
         <p></p>
       </div>
     </div>
@@ -235,6 +270,7 @@
         <p></p>
         <button type="button" id='saveFeedback'>Salvar dado</button> 
         <button type="button" id='removeFeedback'>Remover dado</button> 
+        <button type="button" id='generateFeedback'>Gerar dado</button> 
       </div>
     </div>
 

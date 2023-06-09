@@ -16,10 +16,12 @@ function MyXBlock(runtime, element, data) {
     var send_feedback = runtime.handlerUrl(element, 'send_feedback');
     var recommend_feedback = runtime.handlerUrl(element, 'recommend_feedback');
     var get_hint_for_last_step = runtime.handlerUrl(element, 'get_hint_for_last_step');
+    var return_full_explanation = runtime.handlerUrl(element, 'return_full_explanation');
     var getInitialData = runtime.handlerUrl(element, 'initial_data');
     var getDoubtsAndAnswerFromStep = runtime.handlerUrl(element, 'get_doubts_and_answers_from_step');
     var getDoubtsAndAnswerFromState = runtime.handlerUrl(element, 'get_doubts_and_answers_from_state');
     var submitDoubtAnswerInfo = runtime.handlerUrl(element, 'submit_doubt_answer_info');
+    var checkIfUseAiExplanation = runtime.handlerUrl(element, 'check_if_use_ai_explanation');
 
     var yesAnswer = ["sim", "s", "yes", "y", "si", "ye"];
     var noAnswer = ["não", "n", "no", "nao"];
@@ -32,18 +34,26 @@ function MyXBlock(runtime, element, data) {
     var noneAnswerColor = "none"
     var doubtAnswerColor = "yellow"
 
+    function disableButton(buttonElement) {
+        document.getElementById(buttonElement).disabled = true;
+    }
+
+    function enableButton(buttonElement) {
+        document.getElementById(buttonElement).disabled = false;
+    }
+
 
     function checkIfUserInputIsValid(input) {
-        if (yesAnswer.includes(input) || noAnswer.includes(input)) {
+        if (yesAnswer.includes(input.toLowerCase()) || noAnswer.includes(input.toLowerCase())) {
             return true
         } 
         return false
     }
 
     function getUserAnswer(input) {
-        if (yesAnswer.includes(input) ) {
+        if (yesAnswer.includes(input.toLowerCase()) ) {
             return yesUniversalAnswer
-        } else if (noAnswer.includes(input)) {
+        } else if (noAnswer.includes(input.toLowerCase())) {
             return noUniversalAnswer
         }
         return null
@@ -118,14 +128,42 @@ function MyXBlock(runtime, element, data) {
         alert(message)
     }
 
-    function showHint(value) {
+    function showFullExplanation(value) {
+        enableButton("explanationButton")
+        //document.getElementById('hint').innerHTML = value.explanation;
+
         var askQuestionButton = document.getElementById("askQuestion");
         var hintButton = document.getElementById("hintButton");
+        var explanationButton = document.getElementById("explanationButton");
+
+        askQuestionButton.style.display = 'none';
+        hintButton.style.display = 'block';
+        explanationButton.style.display = 'none';
+
+        hints.push(value.explanation);
+        hintsIds.push(0);
+        hintsTypes.push("explanation");
+        hintsSentFeedback.push(false);
+        actualHint = hints.length - 1;
+        document.getElementById('hint').innerHTML = hints[actualHint];
+
+        document.getElementById("hintThumbsDown").disabled = true;
+        document.getElementById("hintThumbsUp").disabled = true;
+    }
+
+    function showHint(value) {
+        enableButton("hintButton")
+        var askQuestionButton = document.getElementById("askQuestion");
+        var hintButton = document.getElementById("hintButton");
+        var explanationButton = document.getElementById("explanationButton");
+
         if (value.lastHint == true) {
             askQuestionButton.style.display = 'block';
             hintButton.style.display = 'none';
+            explanationButton.style.display = 'none';
         } else {
             askQuestionButton.style.display = 'none';
+            explanationButton.style.display = 'none';
             hintButton.style.display = 'block';
         }
          
@@ -215,6 +253,7 @@ function MyXBlock(runtime, element, data) {
     }
 
     function showResults(value) {
+        enableButton("answerButton")
         if(value.error) {
             alert(value.error);
             return;
@@ -224,6 +263,7 @@ function MyXBlock(runtime, element, data) {
         $("#prevHint").css("background","grey");
         $("#nextHint").css("background","grey");
         $("#askQuestion").css("background","grey");
+        $("#explanationButton").css("background","grey");
         $("#addLine").css("background","grey");
         $("#removeLine").css("background","grey");
         $("#hintThumbsDown").css("background","grey");
@@ -234,6 +274,7 @@ function MyXBlock(runtime, element, data) {
         document.getElementById("nextHint").disabled = true;
         document.getElementById("prevHint").disabled = true;
         document.getElementById("askQuestion").disabled = true;
+        document.getElementById("explanationButton").disabled = true;
         document.getElementById("addLine").disabled = true;
         document.getElementById("removeLine").disabled = true;
         document.getElementById("hintThumbsDown").disabled = true;
@@ -294,21 +335,22 @@ function MyXBlock(runtime, element, data) {
             }
         }
 
-        if (value.knowledgeComponent.length > 0) {
-            for(var i = 0; i < value.knowledgeComponent.length; i++){
-                var feedback = prompt("Para o seguinte passo, qual elemento básico você considera necessário para resolvê-lo?\n" + value.knowledgeComponent[i] + " -> " + value.knowledgeComponent[i + 1]);
+        //Desabilitado por agora
+        //if (value.knowledgeComponent.length > 0) {
+        //    for(var i = 0; i < value.knowledgeComponent.length; i++){
+        //        var feedback = prompt("Para o seguinte passo, qual elemento básico você considera necessário para resolvê-lo?\n" + value.knowledgeComponent[i] + " -> " + value.knowledgeComponent[i + 1]);
 
-                if (feedback != null) {
-                    $.ajax({
-                        type: "POST",
-                        url: send_feedback,
-                        data: JSON.stringify({ type: "knowledgeComponent", message: feedback, nodeFrom: value.knowledgeComponent[i], nodeTo: value.knowledgeComponent[++i] })
-                    });
-                } else {
-                    i++;
-                }
-            }
-        }
+        //        if (feedback != null) {
+        //            $.ajax({
+        //                type: "POST",
+        //                url: send_feedback,
+        //                data: JSON.stringify({ type: "knowledgeComponent", message: feedback, nodeFrom: value.knowledgeComponent[i], nodeTo: value.knowledgeComponent[++i] })
+        //            });
+        //        } else {
+        //            i++;
+        //        }
+        //    }
+        //}
 
         if (value.hints.length > 0) {
             for(var i = 0; i < value.hints.length; i++){
@@ -390,6 +432,7 @@ function MyXBlock(runtime, element, data) {
     });
 
     $('#hintButton', element).click(function(eventObject) {
+        disableButton("hintButton")
         var userAnswer = getCompleteAnswer()
 
         $.ajax({
@@ -397,6 +440,16 @@ function MyXBlock(runtime, element, data) {
             url: get_hint_for_last_step,
             data: JSON.stringify({userAnswer: userAnswer}),
             success: showHint
+        });
+    });
+
+    $('#explanationButton', element).click(function(eventObject) {
+        disableButton("explanationButton")
+        $.ajax({
+            type: "POST",
+            url: return_full_explanation,
+            data: "{}",
+            success: showFullExplanation
         });
     });
 
@@ -412,6 +465,7 @@ function MyXBlock(runtime, element, data) {
     }
 
     $('#answerButton', element).click(function(eventObject) {
+        disableButton("answerButton")
         var userAnswer = getCompleteAnswer()
         if (userAnswer.replace(/(\r\n|\n|\r)/gm, "") == "") {
             alert("Sua resolução não pode ser vazia")
@@ -441,15 +495,34 @@ function MyXBlock(runtime, element, data) {
             line.remove();
 
         }
-        disableCheckbox()
+        enableHintButton()
 
     }
 
-    function disableCheckbox() {
+    function enableExplanationButton() {
         var askQuestionButton = document.getElementById("askQuestion");
         var hintButton = document.getElementById("hintButton");
+        var explanationButton = document.getElementById("explanationButton");
+
+        askQuestionButton.style.display = 'none';
+        hintButton.style.display = 'none';
+        explanationButton.style.display = 'block';
+
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            var checkBox = document.getElementById("id" + i);
+            checkBox.style.visibility = 'hidden'
+            checkBox.checked = false;
+        }
+    }
+
+    function enableHintButton() {
+        var askQuestionButton = document.getElementById("askQuestion");
+        var hintButton = document.getElementById("hintButton");
+        var explanationButton = document.getElementById("explanationButton");
+
         askQuestionButton.style.display = 'none';
         hintButton.style.display = 'block';
+        explanationButton.style.display = 'none';
 
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
             var checkBox = document.getElementById("id" + i);
@@ -489,7 +562,7 @@ function MyXBlock(runtime, element, data) {
 
         checkboxLineId++;
 
-        disableCheckbox()
+        enableHintButton()
     }
 
     function addDoubtIdtoList(doubtId) {
@@ -497,10 +570,12 @@ function MyXBlock(runtime, element, data) {
     }
 
     $('#askQuestion', element).click(function(eventObject) {
+        disableButton("askQuestion")
         var currentStep = null
         var lastStep = null
         var checkedBoxes = []
 
+        //Não se esquecer de trocar isso para pegar os dois ultimos estados apenas
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
             currentStep = document.getElementById("idt" + i);
             if (currentStep.style.background == wrongAnswerColor || currentStep.style.background == doubtAnswerColor) {
@@ -513,6 +588,7 @@ function MyXBlock(runtime, element, data) {
                 lastStep = i
             }
         }
+
         if (checkedBoxes.length == 0) {
             checkedBoxes.push(lastStep)
         }
@@ -539,6 +615,7 @@ function MyXBlock(runtime, element, data) {
                 });
 
                 function getOrShowStateDoubt(message) {
+                    enableButton("askQuestion")
                     if (message.doubts.length == 0) {
                         var singleNode = document.getElementById("idt" + checkedBoxes[0]);
                         doubt = prompt("Qual a dúvida para o seguinte estado?\n" + singleNode.value);
@@ -600,7 +677,18 @@ function MyXBlock(runtime, element, data) {
                             }
                         }
                     }
-                    disableCheckbox()
+                    $.ajax({
+                        type: "POST",
+                        url: checkIfUseAiExplanation,
+                        data: "{}",
+                        success: function (value) {
+                            if (value.callOpenAiExplanation == "true") {
+                                enableExplanationButton()
+                            } else {
+                                enableHintButton()
+                            }
+                        }
+                    });
                 }
 
             } else {
@@ -681,7 +769,18 @@ function MyXBlock(runtime, element, data) {
                             });
                         }
                     }
-                    disableCheckbox()
+                    $.ajax({
+                        type: "POST",
+                        url: checkIfUseAiExplanation,
+                        data: "{}",
+                        success: function (value) {
+                            if (value.callOpenAiExplanation == "true") {
+                                enableExplanationButton()
+                            } else {
+                                enableHintButton()
+                            }
+                        }
+                    });
                 }
             }
         }

@@ -7,6 +7,7 @@ from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Floa
 import ast 
 from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent
 from .visualGraph import *
+from .openaiExplanation import *
 from django.utils.timezone import now
 from datetime import datetime  
 from django.http import JsonResponse
@@ -142,11 +143,6 @@ class MyXBlock(XBlock):
         help="States used by this student",
     )
 
-    studentResolutionsCorrectness = Float(
-        default=defaultResolutionValue, scope=Scope.user_state,
-        help="Resolution correctness by the student",
-    )
-
     #Dados fixos
     problemTitle = String(
         default="Title", scope=Scope.content,
@@ -156,11 +152,6 @@ class MyXBlock(XBlock):
     problemDescription = String(
         default="Description test of the problem", scope=Scope.content,
         help="Description of the problem",
-    )
-
-    problemCorrectStates = Dict(
-        default={'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}, scope=Scope.content,
-        help="List of correct states to the answer",
     )
 
     problemDefaultHint = String(
@@ -208,6 +199,21 @@ class MyXBlock(XBlock):
         help="Tags of the problem",
     )
 
+    callOpenAiExplanation = String(
+        default="false", scope=Scope.content,
+        help="Title of the problem",
+    )
+
+    questionToAsk = String(
+        default="Como resolver uma equação?", scope=Scope.content,
+        help="Title of the problem",
+    )
+
+    openApiToken = String(
+        default="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", scope=Scope.content,
+        help="Title of the problem",
+    )
+
 
     #Resposta desse bloco
     answerSteps = List(
@@ -247,7 +253,7 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.filter(id=self.problemId)
         if loadedProblem.exists():
             loadedMultipleChoiceProblem = loadedProblem[0].multipleChoiceProblem
-            frag = Fragment(str(html).format(block=self, multipleChoiceProblem=loadedMultipleChoiceProblem))
+            frag = Fragment(str(html).format(block=self, multipleChoiceProblem=loadedMultipleChoiceProblem,useai=self.callOpenAiExplanation))
         else: 
             frag = Fragment(str(html).format(block=self))
             
@@ -271,7 +277,22 @@ class MyXBlock(XBlock):
         else:
             loadedMultipleChoiceProblem = "Valor ainda não carregado"
 
-        frag = Fragment(str(html).format(problemTitle=self.problemTitle,problemDescription=self.problemDescription,multipleChoiceProblem=loadedMultipleChoiceProblem,problemDefaultHint=self.problemDefaultHint,problemInitialHint=self.problemInitialHint,problemAnswer1=self.problemAnswer1,problemAnswer2=self.problemAnswer2,problemAnswer3=self.problemAnswer3,problemAnswer4=self.problemAnswer4,problemAnswer5=self.problemAnswer5,problemSubject=self.problemSubject,problemTags=self.problemTags))
+        frag = Fragment(str(html).format(problemTitle=self.problemTitle,
+                                         problemDescription=self.problemDescription,
+                                         multipleChoiceProblem=loadedMultipleChoiceProblem,
+                                         problemDefaultHint=self.problemDefaultHint,
+                                         problemInitialHint=self.problemInitialHint,
+                                         problemAnswer1=self.problemAnswer1,
+                                         problemAnswer2=self.problemAnswer2,
+                                         problemAnswer3=self.problemAnswer3,
+                                         problemAnswer4=self.problemAnswer4,
+                                         problemAnswer5=self.problemAnswer5,
+                                         problemSubject=self.problemSubject,
+                                         problemTags=self.problemTags,
+                                         callOpenAiExplanation=self.callOpenAiExplanation,
+                                         questionToAsk=self.questionToAsk,
+                                         openApiToken=self.openApiToken
+                                         ))
         frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
 
         frag.initialize_js('MyXBlockEdit')
@@ -859,6 +880,9 @@ class MyXBlock(XBlock):
         self.problemAnswer4 = data.get('problemAnswer4')
         self.problemAnswer5 = data.get('problemAnswer5')
         self.problemSubject = data.get('problemSubject')
+        self.callOpenAiExplanation = data.get('callOpenAiExplanation')
+        self.questionToAsk = data.get('questionToAsk')
+        self.openApiToken = data.get('openApiToken')
         self.problemTags = ast.literal_eval(data.get('problemTags'))
         loadedProblem.dateModified=datetime.now()
 
@@ -1073,9 +1097,38 @@ class MyXBlock(XBlock):
     #Sistema que mostra a dica até o primeiro passo que estiver errado
     #Mostra um next-Step hint, mas desse passo que está errado (como colocar ele certo)
     #Rodar após cada enter? Faria sentido
+
+    @XBlock.json_handler
+    def check_if_use_ai_explanation(self, data, suffix=''):
+        return {"callOpenAiExplanation": self.callOpenAiExplanation}
+
+    @XBlock.json_handler
+    def return_full_explanation(self, data, suffix=''):
+        return {"explanation": generate_explanation(self.openApiToken, self.questionToAsk)}
+
+    @XBlock.json_handler
+    def generate_answers(self, data, suffix=''):
+        if "node" in data:
+            element = data.get("node")
+        else:
+            element = data.get("from") + " - " + data.get("to")
+
+        return {"answer": answer_doubt(self.openApiToken, data.get("text"), element)}
+
+    @XBlock.json_handler
+    def generate_error_specific_feedback(self, data, suffix=''):
+        return {"feedback": generate_error_specific_feedback(self.openApiToken, data.get("from"), data.get("to"))}
+
+    @XBlock.json_handler
+    def generate_explanation(self, data, suffix=''):
+        return {"feedback": generate_explanation(self.openApiToken, data.get("from"), data.get("to"))}
+
+    @XBlock.json_handler
+    def generate_hint(self, data, suffix=''):
+        return {"feedback": generate_hint(self.openApiToken, data.get("from"), data.get("to"))}
+
     @XBlock.json_handler
     def get_hint_for_last_step(self, data, suffix=''):
-
 
         answerArray = data['userAnswer'].split('\n')
 
@@ -1095,10 +1148,12 @@ class MyXBlock(XBlock):
 
         minValue = float('inf')
         nextCorrectStep = None
+        nextPossibleCorrectSteps = []
         if  (wrongElement != None):
             possibleSteps = possibleIncorrectAnswer.get("availableCorrectSteps")
             for step in possibleSteps:
                 actualValue = levenshteinDistance(wrongElement, step)
+                nextPossibleCorrectSteps.append(step)
                 if(actualValue < minValue):
                     minValue = actualValue
                     nextCorrectStep = step
@@ -1139,15 +1194,30 @@ class MyXBlock(XBlock):
                         hintIdType.append("errorSpecificFeedback")
 
 
+            hintFound = False
             edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextCorrectStep))
             if edgeForStep.exists():
                 hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
                 if hintForStep.exists():
+                    hintFound = True
                     for hint in hintForStep:
                         hintList.append(hint.text)
                         hintIdList.append(hint.id)
                         hintIdType.append("hint")
-                else:
+            if not hintFound:
+                for hintPossibleStep in nextPossibleCorrectSteps:
+                    edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(hintPossibleStep))
+                    if edgeForStep.exists() and not hintFound:
+                        hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
+                        if hintForStep.exists():
+                            hintFound = True
+                            nextCorrectStep = hintPossibleStep
+                            for hint in hintForStep:
+                                hintList.append(hint.text)
+                                hintIdList.append(hint.id)
+                                hintIdType.append("hint")
+
+                if not hintFound:
                     if possibleIncorrectAnswer.get("lastCorrectElement") == "_start_":
                         hintList.append(self.problemInitialHint)
                         hintIdList.append(0)
@@ -1156,16 +1226,6 @@ class MyXBlock(XBlock):
                         hintList.append(self.problemDefaultHint)
                         hintIdList.append(0)
                         hintIdType.append("hint")
-            else:
-                if possibleIncorrectAnswer.get("lastCorrectElement") == "_start_":
-                    hintList.append(self.problemInitialHint)
-                    hintIdList.append(0)
-                    hintIdType.append("hint")
-                else:
-                    hintList.append(self.problemDefaultHint)
-                    hintIdList.append(0)
-                    hintIdType.append("hint")
-
 
         try:
             #Então está tudo certo, pode dar um OK e seguir em frente
@@ -1177,12 +1237,14 @@ class MyXBlock(XBlock):
                 nextPossibleElementsEdges = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")))
 
                 nextElement = None
+                nextPossibleCorrectElementsEdges = []
                 for edge in nextPossibleElementsEdges:
                     element = edge.destNode.title
                     loadedProblem = Problem.objects.get(id=self.problemId)
                     nodeElement = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(element))
                     if nodeElement.correctness >= correctState[0]:
                         nextElement = element
+                        nextPossibleCorrectElementsEdges.append(element)
 
                 hintList = []
                 hintIdList = []
@@ -1202,27 +1264,36 @@ class MyXBlock(XBlock):
 
 
                 if (nextElement != "_end_"):
+                    hintFound = False
+
                     edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextElement))
                     if edgeForStep.exists():
                         hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
                         if hintForStep.exists():
+                            hintFound = True
                             for hint in hintForStep:
                                 hintList.append(hint.text)
                                 hintIdList.append(hint.id)
                                 hintIdType.append("hint")
-                        else:
-                            #if possibleIncorrectAnswer.get("lastCorrectElement") == "_start_":
-                            #    hintList.append(self.problemInitialHint)
-                            #    hintIdList.append(0)
-                            #    hintIdType.append("hint")
-                            #else:
-                            hintList.append(self.problemDefaultHint)
-                            hintIdList.append(0)
-                            hintIdType.append("hint")
-                    else:
-                        hintList.append(self.problemDefaultHint)
-                        hintIdList.append(0)
-                        hintIdType.append("hint")
+                    
+                    if not hintFound:
+                        for nextPossibleNode in nextPossibleCorrectElementsEdges:
+                            edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextPossibleNode))
+                            if edgeForStep.exists() and not hintFound:
+                                hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
+                                if hintForStep.exists():
+                                    nextElement = nextPossibleNode
+                                    hintFound = True
+                                    for hint in hintForStep:
+                                        hintList.append(hint.text)
+                                        hintIdList.append(hint.id)
+                                        hintIdType.append("hint")
+                    
+                        if not hintFound:
+                                hintList.append(self.problemDefaultHint)
+                                hintIdList.append(0)
+                                hintIdType.append("hint")
+
                 else:
                     hintList.append(self.problemDefaultHint)
                     hintIdList.append(0)
@@ -1412,6 +1483,9 @@ class MyXBlock(XBlock):
         returnjson["problemAnswer4"] = self.problemAnswer4
         returnjson["problemAnswer5"] = self.problemAnswer5
         returnjson["problemSubject"] = self.problemSubject
+        returnjson["callOpenAiExplanation"] = self.callOpenAiExplanation
+        returnjson["questionToAsk"] = self.questionToAsk
+        returnjson["openApiToken"] = self.openApiToken
         returnjson["problemTags"] = str(self.problemTags)
 
         for node in allNodes:
@@ -1887,32 +1961,12 @@ class MyXBlock(XBlock):
     def getDoubtsFromProblemGraph(self):
         CDU = []
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CDU = Doubt.objects.filter(problem=loadedProblem).exclude(node__isnull = True, type = 0).exclude(edge__isnull = True, type = 1).order_by("-dateModified")
+        CDU = Doubt.objects.filter(problem=loadedProblem).exclude(node__isnull = True, type = 0).exclude(edge__isnull = True, type = 1).order_by("dateModified")
 
         if len(CDU) > maxDoubts:
             return CDU[0:maxDoubts]
         else:
             return CDU
-
-
-        #CDU = []
-        #allDoubtsWithAnswers = []
-        #loadedProblem = Problem.objects.get(id=self.problemId)
-        #allAnswers = Answer.objects.filter(problem=loadedProblem)
-        #allDoubts = Doubt.objects.filter(problem=loadedProblem)
-        #for answer in allAnswers:
-        #    if answer.doubt not in allDoubtsWithAnswers:
-        #        allDoubtsWithAnswers.append(answer.doubt.id)
-        #if len(allDoubts) > 0 and len(allDoubtsWithAnswers) > 0:
-        #    CDU = Doubt.objects.filter(problem=loadedProblem).exclude(id__in=allDoubtsWithAnswers)
-        #elif len(allDoubts) > 0:
-        #    CDU = allDoubts
-
-        #if len(CDU) > maxDoubts:
-        #    CDU.sort(key=amorzinhoTempo)
-        #    return CDU[0:maxDoubts]
-        #else:
-        #    return CDU
 
     def getKnowledgeComponentFromProblemGraph(self, resolution):
         relatedSteps = []
@@ -2027,21 +2081,6 @@ class MyXBlock(XBlock):
         correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt=partiallyCorrectResolution[0])
         incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
 
-        #allResolutions = Resolution.objects.filter(problem=loadedProblem)
-        #correctResolutions = []
-        #wrongResolutions = []
-
-        #for resolution in allResolutions:
-        #    lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
-        #    lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
-
-        #    #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
-        #    if lastEdge.sourceNode.correctness >= correctState[0]:
-        #        correctResolutions.append(resolution)
-        #    else:
-        #        wrongResolutions.append(resolution)
-
-
         correctValue = self.possuiEstadoConjunto(state, correctResolutions)
         incorrectValue = self.possuiEstadoConjunto(state, incorrectResolutions)
     
@@ -2065,20 +2104,6 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.get(id=self.problemId)
         correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt=partiallyCorrectResolution[0])
         incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
-
-        #allResolutions = Resolution.objects.filter(problem=loadedProblem)
-        #correctResolutions = []
-        #wrongResolutions = []
-
-        #for resolution in allResolutions:
-        #    lastEdgeId = ast.literal_eval(resolution.edgeIdList)[-1]
-        #    lastEdge = Edge.objects.get(problem=loadedProblem, id=lastEdgeId)
-
-        #    #Casos corretos e parcialmente corretos entrarão como corretos para calcular a validade
-        #    if lastEdge.sourceNode.correctness >= correctState[0]:
-        #        correctResolutions.append(resolution)
-        #    else:
-        #        wrongResolutions.append(resolution)
 
 
         correctValue = self.possuiPassoConjunto(step, correctResolutions)

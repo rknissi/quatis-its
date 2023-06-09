@@ -91,11 +91,11 @@
     margin-right: 5px;
 }
 
-#askQuestion {
+#askQuestion, #explanationButton {
     display: none;
 }
 
-#prevHint, #nextHint, #hintButton, #addLine, #removeLine, #askQuestion, #hintThumbsUp, #hintThumbsDown{
+#prevHint, #nextHint, #hintButton, #addLine, #removeLine, #askQuestion, #hintThumbsUp, #hintThumbsDown, #explanationButton {
     background-color: #0075b4 !important;
     background-image:none !important;
     color: white;
@@ -104,7 +104,7 @@
     border-radius: 8px;
 }
 
-#prevHint button:focus, #nextHint button:focus, #hintButton button:focus, #addLine button:focus, #removeLine button:focus, #askQuestion button:focus{
+#prevHint button:focus, #nextHint button:focus, #hintButton button:focus, #addLine button:focus, #removeLine button:focus, #askQuestion button:focus, #explanationButton button:focus{
     background-color:#014f7a !important;
     background-image:none !important;
 }
@@ -169,6 +169,7 @@
     max-width: 400px;
     max-height: 120px;
     display: inline-block;
+    overflow-y:scroll;
 }
 
 #innerHintBox {
@@ -272,7 +273,7 @@
     font-size: 28px;
     font-weight: bold;
 }
-#askQuestion {
+#askQuestion, #explanationButton {
     margin-top: 0px;
     margin-right: 0px;
 }

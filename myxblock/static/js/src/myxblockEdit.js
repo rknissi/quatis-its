@@ -13,7 +13,9 @@ function MyXBlockEdit(runtime, element) {
   var submitNodeInfoUrl = runtime.handlerUrl(element, 'submit_node_info');
   var deleteDoubtsUrl = runtime.handlerUrl(element, 'delete_doubts');
   var deleteAnswersUrl = runtime.handlerUrl(element, 'delete_answers');
+  var generateAnswersUrl = runtime.handlerUrl(element, 'generate_answers');
   var deleteFeedbacksUrl = runtime.handlerUrl(element, 'delete_feedbacks');
+  var returnFullExplanationUrl = runtime.handlerUrl(element, 'return_full_explanation');
   
   var lastWindowBeforeDoubts = null
   var editingFeedbackType = null
@@ -196,7 +198,7 @@ function MyXBlockEdit(runtime, element) {
         if (nodeName === data.edges[i].from || nodeName === data.edges[i].to) {
           data.edges.splice(i, 1);
         }
-    }
+      }
   }
 
   function addNode(node){
@@ -488,7 +490,10 @@ function MyXBlockEdit(runtime, element) {
       problemAnswer4: el.find('input[id=problemAnswer4]').val(),
       problemAnswer5: el.find('input[id=problemAnswer5]').val(),
       problemSubject: el.find('input[id=problemSubject]').val(),
-      problemTags: el.find('input[id=problemTags]').val()
+      problemTags: el.find('input[id=problemTags]').val(),
+      callOpenAiExplanation: el.find('input[id=callOpenAiExplanation]').val(),
+      questionToAsk: el.find('input[id=questionToAsk]').val(),
+      openApiToken: el.find('input[id=openApiToken]').val()
     };
 
     $.ajax({
@@ -519,6 +524,8 @@ function MyXBlockEdit(runtime, element) {
     if (value != null) {
 
       chart = anychart.graph(value.teste);
+      var credits = chart.credits();
+      credits.enabled(true);
       data = value.teste;
 
       chart.labels().anchor("center");
@@ -911,6 +918,54 @@ function MyXBlockEdit(runtime, element) {
       }   
     });
   });
+
+  $('#generateFeedback', element).click(function(eventObject) {
+    var el = $(element);
+
+    var data = {
+      from: el.find('input[id=editStepSource]').val(),
+      to: el.find('input[id=editStepDest]').val(),
+    };
+
+
+    $.ajax({
+      type: "POST",
+      url: returnFullExplanationUrl,
+      data: JSON.stringify(data),
+      success: function (value) {
+        var answerTextElement = document.getElementById("editFeedbackText");
+        answerTextElement.value = value.answer;
+      }
+    });
+  });
+
+  $('#generateDoubtAnswer', element).click(function(eventObject) {
+    var el = $(element);
+
+    if (lastWindowBeforeDoubts == "node") {
+      var data = {
+        node: el.find('input[id=editState]').val(),
+        text: el.find('input[id=editDoubtText]').val()
+      };
+    } else {
+      var data = {
+        from: el.find('input[id=editStepSource]').val(),
+        to: el.find('input[id=editStepDest]').val(),
+        text: el.find('input[id=editDoubtText]').val()
+        };
+    }
+
+
+      $.ajax({
+        type: "POST",
+        url: generateAnswersUrl,
+        data: JSON.stringify(data),
+        success: function (value) {
+          var answerTextElement = document.getElementById("editAnswerText");
+          answerTextElement.value = value.answer;
+        }
+      });
+    });
 
   $('#saveDoubtAnswer', element).click(function(eventObject) {
     var el = $(element);
@@ -1432,6 +1487,7 @@ function MyXBlockEdit(runtime, element) {
   }
 
   $('#createGraph', element).click(function(eventObject) {
+    anychart.licenseKey(atob("cmFmYWVsLm5pc3NpQHVzcC5ici1lM2FlODJjNy1mNWZkM2IwMA=="));
     document.getElementById("graph").innerHTML = "";
 
     var modal = document.getElementById("graphModal");
