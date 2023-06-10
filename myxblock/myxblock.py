@@ -1303,6 +1303,9 @@ class MyXBlock(XBlock):
                     hintIdType.append("hint")
 
                 wrongStepCount = possibleIncorrectAnswer.get("correctElementLine")
+
+                newHints = self.checkIfCurrentHintsAreSame(hintList)
+
                 #Para casos é a primeira dica
             
                 if (wrongStepCount == 0):
@@ -1310,8 +1313,9 @@ class MyXBlock(XBlock):
                     hintId = 0
                     hintType = "hint"
                     typeChose = 1
+                    self.currentHints = [self.problemInitialHint]
                 #Para casos onde está tudo correto, então ele verifica se o último elemento são os corretos
-                elif (possibleIncorrectAnswer.get("beforeLast") is not None and self.lastWrongElement != str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement"))) and not self.checkIfCurrentHintsAreSame(hintList)):
+                elif (newHints):
                     self.lastWrongElement = str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement")))
                     self.lastWrongElementCount = 1
                     hintText = hintList[0]
@@ -1319,22 +1323,13 @@ class MyXBlock(XBlock):
                     hintType = hintIdType[0]
                     self.currentHints = hintList
                     typeChose = 2
-                #Casos onde ele tenta pegar um dos possíveis caminhos, mas isso faz sentido no caso de certo?
-                elif (self.lastWrongElementCount < len(hintList) and hintIdType[self.lastWrongElementCount] != "explanation" and possibleIncorrectAnswer.get("beforeLast") is not None and self.lastWrongElement != str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement)) and self.lastWrongElement == str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement")))):
-                    self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))
-                    #self.lastWrongElementCount = 0
-                    hintText = hintList[self.lastWrongElementCount]
-                    hintId = hintIdList[self.lastWrongElementCount]
-                    hintType = hintIdType[self.lastWrongElementCount]
-                    self.lastWrongElementCount += 1
-                    self.currentHints = hintList
-                    typeChose = 3
                 #Caso básico, vai passando para o próximo
                 elif (self.lastWrongElementCount < len(hintList)):
                     hintText = hintList[self.lastWrongElementCount]
                     hintId = hintIdList[self.lastWrongElementCount]
                     hintType = hintIdType[self.lastWrongElementCount]
                     self.lastWrongElementCount = self.lastWrongElementCount + 1
+                    self.currentHints = hintList
                     if (self.lastWrongElementCount == len(hintList)):
                         lastHint = True
                     typeChose = 4
@@ -1344,31 +1339,27 @@ class MyXBlock(XBlock):
                     hintText = hintList[-1]
                     hintId = hintIdList[-1]
                     hintType = hintIdType[-1]
+                    self.currentHints = hintList
                     typeChose = 5
 
                 
                 return {"status": "OK", "hint": hintText, "hintId": hintId, "hintType": hintType, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement"), "lastHint": lastHint, "debug1": possibleIncorrectAnswer, "debug2": self.lastWrongElement, "debug3": typeChose}
             else:
-                if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) != self.lastWrongElement):
+                newHints = self.checkIfCurrentHintsAreSame(hintList)
+
+                if (newHints):
                     self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))
                     self.lastWrongElementCount = 1
                     hintText = hintList[0]
                     hintId = hintIdList[0]
                     hintType = hintIdType[0]
                     self.currentHints = hintList
-                elif (not self.checkIfCurrentHintsAreSame(hintList)):
-                    self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))
-                    self.lastWrongElementCount = 0
-                    hintText = hintList[self.lastWrongElementCount]
-                    hintId = hintIdList[self.lastWrongElementCount]
-                    hintType = hintIdType[self.lastWrongElementCount]
-                    self.lastWrongElementCount += 1
-                    self.currentHints = hintList
                 elif (self.lastWrongElementCount < len(hintList)):
                     hintText = hintList[self.lastWrongElementCount]
                     hintId = hintIdList[self.lastWrongElementCount]
                     hintType = hintIdType[self.lastWrongElementCount]
                     self.lastWrongElementCount = self.lastWrongElementCount + 1
+                    self.currentHints = hintList
                     if (self.lastWrongElementCount == len(hintList)):
                         lastHint = True
                 else:
@@ -1376,6 +1367,7 @@ class MyXBlock(XBlock):
                     hintText = hintList[-1]
                     hintId = hintIdList[-1]
                     hintType = hintIdType[-1]
+                    self.currentHints = hintList
         except IndexError as error:
             hintText = self.problemDefaultHint
             hintId = 0
@@ -1391,12 +1383,14 @@ class MyXBlock(XBlock):
             self.currentHints.append(hint)
 
     def checkIfCurrentHintsAreSame (self, data):
-        if len(data) != len(self.currentHints):
-            return False
-        for i in range(len(data)):
-            if self.currentHints[i] != data[i]:
-                return False
-        return True
+        newHints = False
+        if len(self.currentHints) != len(hintList):
+            newHints = True
+        else:
+            for i in range(0, len(hintList)):
+                if self.currentHints[i] != hintList[i]:
+                  newHints = True
+        return newHints
 
     @XBlock.json_handler
     def generate_report(self, data, suffix=''):
