@@ -572,26 +572,7 @@ function MyXBlock(runtime, element, data) {
     $('#askQuestion', element).click(function(eventObject) {
         disableButton("askQuestion")
         var currentStep = null
-        var lastStep = null
         var checkedBoxes = []
-
-        //Não se esquecer de trocar isso para pegar os dois ultimos estados apenas
-        //for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
-        //    currentStep = document.getElementById("idt" + i);
-        //    if (currentStep.style.background == wrongAnswerColor || currentStep.style.background == doubtAnswerColor) {
-        //        if (i > minimumCheckboxLLineId) {
-        //            checkedBoxes.push(lastStep)
-        //        }
-        //        checkedBoxes.push(i)
-        //        i = checkboxLineId
-        //    } else if (currentStep.value != "") {
-        //        lastStep = i
-        //    }
-        //}
-
-        //if (checkedBoxes.length == 0) {
-        //    checkedBoxes.push(lastStep)
-        //}
 
         for (var i = checkboxLineId - 1; i >= minimumCheckboxLLineId; i--) {
             currentStep = document.getElementById("idt" + i);
@@ -718,6 +699,7 @@ function MyXBlock(runtime, element, data) {
                 });
 
                 function getOrShowStepDoubt(message) {
+                    enableButton("askQuestion")
                     if (message.doubts.length == 0) {
                         var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                         var destNode = document.getElementById("idt" + checkedBoxes[1]);

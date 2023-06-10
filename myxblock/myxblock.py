@@ -27,6 +27,9 @@ maxHints = 2
 maxDoubts = 2
 maxKnowledgeComponent = 2
 
+#Max amount of feedbacks to ask for more
+maxToAsk = 3
+
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
 problemGraphStatesCorrectnessDefault = {'_start_': correctState[1], 'Option 1': correctState[1], 'Option 2': correctState[1]}
@@ -1301,10 +1304,12 @@ class MyXBlock(XBlock):
 
                 wrongStepCount = possibleIncorrectAnswer.get("correctElementLine")
                 #Para casos é a primeira dica
+            
                 if (wrongStepCount == 0):
                     hintText = self.problemInitialHint
                     hintId = 0
                     hintType = "hint"
+                    typeChose = 1
                 #Para casos onde está tudo correto, então ele verifica se o último elemento são os corretos
                 elif (possibleIncorrectAnswer.get("beforeLast") is not None and self.lastWrongElement != str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement"))) and not self.checkIfCurrentHintsAreSame(hintList)):
                     self.lastWrongElement = str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement")))
@@ -1313,6 +1318,7 @@ class MyXBlock(XBlock):
                     hintId = hintIdList[0]
                     hintType = hintIdType[0]
                     self.currentHints = hintList
+                    typeChose = 2
                 #Casos onde ele tenta pegar um dos possíveis caminhos, mas isso faz sentido no caso de certo?
                 elif (self.lastWrongElementCount < len(hintList) and hintIdType[self.lastWrongElementCount] != "explanation" and possibleIncorrectAnswer.get("beforeLast") is not None and self.lastWrongElement != str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement)) and self.lastWrongElement == str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement")))):
                     self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextElement))
@@ -1322,6 +1328,7 @@ class MyXBlock(XBlock):
                     hintType = hintIdType[self.lastWrongElementCount]
                     self.lastWrongElementCount += 1
                     self.currentHints = hintList
+                    typeChose = 3
                 #Caso básico, vai passando para o próximo
                 elif (self.lastWrongElementCount < len(hintList)):
                     hintText = hintList[self.lastWrongElementCount]
@@ -1330,15 +1337,17 @@ class MyXBlock(XBlock):
                     self.lastWrongElementCount = self.lastWrongElementCount + 1
                     if (self.lastWrongElementCount == len(hintList)):
                         lastHint = True
+                    typeChose = 4
                 #Caso onde ele pega a última dica da lista
                 else:
                     lastHint = True
                     hintText = hintList[-1]
                     hintId = hintIdList[-1]
                     hintType = hintIdType[-1]
+                    typeChose = 5
 
                 
-                return {"status": "OK", "hint": hintText, "hintId": hintId, "hintType": hintType, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement"), "lastHint": lastHint, "debug1": possibleIncorrectAnswer, "debug2": self.lastWrongElement}
+                return {"status": "OK", "hint": hintText, "hintId": hintId, "hintType": hintType, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement"), "lastHint": lastHint, "debug1": possibleIncorrectAnswer, "debug2": self.lastWrongElement, "debug3": typeChose}
             else:
                 if (str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep)) != self.lastWrongElement):
                     self.lastWrongElement = str((possibleIncorrectAnswer.get("lastCorrectElement"), nextCorrectStep))
@@ -1382,6 +1391,8 @@ class MyXBlock(XBlock):
             self.currentHints.append(hint)
 
     def checkIfCurrentHintsAreSame (self, data):
+        if len(data) != len(self.currentHints):
+            return False
         for i in range(len(data)):
             if self.currentHints[i] != data[i]:
                 return False
@@ -1905,7 +1916,7 @@ class MyXBlock(XBlock):
                 if sourceNodeIndexEE < len(transformedResolution) - 1:
                     if transformedResolution[sourceNodeIndexEE + 1] != stepEE.destNode.title:
                         possibleEdge = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__title = sourceNodeTitleEE, destNode__title = transformedResolution[sourceNodeIndexEE + 1], destNode__correctness__gte = correctState[0])
-                        if possibleEdge.exists():
+                        if possibleEdge.exists() and ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=stepEE).count() < maxToAsk:
                             returnList.append(stepEE)
         if len(returnList) >= maxErrorSpecificFeedback:
             returnList.sort(key=amorzinhoErrorSpecificFeedback)
@@ -1927,7 +1938,7 @@ class MyXBlock(XBlock):
             if sourceNodeTitleEX in transformedResolution:
                 sourceNodeIndexEX = transformedResolution.index(sourceNodeTitleEX)
                 if sourceNodeIndexEX < len(transformedResolution) - 1:
-                    if transformedResolution[sourceNodeIndexEX + 1] == stepHint.destNode.title:
+                    if transformedResolution[sourceNodeIndexEX + 1] == stepHint.destNode.title and Hint.objects.filter(problem=loadedProblem, edge=stepHint).count() < maxToAsk:
                         returnList.append(stepHint)
         if len(returnList) >= maxExplanations:
             returnList.sort(key=amorzinhoHints)
@@ -1949,7 +1960,7 @@ class MyXBlock(XBlock):
             if sourceNodeTitleEX in transformedResolution:
                 sourceNodeIndexEX = transformedResolution.index(sourceNodeTitleEX)
                 if sourceNodeIndexEX < len(transformedResolution) - 1:
-                    if transformedResolution[sourceNodeIndexEX + 1] == stepEX.destNode.title:
+                    if transformedResolution[sourceNodeIndexEX + 1] == stepEX.destNode.title and Explanation.objects.filter(problem=loadedProblem, edge=stepEX).count() < maxToAsk:
                         returnList.append(stepEX)
         if len(returnList) >= maxExplanations:
             returnList.sort(key=amorzinhoExplanations)
@@ -1960,13 +1971,18 @@ class MyXBlock(XBlock):
 
     def getDoubtsFromProblemGraph(self):
         CDU = []
+        filteredCDU = []
         loadedProblem = Problem.objects.get(id=self.problemId)
         CDU = Doubt.objects.filter(problem=loadedProblem).exclude(node__isnull = True, type = 0).exclude(edge__isnull = True, type = 1).order_by("dateModified")
 
-        if len(CDU) > maxDoubts:
-            return CDU[0:maxDoubts]
+        for doubt in CDU:
+            if Answer.objects.filter(problem=loadedProblem, doubt=doubt).count() < 3:
+                filteredCDU.append(doubt)
+
+        if len(filteredCDU) > maxDoubts:
+            return filteredCDU[0:maxDoubts]
         else:
-            return CDU
+            return filteredCDU
 
     def getKnowledgeComponentFromProblemGraph(self, resolution):
         relatedSteps = []
