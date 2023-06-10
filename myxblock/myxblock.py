@@ -201,17 +201,17 @@ class MyXBlock(XBlock):
 
     callOpenAiExplanation = String(
         default="false", scope=Scope.content,
-        help="Title of the problem",
+        help="If the student has access to ask the question to OpenAI",
     )
 
     questionToAsk = String(
         default="Como resolver uma equação?", scope=Scope.content,
-        help="Title of the problem",
+        help="Which question to ask to OpenAI",
     )
 
     openApiToken = String(
-        default="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", scope=Scope.content,
-        help="Title of the problem",
+        default="c2stdTZwR3BRVWc4SHQ1MXZuWVNQUmFUM0JsYmtGSmlsTW40bEI1bEdlRW5JQ3NQVGJPCg==", scope=Scope.content,
+        help="OpenAI token in Base64",
     )
 
 
@@ -1104,7 +1104,7 @@ class MyXBlock(XBlock):
 
     @XBlock.json_handler
     def return_full_explanation(self, data, suffix=''):
-        return {"explanation": generate_explanation(self.openApiToken, self.questionToAsk)}
+        return {"explanation": generate_full_explanation(self.openApiToken, self.questionToAsk)}
 
     @XBlock.json_handler
     def generate_answers(self, data, suffix=''):
@@ -2104,7 +2104,6 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.get(id=self.problemId)
         correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt=partiallyCorrectResolution[0])
         incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
-
 
         correctValue = self.possuiPassoConjunto(step, correctResolutions)
         incorrectValue = self.possuiPassoConjunto(step, incorrectResolutions)

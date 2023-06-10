@@ -576,21 +576,32 @@ function MyXBlock(runtime, element, data) {
         var checkedBoxes = []
 
         //Não se esquecer de trocar isso para pegar os dois ultimos estados apenas
-        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+        //for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+        //    currentStep = document.getElementById("idt" + i);
+        //    if (currentStep.style.background == wrongAnswerColor || currentStep.style.background == doubtAnswerColor) {
+        //        if (i > minimumCheckboxLLineId) {
+        //            checkedBoxes.push(lastStep)
+        //        }
+        //        checkedBoxes.push(i)
+        //        i = checkboxLineId
+        //    } else if (currentStep.value != "") {
+        //        lastStep = i
+        //    }
+        //}
+
+        //if (checkedBoxes.length == 0) {
+        //    checkedBoxes.push(lastStep)
+        //}
+
+        for (var i = checkboxLineId - 1; i >= minimumCheckboxLLineId; i--) {
             currentStep = document.getElementById("idt" + i);
-            if (currentStep.style.background == wrongAnswerColor || currentStep.style.background == doubtAnswerColor) {
-                if (i > minimumCheckboxLLineId) {
-                    checkedBoxes.push(lastStep)
-                }
+            if (currentStep.value != "" && checkedBoxes.length < 2) {
                 checkedBoxes.push(i)
-                i = checkboxLineId
-            } else if (currentStep.value != "") {
-                lastStep = i
             }
         }
-
-        if (checkedBoxes.length == 0) {
-            checkedBoxes.push(lastStep)
+        
+        if (checkedBoxes.length == 2) {
+            checkedBoxes = checkedBoxes.reverse()
         }
 
         if (checkedBoxes.length == 0) {
