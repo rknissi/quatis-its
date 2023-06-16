@@ -294,7 +294,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.minimalStep.length > 0) {
             for(var i = 0; i < value.minimalStep.length; i++){
-                feedback = prompt("O seguinte passo está correto?\n" + value.minimalStep[i] + " -> " + value.minimalStep[++i]);
+                feedback = prompt("A seguinte trandição está correta no contexto do exercício?\n" + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
@@ -307,7 +307,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.minimalState.length > 0) {
             for(var i = 0; i < value.minimalState.length; i++){
-                feedback = prompt("O seguinte estado parece correto em uma resolução?\n" + value.minimalState[i]);
+                feedback = prompt("O seguinte ponto de parada da resolução faz sentido existir nesse exercício\n" + value.minimalState[i]);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
@@ -321,7 +321,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.errorSpecific.length > 0) {
             for(var i = 0; i < value.errorSpecific.length; i++){
-                var feedback = prompt("Como você explicaria que o seguinte passo está incorreto?\n" + value.errorSpecific[i] + " -> " + value.errorSpecific[i + 1]);
+                var feedback = prompt("Como você explicaria que a seguinte transição  está incorreta?\n" + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -338,7 +338,7 @@ function MyXBlock(runtime, element, data) {
         //Desabilitado por agora
         //if (value.knowledgeComponent.length > 0) {
         //    for(var i = 0; i < value.knowledgeComponent.length; i++){
-        //        var feedback = prompt("Para o seguinte passo, qual elemento básico você considera necessário para resolvê-lo?\n" + value.knowledgeComponent[i] + " -> " + value.knowledgeComponent[i + 1]);
+        //        var feedback = prompt("Para o seguinte passo, qual elemento básico você considera necessário para resolvê-lo?\n" + value.knowledgeComponent[i] + " --> " + value.knowledgeComponent[i + 1]);
 
         //        if (feedback != null) {
         //            $.ajax({
@@ -354,7 +354,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.hints.length > 0) {
             for(var i = 0; i < value.hints.length; i++){
-                var feedback = prompt("Qual dica você daria para o seguinte passo?\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
+                var feedback = prompt("Qual dica você daria para a seguinte transição, para ajudar os alunos que não souberem como ir do primeiro ponto para o segundo??\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -369,7 +369,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.explanation.length > 0) {
             for(var i = 0; i < value.explanation.length; i++){
-                var feedback = prompt("Como você explicaria que o seguinte passo está correto?\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
+                var feedback = prompt("Como você explicaria o porquê que a transição abaixo está correto?\n" + value.explanation[i] + " --> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -385,7 +385,7 @@ function MyXBlock(runtime, element, data) {
         if (value.doubtsSteps.length > 0) {
             for(var i = 0; i < value.doubtsSteps.length; i++){
                 if (!doubtIds.includes(value.doubtsSteps[i].doubtId)) {
-                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsSteps[i].message + "\nDo passo " + value.doubtsSteps[i].source + " -> " + value.doubtsSteps[i].dest);
+                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsSteps[i].message + "\nDa transição " + value.doubtsSteps[i].source + " --> " + value.doubtsSteps[i].dest);
                     if (feedback != null) {
                         $.ajax({
                             type: "POST",
@@ -399,7 +399,7 @@ function MyXBlock(runtime, element, data) {
         if (value.doubtsNodes.length > 0) {
             for(var i = 0; i < value.doubtsNodes.length; i++){
                 if (!doubtIds.includes(value.doubtsNodes[i].doubtId)) {
-                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsNodes[i].message + "\nDo estado " + value.doubtsNodes[i].node);
+                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsNodes[i].message + "\nDo ponto de parada da resolução " + value.doubtsNodes[i].node);
                     if (feedback != null) {
                         $.ajax({
                             type: "POST",
@@ -584,6 +584,26 @@ function MyXBlock(runtime, element, data) {
         if (checkedBoxes.length == 2) {
             checkedBoxes = checkedBoxes.reverse()
         }
+
+        var firstNode = document.getElementById("idt" + checkedBoxes[0]);
+        var secondNode = document.getElementById("idt" + checkedBoxes[1]);
+
+        choice = prompt("Você tem dúvidas na transição \n" 
+            + firstNode.value + "-->" + secondNode.value 
+            + "\nOu você tem dúvida no ponto\n" + secondNode.value 
+            + "\n E não sabe como prosseguir?" 
+            + "\nDigite 1 para  ser uma dúvida na transição, ou 2 caso seja uma dúvida no ponto de parada" );
+        if (choice != null ||  choice != "1" || choice != "2") {
+            alert("Escolha inválida. Por favor escolha ou o valor 1 ou 2")
+            enableButton("askQuestion")
+            return
+        } else {
+            if (choice != null && choice == "2") {
+                checkedBoxes.shift()
+            }
+        }
+
+        
 
         if (checkedBoxes.length == 0) {
             alert("Selecione as linhas no qual você tem dúvida!")
