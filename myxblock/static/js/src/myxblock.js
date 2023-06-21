@@ -22,6 +22,7 @@ function MyXBlock(runtime, element, data) {
     var getDoubtsAndAnswerFromState = runtime.handlerUrl(element, 'get_doubts_and_answers_from_state');
     var submitDoubtAnswerInfo = runtime.handlerUrl(element, 'submit_doubt_answer_info');
     var checkIfUseAiExplanation = runtime.handlerUrl(element, 'check_if_use_ai_explanation');
+    var increaseFeedbackCount = runtime.handlerUrl(element, 'increase_feedback_count');
 
     var yesAnswer = ["sim", "s", "yes", "y", "si", "ye"];
     var noAnswer = ["não", "n", "no", "nao"];
@@ -166,6 +167,15 @@ function MyXBlock(runtime, element, data) {
             explanationButton.style.display = 'none';
             hintButton.style.display = 'block';
         }
+
+        if (value.hintId) {
+            $.ajax({
+                type: "POST",
+                url: increaseFeedbackCount,
+                data: JSON.stringify({ type: value.hintType, id: value.hintId })
+            });
+        }
+
          
         if (value.status == 'OK') {
 
@@ -645,12 +655,24 @@ function MyXBlock(runtime, element, data) {
 
                     } else {
                         for (var i = 0; i < message.doubts.length; i++) {
+                            if (value.hintId) {
+                                $.ajax({
+                                    type: "POST",
+                                    url: increaseFeedbackCount,
+                                    data: JSON.stringify({ type: "doubt", id: message.doubts[i].id })
+                                });
+                            }
                             sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
                             if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
                                 if (message.doubts[i].answers.length == 0) {
                                     alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
                                 } else {
                                     for (var j = 0; j < message.doubts[i].answers.length; j++) {
+                                        $.ajax({
+                                            type: "POST",
+                                            url: increaseFeedbackCount,
+                                            data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
+                                        });
                                         doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
                                         if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
                                             answerUsefulness = message.doubts[i].answers[j].usefulness
@@ -738,6 +760,11 @@ function MyXBlock(runtime, element, data) {
                         }
                     } else {
                         for (var i = 0; i < message.doubts.length; i++) {
+                            $.ajax({
+                                type: "POST",
+                                url: increaseFeedbackCount,
+                                data: JSON.stringify({ type: "doubt", id: message.doubts[i].id })
+                            });
                             sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
                             if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
                                 if (message.doubts[i].answers.length == 0) {

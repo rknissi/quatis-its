@@ -33,11 +33,11 @@ class Node(models.Model):
 	fixedValue = models.IntegerField(default=0)
 	visible = models.IntegerField(default=1)
 	alreadyCalculatedPos = models.IntegerField(default=0)
-	usageCount = models.IntegerField(default=0)
 	customPos = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
 	linkedSolution = models.TextField(default=None, blank=True, null=True)
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -58,9 +58,9 @@ class Edge(models.Model):
 	correctness = models.FloatField(default=0)
 	visible = models.IntegerField(default=1)
 	fixedValue = models.IntegerField(default=0)
-	usageCount = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -85,6 +85,7 @@ class ErrorSpecificFeedbacks(models.Model):
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
 	usefulness = models.IntegerField(default=0)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -97,6 +98,7 @@ class Hint(models.Model):
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
 	usefulness = models.IntegerField(default=0)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -109,6 +111,7 @@ class Explanation(models.Model):
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
 	usefulness = models.IntegerField(default=0)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -121,6 +124,7 @@ class Doubt(models.Model):
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -132,6 +136,7 @@ class Answer(models.Model):
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	usefulness = models.IntegerField(default=0)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'
@@ -143,6 +148,7 @@ class KnowledgeComponent(models.Model):
 	text = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	count = models.IntegerField(default=0)
 
 	class Meta:
 		app_label  = 'studentGraph'

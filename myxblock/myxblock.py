@@ -493,8 +493,8 @@ class MyXBlock(XBlock):
                     loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
                     edgeDoubtAnswers = []
                     for loadedAnswer in loadedAnswers:
-                        edgeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
-                    edgeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": edgeDoubtAnswers})
+                        edgeDoubtAnswers.append({"id": loadedAnswer.id, "count": loadedAnswer.count, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
+                    edgeDoubts.append({"id": loadedDoubt.id, "count": loadedDoubt.count, "text": loadedDoubt.text, "answers": edgeDoubtAnswers})
 
         return edgeDoubts
 
@@ -512,9 +512,9 @@ class MyXBlock(XBlock):
                     loadedAnswers = Answer.objects.filter(problem=loadedProblem, doubt=loadedDoubt).order_by('-usefulness')
                     nodeDoubtAnswers = []
                     for loadedAnswer in loadedAnswers:
-                        nodeDoubtAnswers.append({"id": loadedAnswer.id, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
+                        nodeDoubtAnswers.append({"id": loadedAnswer.id, "count": loadedAnswer.count, "text": loadedAnswer.text, "usefulness": loadedAnswer.usefulness})
 
-                    nodeDoubts.append({"id": loadedDoubt.id, "text": loadedDoubt.text, "answers": nodeDoubtAnswers})
+                    nodeDoubts.append({"id": loadedDoubt.id, "count": loadedDoubt.count, "text": loadedDoubt.text, "answers": nodeDoubtAnswers})
 
         
         return {"doubts": nodeDoubts}
@@ -588,19 +588,19 @@ class MyXBlock(XBlock):
         hints = []
         if loadedHints.exists():
             for hint in loadedHints:
-                hints.append({"id": hint.id, "text": hint.text, "priority": hint.priority, "usefulness": hint.usefulness})
+                hints.append({"id": hint.id, "count": hint.count, "text": hint.text, "priority": hint.priority, "usefulness": hint.usefulness})
 
         loadedExplanations = Explanation.objects.filter(problem=loadedProblem, edge=loadedEdge).order_by("-usefulness", "priority")
         explanations = []
         if loadedExplanations.exists():
             for explanation in loadedExplanations:
-                explanations.append({"id": explanation.id, "text": explanation.text, "priority": explanation.priority, "usefulness": explanation.usefulness})
+                explanations.append({"id": explanation.id, "count": explanation.count, "text": explanation.text, "priority": explanation.priority, "usefulness": explanation.usefulness})
 
         loadedErrorSpecificFeedbacks = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=loadedEdge).order_by("-usefulness", "priority")
         errorSpecificFeedbacks = []
         if loadedErrorSpecificFeedbacks.exists():
             for errorSpecificFeedback in loadedErrorSpecificFeedbacks:
-                errorSpecificFeedbacks.append({"id": errorSpecificFeedback.id, "text": errorSpecificFeedback.text, "priority": errorSpecificFeedback.priority, "usefulness": errorSpecificFeedback.usefulness})
+                errorSpecificFeedbacks.append({"id": errorSpecificFeedback.id, "count": errorSpecificFeedback.count, "text": errorSpecificFeedback.text, "priority": errorSpecificFeedback.priority, "usefulness": errorSpecificFeedback.usefulness})
 
         edgeDoubts = self.getDoubtsAndAnswersFromStep(data)
         
@@ -1322,6 +1322,7 @@ class MyXBlock(XBlock):
                     hintId = hintIdList[0]
                     hintType = hintIdType[0]
                     self.currentHints = hintList
+                    self.increaseFeedbackCount(loadedProblem, hintType, hintId)
                     typeChose = 2
                 #Caso básico, vai passando para o próximo
                 elif (self.lastWrongElementCount < len(hintList)):
@@ -1330,6 +1331,7 @@ class MyXBlock(XBlock):
                     hintType = hintIdType[self.lastWrongElementCount]
                     self.lastWrongElementCount = self.lastWrongElementCount + 1
                     self.currentHints = hintList
+                    self.increaseFeedbackCount(loadedProblem, hintType, hintId)
                     if (self.lastWrongElementCount == len(hintList)):
                         lastHint = True
                     typeChose = 4
@@ -1340,6 +1342,7 @@ class MyXBlock(XBlock):
                     hintId = hintIdList[-1]
                     hintType = hintIdType[-1]
                     self.currentHints = hintList
+                    self.increaseFeedbackCount(loadedProblem, hintType, hintId)
                     typeChose = 5
 
                 
@@ -1368,6 +1371,7 @@ class MyXBlock(XBlock):
                     hintId = hintIdList[-1]
                     hintType = hintIdType[-1]
                     self.currentHints = hintList
+                self.increaseFeedbackCount(loadedProblem, hintType, hintId)
         except IndexError as error:
             hintText = self.problemDefaultHint
             hintId = 0
@@ -1376,13 +1380,42 @@ class MyXBlock(XBlock):
 
         #return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "lastHint": lastHint, "debug1": possibleIncorrectAnswer, "debug2": self.lastWrongElement}
         return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "lastHint": lastHint, "wrongElementCorrectness": newNode.correctness}
+
+    @XBlock.json_handler
+    def increase_feedback_count(self, data, suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        self.increaseFeedbackCount(loadedProblem, data.get("type"), data.get("id"))
+        return {"status": "OK"}
+
+    def increaseFeedbackCount(self, loadedProblem, type, id):
+        if type == "hint":
+            hint = Hint.objects.filter(problem = loadedProblem, id = id)
+            hint.count += 1
+            hint.save()
+        elif type == "explanation":
+            explanation = Explanation.objects.filter(problem = loadedProblem, id = id)
+            explanation.count += 1
+            explanation.save()
+        elif type == "errorSpecificFeedback":
+            errorSpecific = ErrorSpecificFeedbacks.objects.filter(problem = loadedProblem, id = id)
+            errorSpecific.count += 1
+            errorSpecific.save()
+        elif type == "doubt":
+            doubt = Doubt.objects.filter(problem = loadedProblem, id = id)
+            doubt.count += 1
+            doubt.save()
+        elif type == "answer":
+            answer = Answer.objects.filter(problem = loadedProblem, id = id)
+            answer.count += 1
+            answer.save()
+
     
     def saveCurrentHints (self, data):
         self.currentHints = []
         for hint in data:
             self.currentHints.append(hint)
 
-    def checkIfCurrentHintsAreSame (self, data):
+    def checkIfCurrentHintsAreSame (self, hintList):
         newHints = False
         if len(self.currentHints) != len(hintList):
             newHints = True
@@ -1422,16 +1455,16 @@ class MyXBlock(XBlock):
 
 
         for node in incorrectSortedNodes:
-            incorrectSortedNodesJson.append({"title": node.title, "usageCount": node.usageCount})
+            incorrectSortedNodesJson.append({"title": node.title, "usageCount": node.count})
 
         for edge in incorrectSortedEdges:
-            incorrectSortedEdgesJson.append({"source": edge.sourceNode.title, "dest": edge.destNode.title, "usageCount": edge.usageCount})
+            incorrectSortedEdgesJson.append({"source": edge.sourceNode.title, "dest": edge.destNode.title, "usageCount": edge.count})
 
         for node in correctSortedNodes:
-            correctSortedNodesJson.append({"title": node.title, "usageCount": node.usageCount})
+            correctSortedNodesJson.append({"title": node.title, "usageCount": node.count})
 
         for edge in correctSortedEdges:
-            correctSortedEdgesJson.append({"source": edge.sourceNode.title, "dest": edge.destNode.title, "usageCount": edge.usageCount})
+            correctSortedEdgesJson.append({"source": edge.sourceNode.title, "dest": edge.destNode.title, "usageCount": edge.count})
 
         for errorSpecificFeedback in errorSpecificFeedbacks:
             if errorSpecificFeedback.edge is not None:
@@ -1668,18 +1701,18 @@ class MyXBlock(XBlock):
             else:
                 n2 = currentNode.first()
             
-            n2.usageCount+= 1
+            n2.count+= 1
             n2.save()
 
             
             currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
             if not currentEdge.exists():
                 e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
-                e1.usageCount += 1
+                e1.count += 1
                 e1.save()
             else:
                 e1 = currentEdge.first()
-                e1.usageCount += 1
+                e1.count += 1
                 e1.save()
 
 

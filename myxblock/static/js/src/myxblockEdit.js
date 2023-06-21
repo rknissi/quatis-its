@@ -279,6 +279,7 @@ function MyXBlockEdit(runtime, element) {
       var data = {
         from: sourceState,
         to: destState,
+        count: 0,
         normal: { stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()) },
         hovered: { stroke: { thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()) } },
         selected: { stroke: { color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' } },
@@ -332,6 +333,7 @@ function MyXBlockEdit(runtime, element) {
     if (dropDownValue === 'normalState') {
       data = {
         id: stateName,
+        count: 0,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
@@ -346,6 +348,7 @@ function MyXBlockEdit(runtime, element) {
     } else {
       data = {
         id: stateName,
+        count: 0,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
@@ -629,6 +632,7 @@ function MyXBlockEdit(runtime, element) {
               if (data.nodes[i].id === tag.id) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                document.getElementById("editStateCount").value = data.nodes[i].count;
                 document.getElementById("editStateLinkedSolution").value = data.nodes[i].linkedSolution;
                 if (data.nodes[i].fixedValue == 1) {
                   document.getElementById("editStateFixedValue").checked = true;
@@ -761,7 +765,7 @@ function MyXBlockEdit(runtime, element) {
                 el.textContent = "<Adicionar um novo feedback>";
                 el.value = 0;
                 errorSpecificSelect.appendChild(el);
-                currentErrorSpecificFeedback.set(0, { "id": "", "text": "", "usefulness": 0, "priority": 0 })
+                currentErrorSpecificFeedback.set(0, { "id": "", "count": 0, "text": "", "usefulness": 0, "priority": 0 })
 
                 var explanations = edgeInfo.explanations
                 for (var i = 0; i < explanations.length; i++) {
@@ -779,7 +783,7 @@ function MyXBlockEdit(runtime, element) {
                 el.textContent = "<Adicionar uma nova explicação>";
                 el.value = 0;
                 explanationSelect.appendChild(el);
-                currentExplanations.set(0, { "id": "", "text": "", "usefulness": 0, "priority": 0 })
+                currentExplanations.set(0, { "id": "", "count": 0, "text": "", "usefulness": 0, "priority": 0 })
 
                 var hints = edgeInfo.hints
                 for (var i = 0; i < hints.length; i++) {
@@ -797,7 +801,7 @@ function MyXBlockEdit(runtime, element) {
                 el.textContent = "<Adicionar uma nova dica>";
                 el.value = 0;
                 hintSelect.appendChild(el);
-                currentHints.set(0, { "id": "", "text": "", "usefulness": 0, "priority": 0 })
+                currentHints.set(0, { "id": "", "count": 0, "text": "", "usefulness": 0, "priority": 0 })
 
 
               }   
@@ -805,6 +809,7 @@ function MyXBlockEdit(runtime, element) {
 
             document.getElementById("editStepSource").value = data.edges[edgePos].from;
             document.getElementById("editStepDest").value = data.edges[edgePos].to;
+            document.getElementById("editStepCount").value = data.edges[edgePos].count;
             document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
             if (data.edges[edgePos].fixedValue == 1) {
               document.getElementById("editStepFixedValue").checked = true;
@@ -1238,6 +1243,9 @@ function MyXBlockEdit(runtime, element) {
     var errorSpecificId = document.getElementById("editFeedbackId");
     errorSpecificId.value = errorSpecificDetails.id
 
+    var errorSpecificCount = document.getElementById("editFeedbackCount");
+    errorSpecificCount.value = errorSpecificDetails.count
+
     var errorSpecificText = document.getElementById("editFeedbackText");
     errorSpecificText.value = errorSpecificDetails.text
 
@@ -1277,6 +1285,9 @@ function MyXBlockEdit(runtime, element) {
     var hintId = document.getElementById("editFeedbackId");
     hintId.value = hintDetails.id
 
+    var hintCount = document.getElementById("editFeedbackCount");
+    hintCount.value = hintDetails.count
+
     var hintText = document.getElementById("editFeedbackText");
     hintText.value = hintDetails.text
 
@@ -1315,6 +1326,9 @@ function MyXBlockEdit(runtime, element) {
 
     var explanationId = document.getElementById("editFeedbackId");
     explanationId.value = explanationDetails.id
+
+    var explanationCount = document.getElementById("editFeedbackCount");
+    explanationCount.value = explanationDetails.count
 
     var explanationText = document.getElementById("editFeedbackText");
     explanationText.value = explanationDetails.text
