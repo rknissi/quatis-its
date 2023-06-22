@@ -205,7 +205,7 @@ def getJsonFromProblemGraph(problemId):
                 nodeColor = getNodeColor(dest)
                 if dest not in addedNodes:
                     if dest.visible == 1:
-                        node = {"id": dest.title, "count": dest.count, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "fixedValue": dest.fixedValue, "linkedSolution": dest.linkedSolution, "visible": dest.visible, "modifiedCorrectness": 0}
+                        node = {"id": dest.title, "counter": dest.counter, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "fixedValue": dest.fixedValue, "linkedSolution": dest.linkedSolution, "visible": dest.visible, "modifiedCorrectness": 0}
                         if dest.nodePositionX != -1 and dest.nodePositionY != -1:
                             node["x"] = dest.nodePositionX
                             node["y"] = dest.nodePositionY
@@ -215,13 +215,13 @@ def getJsonFromProblemGraph(problemId):
                 else: 
                     if dest.visible == 1:
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest.title, "count": dest.count, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "linkedSolution": dest.linkedSolution, "fixedValue": dest.fixedValue, "visible": dest.visible, "modifiedCorrectness": 0}
+                        nodeList[pos] = {"id": dest.title, "counter": dest.counter, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "linkedSolution": dest.linkedSolution, "fixedValue": dest.fixedValue, "visible": dest.visible, "modifiedCorrectness": 0}
                 
             elif dest.title == "_end_":
                 nodeColor = getNodeColor(source)
                 if source not in addedNodes:
                     if source.visible == 1:
-                        node = {"id": source.title, "count": source.count, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
+                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
@@ -231,7 +231,7 @@ def getJsonFromProblemGraph(problemId):
                 else:
                     if source.visible == 1:
                         pos = addedNodes.index(source)
-                        node = {"id": source.title, "count": source.count, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
+                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
@@ -241,7 +241,7 @@ def getJsonFromProblemGraph(problemId):
                 if source not in addedNodes:
                     if  source.visible == 1:
                         nodeColor = getNodeColor(source)
-                        node = {"id": source.title, "count": source.count, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
+                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
@@ -251,7 +251,7 @@ def getJsonFromProblemGraph(problemId):
                 if dest not in addedNodes:
                     if dest.visible == 1:
                         nodeColor = getNodeColor(dest)
-                        node = {"id": dest.title, "count": dest.count, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "linkedSolution": dest.linkedSolution, "fixedValue": dest.fixedValue, "visible": dest.visible, "modifiedCorrectness": 0}
+                        node = {"id": dest.title, "counter": dest.counter, "height": defaultNodeHeight, "fill": nodeColor, "correctness": dest.correctness, "linkedSolution": dest.linkedSolution, "fixedValue": dest.fixedValue, "visible": dest.visible, "modifiedCorrectness": 0}
                         if dest.nodePositionX != -1 and dest.nodePositionY != -1:
                             node["x"] = dest.nodePositionX
                             node["y"] = dest.nodePositionY
@@ -260,7 +260,7 @@ def getJsonFromProblemGraph(problemId):
                         addedNodes.append(dest)
                 
                 if source.visible == 1 and dest.visible == 1 and edgeObj.visible == 1:
-                    edge = {"from": source.title, "to": dest.title, "count": edgeObj.count, "normal": {"stroke": defaultArrowStroke + getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness, "visible": 1, "fixedValue": edgeObj.fixedValue, "modifiedCorrectness": 0}
+                    edge = {"from": source.title, "to": dest.title, "counter": edgeObj.counter, "normal": {"stroke": defaultArrowStroke + getEdgeColor(edgeObj)}, "hovered": {"stroke": {"thickness": 5, "color": getEdgeColor(edgeObj)}}, "selected": {"stroke": {"color": getEdgeColor(edgeObj), "dash": '10 3', "thickness": '7' }}, "correctness": edgeObj.correctness, "visible": 1, "fixedValue": edgeObj.fixedValue, "modifiedCorrectness": 0}
                     edgeList.append(edge)
 
     return {"nodes": nodeList, "edges": edgeList, "fixedPos": fixedPos}

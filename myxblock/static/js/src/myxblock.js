@@ -168,14 +168,6 @@ function MyXBlock(runtime, element, data) {
             hintButton.style.display = 'block';
         }
 
-        if (value.hintId) {
-            $.ajax({
-                type: "POST",
-                url: increaseFeedbackCount,
-                data: JSON.stringify({ type: value.hintType, id: value.hintId })
-            });
-        }
-
          
         if (value.status == 'OK') {
 
@@ -304,7 +296,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.minimalStep.length > 0) {
             for(var i = 0; i < value.minimalStep.length; i++){
-                feedback = prompt("A seguinte trandição está correta no contexto do exercício?\n" + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
+                feedback = prompt("A seguinte transição está correta no contexto do exercício?\n" + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
@@ -600,10 +592,10 @@ function MyXBlock(runtime, element, data) {
 
         choice = prompt("Você tem dúvidas na transição \n" 
             + firstNode.value + "-->" + secondNode.value 
-            + "\nOu você tem dúvida no ponto\n" + secondNode.value 
-            + "\n E não sabe como prosseguir?" 
-            + "\nDigite 1 para  ser uma dúvida na transição, ou 2 caso seja uma dúvida no ponto de parada" );
-        if (choice != null ||  choice != "1" || choice != "2") {
+            + "\n\nOu você tem dúvida no ponto\n" + secondNode.value 
+            + "\nE não sabe como prosseguir?" 
+            + "\n\nDigite 1 para  ser uma dúvida na transição, ou 2 caso seja uma dúvida no ponto de parada" );
+        if (choice == null || (choice != "1" && choice != "2")) {
             alert("Escolha inválida. Por favor escolha ou o valor 1 ou 2")
             enableButton("askQuestion")
             return
@@ -655,7 +647,7 @@ function MyXBlock(runtime, element, data) {
 
                     } else {
                         for (var i = 0; i < message.doubts.length; i++) {
-                            if (value.hintId) {
+                            if (message.doubts[i].id) {
                                 $.ajax({
                                     type: "POST",
                                     url: increaseFeedbackCount,
@@ -771,6 +763,11 @@ function MyXBlock(runtime, element, data) {
                                     alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
                                 } else {
                                     for (var j = 0; j < message.doubts[i].answers.length; j++) {
+                                        $.ajax({
+                                            type: "POST",
+                                            url: increaseFeedbackCount,
+                                            data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
+                                        });
                                         doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
                                         if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
                                             answerUsefulness = message.doubts[i].answers[j].usefulness

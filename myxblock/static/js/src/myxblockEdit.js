@@ -279,7 +279,7 @@ function MyXBlockEdit(runtime, element) {
       var data = {
         from: sourceState,
         to: destState,
-        count: 0,
+        counter: 0,
         normal: { stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()) },
         hovered: { stroke: { thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()) } },
         selected: { stroke: { color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' } },
@@ -333,7 +333,7 @@ function MyXBlockEdit(runtime, element) {
     if (dropDownValue === 'normalState') {
       data = {
         id: stateName,
-        count: 0,
+        counter: 0,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
@@ -348,7 +348,7 @@ function MyXBlockEdit(runtime, element) {
     } else {
       data = {
         id: stateName,
-        count: 0,
+        counter: 0,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
@@ -632,7 +632,7 @@ function MyXBlockEdit(runtime, element) {
               if (data.nodes[i].id === tag.id) {
                 document.getElementById("editState").value = tag.id;
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
-                document.getElementById("editStateCount").value = data.nodes[i].count;
+                document.getElementById("editStateCount").value = data.nodes[i].counter;
                 document.getElementById("editStateLinkedSolution").value = data.nodes[i].linkedSolution;
                 if (data.nodes[i].fixedValue == 1) {
                   document.getElementById("editStateFixedValue").checked = true;
@@ -740,9 +740,11 @@ function MyXBlockEdit(runtime, element) {
 
                   var id = doubts[i].id;
                   var text = doubts[i].text;
+                  var counter = doubts[i].counter;
                   var el = document.createElement("option");
                   el.textContent = text;
                   el.value = id;
+                  el.counter = counter;
                   doubtSelect.appendChild(el);
 
                   currentDoubtAnswers.set(id, doubts[i].answers)
@@ -765,7 +767,7 @@ function MyXBlockEdit(runtime, element) {
                 el.textContent = "<Adicionar um novo feedback>";
                 el.value = 0;
                 errorSpecificSelect.appendChild(el);
-                currentErrorSpecificFeedback.set(0, { "id": "", "count": 0, "text": "", "usefulness": 0, "priority": 0 })
+                currentErrorSpecificFeedback.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
 
                 var explanations = edgeInfo.explanations
                 for (var i = 0; i < explanations.length; i++) {
@@ -783,7 +785,7 @@ function MyXBlockEdit(runtime, element) {
                 el.textContent = "<Adicionar uma nova explicação>";
                 el.value = 0;
                 explanationSelect.appendChild(el);
-                currentExplanations.set(0, { "id": "", "count": 0, "text": "", "usefulness": 0, "priority": 0 })
+                currentExplanations.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
 
                 var hints = edgeInfo.hints
                 for (var i = 0; i < hints.length; i++) {
@@ -801,7 +803,7 @@ function MyXBlockEdit(runtime, element) {
                 el.textContent = "<Adicionar uma nova dica>";
                 el.value = 0;
                 hintSelect.appendChild(el);
-                currentHints.set(0, { "id": "", "count": 0, "text": "", "usefulness": 0, "priority": 0 })
+                currentHints.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
 
 
               }   
@@ -809,7 +811,7 @@ function MyXBlockEdit(runtime, element) {
 
             document.getElementById("editStepSource").value = data.edges[edgePos].from;
             document.getElementById("editStepDest").value = data.edges[edgePos].to;
-            document.getElementById("editStepCount").value = data.edges[edgePos].count;
+            document.getElementById("editStepCount").value = data.edges[edgePos].counter;
             document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
             if (data.edges[edgePos].fixedValue == 1) {
               document.getElementById("editStepFixedValue").checked = true;
@@ -1078,10 +1080,14 @@ function MyXBlockEdit(runtime, element) {
 
     var doubtDropDownId = doubtDropDown.options[doubtDropDown.selectedIndex].value;
     var doubtDropDownText = doubtDropDown.options[doubtDropDown.selectedIndex].textContent;
+    var doubtDropDownCounter = doubtDropDown.options[doubtDropDown.selectedIndex].counter;
     
 
     var doubtId = document.getElementById("editDoubtId");
     doubtId.value = doubtDropDownId
+
+    var doubtCount = document.getElementById("editDoubtCount");
+    doubtCount.value = doubtDropDownCounter
 
     var doubtText = document.getElementById("editDoubtText");
     doubtText.value = doubtDropDownText
@@ -1095,10 +1101,12 @@ function MyXBlockEdit(runtime, element) {
 
         var id = answers[i].id;
         var text = answers[i].text;
+        var counter = answers[i].counter;
 
         var el = document.createElement("option");
         el.textContent = text;
         el.value = id;
+        el.counter = counter;
         answersSelect.appendChild(el);
 
         currentAnswers.set(id, answers[i])
@@ -1109,19 +1117,22 @@ function MyXBlockEdit(runtime, element) {
     el.textContent = "<Adicionar uma nova resposta>";
     el.value = 0;
     answersSelect.appendChild(el);
-    currentAnswers.set(0, {"id": "", "text": "", "usefulness": 0})
+    currentAnswers.set(0, {"id": "", "counter": 0, "text": "", "usefulness": 0})
 
     var answerIdElement = document.getElementById("editAnswerId");
     var answerTextElement = document.getElementById("editAnswerText");
+    var answerCounterElement = document.getElementById("editAnswerCount");
     var answerUsefulnessElement = document.getElementById("editAnswerUsefulness");
 
     if (answers.length > 0) {
       answerIdElement.value = answers[0].id
       answerTextElement.value = answers[0].text
+      answerCounterElement.value = answers[0].counter
       answerUsefulnessElement.value = answers[0].usefulness
     } else {
       answerIdElement.value = ""
       answerTextElement.value = ""
+      answerCounterElement.value = 0
       answerUsefulnessElement.value = 0
     }
 
@@ -1165,10 +1176,14 @@ function MyXBlockEdit(runtime, element) {
 
     var doubtDropDownId = doubtDropDown.options[doubtDropDown.selectedIndex].value;
     var doubtDropDownText = doubtDropDown.options[doubtDropDown.selectedIndex].textContent;
+    var doubtDropDownCounter = doubtDropDown.options[doubtDropDown.selectedIndex].counter;
     
 
     var doubtId = document.getElementById("editDoubtId");
     doubtId.value = doubtDropDownId
+
+    var doubtCounter = document.getElementById("editDoubtCount");
+    doubtCounter.value = doubtDropDownCounter
 
     var doubtText = document.getElementById("editDoubtText");
     doubtText.value = doubtDropDownText
@@ -1182,10 +1197,12 @@ function MyXBlockEdit(runtime, element) {
 
         var id = answers[i].id;
         var text = answers[i].text;
+        var counter = answers[i].counter;
 
         var el = document.createElement("option");
         el.textContent = text;
         el.value = id;
+        el.counter = counter;
         answersSelect.appendChild(el);
 
         currentAnswers.set(id, answers[i])
@@ -1196,19 +1213,22 @@ function MyXBlockEdit(runtime, element) {
     el.textContent = "<Adicionar uma nova resposta>";
     el.value = 0;
     answersSelect.appendChild(el);
-    currentAnswers.set(0, {"id": "", "text": "", "usefulness": 0})
+    currentAnswers.set(0, {"id": "", "counter": 0, "text": "", "usefulness": 0})
 
     var answerIdElement = document.getElementById("editAnswerId");
     var answerTextElement = document.getElementById("editAnswerText");
+    var answerCounterElement = document.getElementById("editAnswerCount");
     var answerUsefulnessElement = document.getElementById("editAnswerUsefulness");
 
     if (answers.length > 0) {
       answerIdElement.value = answers[0].id
       answerTextElement.value = answers[0].text
+      answerCounterElement.value = answers[0].counter
       answerUsefulnessElement.value = answers[0].usefulness
     } else {
       answerIdElement.value = ""
       answerTextElement.value = ""
+      answerCounterElement.value = 0
       answerUsefulnessElement.value = 0
     }
 
@@ -1244,7 +1264,7 @@ function MyXBlockEdit(runtime, element) {
     errorSpecificId.value = errorSpecificDetails.id
 
     var errorSpecificCount = document.getElementById("editFeedbackCount");
-    errorSpecificCount.value = errorSpecificDetails.count
+    errorSpecificCount.value = errorSpecificDetails.counter
 
     var errorSpecificText = document.getElementById("editFeedbackText");
     errorSpecificText.value = errorSpecificDetails.text
@@ -1286,7 +1306,7 @@ function MyXBlockEdit(runtime, element) {
     hintId.value = hintDetails.id
 
     var hintCount = document.getElementById("editFeedbackCount");
-    hintCount.value = hintDetails.count
+    hintCount.value = hintDetails.counter
 
     var hintText = document.getElementById("editFeedbackText");
     hintText.value = hintDetails.text
@@ -1328,7 +1348,7 @@ function MyXBlockEdit(runtime, element) {
     explanationId.value = explanationDetails.id
 
     var explanationCount = document.getElementById("editFeedbackCount");
-    explanationCount.value = explanationDetails.count
+    explanationCount.value = explanationDetails.counter
 
     var explanationText = document.getElementById("editFeedbackText");
     explanationText.value = explanationDetails.text
@@ -1492,11 +1512,13 @@ function MyXBlockEdit(runtime, element) {
     var answer = currentAnswers.get(Number(answerId))
 
     var answerIdElement = document.getElementById("editAnswerId");
+    var answerCounterElement = document.getElementById("editAnswerCount");
     var answerTextElement = document.getElementById("editAnswerText");
     var answerUsefulnessElement = document.getElementById("editAnswerUsefulness");
 
     answerIdElement.value = answer.id
     answerTextElement.value = answer.text
+    answerCounterElement.value = answer.counter
     answerUsefulnessElement.value = answer.usefulness
   }
 
