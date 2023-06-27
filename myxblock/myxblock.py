@@ -229,6 +229,16 @@ class MyXBlock(XBlock):
         help="Student's answer from the radio button",
     )
 
+    usedStates = List(
+        default=[], scope=Scope.user_state,
+        help="Student's used states on exercise",
+    )
+
+    usedSteps = List(
+        default=[], scope=Scope.user_state,
+        help="Student's used steps on exercise",
+    )
+
     hasScore = Boolean(
         default=False, scope=Scope.user_state,
         help="If it is going to be graded",
@@ -300,6 +310,37 @@ class MyXBlock(XBlock):
 
         frag.initialize_js('MyXBlockEdit')
         return frag
+
+    def saveStatesAndSteps(self, elements):
+        for element in elements:
+            self.usedStates.append(element)
+
+        lastElement = None
+        for element in elements:
+            if lastElement is not None:
+                self.usedSteps.append((lastElement, element))
+            lastElement = element
+
+    def updateStateAndStepsCounters(self):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
+        usedStates = []
+        [usedStates.append(x) for x in self.usedStates if x not in usedStates]
+
+        for state in usedStates:
+            node= Node.objects.get(problem=loadedProblem, title=state)
+            node.counter += 1
+            node.save()
+
+        usedSteps = []
+        for step in self.usedSteps:
+            if step not in usedSteps:
+                usedSteps.append(step)
+
+        for step in usedSteps:
+            edge = Edge.objects.get(problem=loadedProblem, sourceNode__title=step[0], destNode__title=step[1])
+            edge.counter += 1
+            edge.save()
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
@@ -1137,6 +1178,8 @@ class MyXBlock(XBlock):
 
         if '' in answerArray:
             answerArray =  list(filter(lambda value: value != '', answerArray))
+        
+        self.saveStatesAndSteps(answerArray)
 
         possibleIncorrectAnswer = self.getFirstIncorrectAnswer(answerArray)
         
@@ -1664,6 +1707,7 @@ class MyXBlock(XBlock):
             answerArray =  list(filter(lambda value: value != '', answerArray))
 
         self.answerSteps = answerArray
+        self.saveStatesAndSteps(answerArray)
 
         if loadedProblem.multipleChoiceProblem == 1 and 'radioAnswer' not in data :
             return {"error": "Nenhuma opções de resposta foi selecionada!"}
@@ -1703,18 +1747,15 @@ class MyXBlock(XBlock):
             else:
                 n2 = currentNode.first()
             
-            n2.counter += 1
             n2.save()
 
             
             currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
             if not currentEdge.exists():
                 e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
-                e1.counter += 1
                 e1.save()
             else:
                 e1 = currentEdge.first()
-                e1.counter += 1
                 e1.save()
 
 
@@ -1833,6 +1874,7 @@ class MyXBlock(XBlock):
             else:
                 message = "Sua resolução e/ou resposta final estão incorretas"
 
+        self.updateStateAndStepsCounters()
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):

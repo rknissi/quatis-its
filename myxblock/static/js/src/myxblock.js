@@ -177,7 +177,8 @@ function MyXBlock(runtime, element, data) {
 
             //Mostrar que a linha está OK, por agora fazer nada
             //$('#hint', element).append("\n" + value.hint);
-            if (hintsIds.includes(value.hintId) && value.hintId != 0) {
+            //if (hintsIds.includes(value.hintId) && value.hintId != 0) {
+            if (hintsIds.includes(value.hintId) && hintsTypes[hintsIds.indexOf(value.hintId)] == value.hintType && value.hintId != 0) {
                 actualHint = hintsIds.indexOf(value.hintId)
             } else if (hints.includes(value.hint) && value.hintId == 0) {
                 actualHint = hints.indexOf(value.hint)
