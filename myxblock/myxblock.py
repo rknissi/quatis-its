@@ -45,28 +45,28 @@ noUniversalAnswer = "no"
 #Ainda não salvando nada nessa variável
 allResolutionsNew = allResolutionsDefault
 
-def amorzinhoErrorSpecificFeedback(element):
+def orderErrorSpecificFeedback(element):
     quantity = ErrorSpecificFeedbacks.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
-def amorzinhoMinimalFeedback(element):
+def orderMinimalFeedback(element):
     return abs(element.correctness)
 
-def amorzinhoKnowledgeComponent(element):
+def orderKnowledgeComponent(element):
     return 1 - (abs(element.correctness))
 
-def amorzinhoExplanations(element):
+def orderExplanations(element):
     quantity = Explanation.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
-def amorzinhoHints(element):
+def orderHints(element):
     quantity = Hint.objects.filter(problem = element.problem, edge = element).count()
     correctness = element.correctness
     return (1/(correctness * 10) * (1/(0.1 + quantity)))
 
-def amorzinhoTempo(element):
+def orderByTime(element):
     if element.dateModified:
         return element.dateModified
     return element.dateAdded
@@ -1964,7 +1964,7 @@ class MyXBlock(XBlock):
 
             previousStateName = stateName
 
-        askInfoSteps.sort(key=amorzinhoMinimalFeedback)
+        askInfoSteps.sort(key=orderMinimalFeedback)
         if askInfoSteps is not None and len(askInfoSteps) >= maxMinimumFeedback:
             return askInfoSteps[0:maxMinimumFeedback]
         else:
@@ -1990,7 +1990,7 @@ class MyXBlock(XBlock):
                         if possibleEdge.exists() and ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, edge=stepEE).count() < maxToAsk:
                             returnList.append(stepEE)
         if len(returnList) >= maxErrorSpecificFeedback:
-            returnList.sort(key=amorzinhoErrorSpecificFeedback)
+            returnList.sort(key=orderErrorSpecificFeedback)
             return returnList[0:maxErrorSpecificFeedback]
         else:
             return returnList
@@ -2012,7 +2012,7 @@ class MyXBlock(XBlock):
                     if transformedResolution[sourceNodeIndexEX + 1] == stepHint.destNode.title and Hint.objects.filter(problem=loadedProblem, edge=stepHint).count() < maxToAsk:
                         returnList.append(stepHint)
         if len(returnList) >= maxExplanations:
-            returnList.sort(key=amorzinhoHints)
+            returnList.sort(key=orderHints)
             return returnList[0:maxHints]
         else:
             return returnList
@@ -2034,7 +2034,7 @@ class MyXBlock(XBlock):
                     if transformedResolution[sourceNodeIndexEX + 1] == stepEX.destNode.title and Explanation.objects.filter(problem=loadedProblem, edge=stepEX).count() < maxToAsk:
                         returnList.append(stepEX)
         if len(returnList) >= maxExplanations:
-            returnList.sort(key=amorzinhoExplanations)
+            returnList.sort(key=orderExplanations)
             return returnList[0:maxExplanations]
         else:
             return returnList
@@ -2090,7 +2090,7 @@ class MyXBlock(XBlock):
 
 
         if len(relatedSteps) >= maxKnowledgeComponent:
-            relatedSteps.sort(key=amorzinhoKnowledgeComponent)
+            relatedSteps.sort(key=orderKnowledgeComponent)
             return relatedSteps[0:maxKnowledgeComponent]
         else:
             return relatedSteps
