@@ -633,7 +633,7 @@ function MyXBlock(runtime, element, data) {
                     enableButton("askQuestion")
                     if (message.doubts.length == 0) {
                         var singleNode = document.getElementById("idt" + checkedBoxes[0]);
-                        doubt = prompt("Qual a dúvida para o seguinte estado?\n" + singleNode.value);
+                        doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + singleNode.value);
                         if (doubt != null) {
                             $.ajax({
                                 type: "POST",
@@ -693,7 +693,7 @@ function MyXBlock(runtime, element, data) {
                         newDoubt = prompt("Ainda lhe restam dúvidas?")
                         if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
                             var singleNode = document.getElementById("idt" + checkedBoxes[0]);
-                            doubt = prompt("Qual a dúvida para o seguinte estado?\n" + singleNode.value);
+                            doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + singleNode.value);
 
                             if (doubt != null) {
                                 $.ajax({
@@ -739,7 +739,7 @@ function MyXBlock(runtime, element, data) {
                         var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                         var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
-                        doubt = prompt("Qual a dúvida para o seguinte passo?\n" + sourceNode.value + " -> " + destNode.value);
+                        doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
 
                         if (doubt != null) {
                             $.ajax({
@@ -798,7 +798,7 @@ function MyXBlock(runtime, element, data) {
                             var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                             var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
-                            doubt = prompt("Qual a dúvida para o seguinte passo?\n" + sourceNode.value + " -> " + destNode.value);
+                            doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
 
                             $.ajax({
                                 type: "POST",

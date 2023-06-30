@@ -313,12 +313,12 @@ class MyXBlock(XBlock):
 
     def saveStatesAndSteps(self, elements):
         for element in elements:
-            self.usedStates.append(element)
+            self.usedStates.append(transformToSimplerAnswer(element))
 
         lastElement = None
         for element in elements:
             if lastElement is not None:
-                self.usedSteps.append((lastElement, element))
+                self.usedSteps.append((transformToSimplerAnswer(lastElement), transformToSimplerAnswer(element)))
             lastElement = element
 
     def updateStateAndStepsCounters(self):
@@ -334,13 +334,17 @@ class MyXBlock(XBlock):
 
         usedSteps = []
         for step in self.usedSteps:
-            if step not in usedSteps:
+            if len(usedSteps) == 0:
                 usedSteps.append(step)
-
-        for step in usedSteps:
-            edge = Edge.objects.get(problem=loadedProblem, sourceNode__title=step[0], destNode__title=step[1])
-            edge.counter += 1
-            edge.save()
+            else:
+                alreadyInserted = False
+                for inserted in usedSteps:
+                    if inserted[0] == step[0] and inserted[1] == step[1]:
+                        alreadyInserted = True
+                if not alreadyInserted:
+                    usedSteps.append(step)
+        
+        return usedSteps
 
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
@@ -1875,6 +1879,8 @@ class MyXBlock(XBlock):
                 message = "Sua resolução e/ou resposta final estão incorretas"
 
         self.updateStateAndStepsCounters()
+        self.usedStates = []
+        self.usedSteps = []
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
