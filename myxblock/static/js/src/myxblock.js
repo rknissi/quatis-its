@@ -324,7 +324,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.errorSpecific.length > 0) {
             for(var i = 0; i < value.errorSpecific.length; i++){
-                var feedback = prompt("Como você explicaria que a seguinte transição  está incorreta?\n" + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
+                var feedback = prompt("Como você explicaria o porquê a seguinte transição está incorreta?\n" + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -357,7 +357,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.hints.length > 0) {
             for(var i = 0; i < value.hints.length; i++){
-                var feedback = prompt("Qual dica você daria para a seguinte transição, para ajudar os alunos que não souberem como ir do primeiro ponto para o segundo??\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
+                var feedback = prompt("Qual dica você daria para a seguinte transição, para ajudar os alunos que não souberem como ir do primeiro ponto para o segundo?\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -372,7 +372,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.explanation.length > 0) {
             for(var i = 0; i < value.explanation.length; i++){
-                var feedback = prompt("Como você explicaria o porquê que a transição abaixo está correto?\n" + value.explanation[i] + " --> " + value.explanation[i + 1]);
+                var feedback = prompt("Como você explicaria o porquê que a transição abaixo está correta?\n" + value.explanation[i] + " --> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -593,19 +593,18 @@ function MyXBlock(runtime, element, data) {
 
         choice = prompt("Você tem dúvidas na transição \n" 
             + firstNode.value + "-->" + secondNode.value 
-            + "\n\nOu você tem dúvida no ponto\n" + secondNode.value 
+            + "\n\nOu você tem dúvida no ponto de parada\n" + secondNode.value 
             + "\nE não sabe como prosseguir?" 
-            + "\n\nDigite 1 para  ser uma dúvida na transição, ou 2 caso seja uma dúvida no ponto de parada" );
-        if (choice == null || (choice != "1" && choice != "2")) {
-            alert("Escolha inválida. Por favor escolha ou o valor 1 ou 2")
+            + "\n\nDigite 'primeiro' para ndicar uma dúvida na transição, ou 'segundo' caso seja uma dúvida no ponto de parada" );
+        if (choice == null || (choice.toLowerCase() != "primeiro" && choice.toLowerCase() != "segundo")) {
+            alert("Escolha inválida. Por favor escreva 'primeiro' ou 'segundo'")
             enableButton("askQuestion")
             return
         } else {
-            if (choice != null && choice == "2") {
+            if (choice != null && choice.toLowerCase == "segundo") {
                 checkedBoxes.shift()
             }
         }
-
         
 
         if (checkedBoxes.length == 0) {
