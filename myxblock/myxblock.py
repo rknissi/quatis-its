@@ -1046,7 +1046,7 @@ class MyXBlock(XBlock):
             answer.save()
             loadedDoubt.dateModified = datetime.now()
             loadedDoubt.save()
-        elif feedbackType == 'doubtStep':
+        elif feedbackType == 'doubtStep' or feedbackType == 'doubtState':
             doubt = Doubt(problem=loadedProblem)
             step = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(data.get("nodeFrom")), destNode__title = transformToSimplerAnswer(data.get("nodeTo")))
             if step.exists():
@@ -1063,38 +1063,31 @@ class MyXBlock(XBlock):
                 toState = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeTo")))
                 if toState.exists():
                     newDestNode = toState[0]    
+                    doubt.node = newDestNode
                 else:
                     newDestNode = Node(problem=loadedProblem, title = data.get("nodeTo"), dateAdded = datetime.now())
                     newDestNode.save()
                     newDestNode = Node.objects.get(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeTo")))
+                    doubt.node = newDestNode
 
                 newStep = Edge(problem=loadedProblem, sourceNode = newSourceNode, destNode = newDestNode, dateAdded = datetime.now())
                 newStep.save()
                 doubt.edge = newStep
             
-            doubt.type = 1
-            doubt.text=data.get("message")
-            doubt.dateAdded = datetime.now()
-
-            doubt.save()
-
-            return {'result':'success', 'doubtId': doubt.id}
-        elif feedbackType == 'doubtState':
-            doubt = Doubt(problem=loadedProblem)
-            state = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("node")))
-            if state.exists():
-                doubt.node = state[0]
+            if feedbackType == 'doubtStep':
+                doubt.type = 1
+                doubt.node = None
             else:
-                newState = Node(problem=loadedProblem, title = data.get("node"), dateAdded = datetime.now())
-                newState.save()
-                newState = Node.objects.get(problem=loadedProblem, title = transformToSimplerAnswer(data.get("node")))
-                doubt.node = newState
-            doubt.type = 0
+                doubt.type = 0
+                doubt.edge = None
+
             doubt.text=data.get("message")
             doubt.dateAdded = datetime.now()
+
             doubt.save()
 
             return {'result':'success', 'doubtId': doubt.id}
+
         return {'result':'success'}
 
     #Sistema que mostra quais dicas até o primeiro passo errado

@@ -600,225 +600,223 @@ function MyXBlock(runtime, element, data) {
             alert("Escolha inválida. Por favor escreva 'primeiro' ou 'segundo'")
             enableButton("askQuestion")
             return
-        } else {
-            if (choice != null && choice.toLowerCase == "segundo") {
-                checkedBoxes.shift()
-            }
         }
-        
 
-        if (checkedBoxes.length == 0) {
-            alert("Selecione as linhas no qual você tem dúvida!")
-        } else if (checkedBoxes.length > 2) {
-            alert("Selecione apenas uma ou duas linhas para pedir dúvidas!")
-        }else if (checkedBoxes.length == 2 && checkedBoxes[1] - checkedBoxes[0] != 1) {
-            alert("Selecione apenas passos consectuivos na resolução")
-        } else {
-            if (checkedBoxes.length == 1) {
+        if (choice.toLowerCase == "segundo") {
 
-                var singleNode = document.getElementById("idt" + checkedBoxes[0]);
-                if (singleNode.value == "") {
-                    alert("Selecione apenas passos que contenham algo escrito")
-                    return
-                }
-                $.ajax({
-                    type: "POST",
-                    url: getDoubtsAndAnswerFromState,
-                    data: JSON.stringify({node: singleNode.value}),
-                    success: getOrShowStateDoubt
-                });
+            var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
+            var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
-                function getOrShowStateDoubt(message) {
-                    enableButton("askQuestion")
-                    if (message.doubts.length == 0) {
-                        var singleNode = document.getElementById("idt" + checkedBoxes[0]);
-                        doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + singleNode.value);
-                        if (doubt != null) {
-                            $.ajax({
-                                type: "POST",
-                                url: send_feedback,
-                                data: JSON.stringify({ type: "doubtState", message: doubt, node: singleNode.value }),
-                                success: function (value) {
-                                    addDoubtIdtoList(value.doubtId)
-                                }
-                            });
-                        }
+            if (sourceNode.value == "" || destNode.value == "") {
+                alert("Selecione apenas passos que contenham algo escrito")
+                return
+            }
+            $.ajax({
+                type: "POST",
+                url: getDoubtsAndAnswerFromState,
+                data: JSON.stringify({ node: destNode.value }),
+                success: getOrShowStateDoubt
+            });
 
-
-                    } else {
-                        for (var i = 0; i < message.doubts.length; i++) {
-                            if (message.doubts[i].id) {
-                                $.ajax({
-                                    type: "POST",
-                                    url: increaseFeedbackCount,
-                                    data: JSON.stringify({ type: "doubt", id: message.doubts[i].id })
-                                });
+            function getOrShowStateDoubt(message) {
+                enableButton("askQuestion")
+                if (message.doubts.length == 0) {
+                    var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
+                    var destNode = document.getElementById("idt" + checkedBoxes[1]);
+                    doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + destNode.value);
+                    if (doubt != null) {
+                        $.ajax({
+                            type: "POST",
+                            url: send_feedback,
+                            data: JSON.stringify({ type: "doubtState", message: doubt, nodeTo: destNode.value, nodeFrom: sourceNode.value }),
+                            success: function (value) {
+                                alert("Dúvida enviada com sucesso")
+                                addDoubtIdtoList(value.doubtId)
                             }
-                            sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
-                            if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
-                                if (message.doubts[i].answers.length == 0) {
-                                    alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
-                                } else {
-                                    for (var j = 0; j < message.doubts[i].answers.length; j++) {
-                                        $.ajax({
-                                            type: "POST",
-                                            url: increaseFeedbackCount,
-                                            data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
-                                        });
-                                        doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
-                                        if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
-                                            answerUsefulness = message.doubts[i].answers[j].usefulness
-                                            answerUsefulness++
-                                            $.ajax({
-                                                type: "POST",
-                                                url: submitDoubtAnswerInfo,
-                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
-                                            });
-                                            j = message.doubts[i].answers.length
-                                        } else if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == noUniversalAnswer) {
-                                            answerUsefulness = message.doubts[i].answers[j].usefulness
-                                            answerUsefulness--
-                                            $.ajax({
-                                                type: "POST",
-                                                url: submitDoubtAnswerInfo,
-                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
-                                            });
-                                        }
-                                    }
-                                }
-                                i = message.doubts.length
-                            }
-                        }
-                        newDoubt = prompt("Ainda lhe restam dúvidas?")
-                        if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
-                            var singleNode = document.getElementById("idt" + checkedBoxes[0]);
-                            doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + singleNode.value);
-
-                            if (doubt != null) {
-                                $.ajax({
-                                    type: "POST",
-                                    url: send_feedback,
-                                    data: JSON.stringify({ type: "doubtState", message: doubt, node: singleNode.value })
-                                });
-                            }
-                        }
+                        });
                     }
-                    $.ajax({
-                        type: "POST",
-                        url: checkIfUseAiExplanation,
-                        data: "{}",
-                        success: function (value) {
-                            if (value.callOpenAiExplanation == "true") {
-                                enableExplanationButton()
-                            } else {
-                                enableHintButton()
-                            }
-                        }
-                    });
-                }
-
-            } else {
-                var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
-                var destNode = document.getElementById("idt" + checkedBoxes[1]);
-
-                if (sourceNode.value == "" || destNode.value == "") {
-                    alert("Selecione apenas passos que contenham algo escrito")
-                    return
-                }
-                $.ajax({
-                    type: "POST",
-                    url: getDoubtsAndAnswerFromStep,
-                    data: JSON.stringify({from: sourceNode.value, to: destNode.value}),
-                    success: getOrShowStepDoubt
-                });
-
-                function getOrShowStepDoubt(message) {
-                    enableButton("askQuestion")
-                    if (message.doubts.length == 0) {
-                        var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
-                        var destNode = document.getElementById("idt" + checkedBoxes[1]);
-
-                        doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
-
-                        if (doubt != null) {
-                            $.ajax({
-                                type: "POST",
-                                url: send_feedback,
-                                data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
-                                success: function (value) {
-                                    addDoubtIdtoList(value.doubtId)
-                                }
-                            });
-                        }
-                    } else {
-                        for (var i = 0; i < message.doubts.length; i++) {
+                } else {
+                    for (var i = 0; i < message.doubts.length; i++) {
+                        if (message.doubts[i].id) {
                             $.ajax({
                                 type: "POST",
                                 url: increaseFeedbackCount,
                                 data: JSON.stringify({ type: "doubt", id: message.doubts[i].id })
                             });
-                            sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
-                            if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
-                                if (message.doubts[i].answers.length == 0) {
-                                    alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
-                                } else {
-                                    for (var j = 0; j < message.doubts[i].answers.length; j++) {
+                        }
+                        sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
+                        if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
+                            if (message.doubts[i].answers.length == 0) {
+                                alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
+                            } else {
+                                for (var j = 0; j < message.doubts[i].answers.length; j++) {
+                                    $.ajax({
+                                        type: "POST",
+                                        url: increaseFeedbackCount,
+                                        data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
+                                    });
+                                    doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
+                                    if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
+                                        answerUsefulness = message.doubts[i].answers[j].usefulness
+                                        answerUsefulness++
                                         $.ajax({
                                             type: "POST",
-                                            url: increaseFeedbackCount,
-                                            data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
+                                            url: submitDoubtAnswerInfo,
+                                            data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
                                         });
-                                        doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
-                                        if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
-                                            answerUsefulness = message.doubts[i].answers[j].usefulness
-                                            answerUsefulness++
-                                            $.ajax({
-                                                type: "POST",
-                                                url: submitDoubtAnswerInfo,
-                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
-                                            });
-                                            j = message.doubts[i].answers.length
-                                        } else if (doubtAnswer && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == noUniversalAnswer) {
-                                            answerUsefulness = message.doubts[i].answers[j].usefulness
-                                            answerUsefulness--
-                                            $.ajax({
-                                                type: "POST",
-                                                url: submitDoubtAnswerInfo,
-                                                data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
-                                            });
-                                        }
+                                        j = message.doubts[i].answers.length
+                                    } else if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == noUniversalAnswer) {
+                                        answerUsefulness = message.doubts[i].answers[j].usefulness
+                                        answerUsefulness--
+                                        $.ajax({
+                                            type: "POST",
+                                            url: submitDoubtAnswerInfo,
+                                            data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
+                                        });
                                     }
                                 }
-                                i = message.doubts.length
                             }
+                            i = message.doubts.length
                         }
-                        newDoubt = prompt("Ainda lhe restam dúvidas?")
-                        if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
-                            var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
-                            var destNode = document.getElementById("idt" + checkedBoxes[1]);
-
-                            doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
-
+                    }
+                    newDoubt = prompt("Ainda lhe restam dúvidas?")
+                    if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
+                        var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
+                        var destNode = document.getElementById("idt" + checkedBoxes[1]);
+                        doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + destNode.value);
+                        if (doubt != null) {
                             $.ajax({
                                 type: "POST",
                                 url: send_feedback,
-                                data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value })
+                                data: JSON.stringify({ type: "doubtState", message: doubt, nnodeTo: destNode.value, nodeFrom: sourceNode.value }),
+                                success: function (value) {
+                                    alert("Dúvida enviada com sucesso")
+                                    addDoubtIdtoList(value.doubtId)
+                                }
                             });
                         }
                     }
-                    $.ajax({
-                        type: "POST",
-                        url: checkIfUseAiExplanation,
-                        data: "{}",
-                        success: function (value) {
-                            if (value.callOpenAiExplanation == "true") {
-                                enableExplanationButton()
-                            } else {
-                                enableHintButton()
-                            }
-                        }
-                    });
                 }
+                $.ajax({
+                    type: "POST",
+                    url: checkIfUseAiExplanation,
+                    data: "{}",
+                    success: function (value) {
+                        if (value.callOpenAiExplanation == "true") {
+                            enableExplanationButton()
+                        } else {
+                            enableHintButton()
+                        }
+                    }
+                });
+            }
+
+        } else {
+            var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
+            var destNode = document.getElementById("idt" + checkedBoxes[1]);
+
+            if (sourceNode.value == "" || destNode.value == "") {
+                alert("Selecione apenas passos que contenham algo escrito")
+                return
+            }
+            $.ajax({
+                type: "POST",
+                url: getDoubtsAndAnswerFromStep,
+                data: JSON.stringify({ from: sourceNode.value, to: destNode.value }),
+                success: getOrShowStepDoubt
+            });
+
+            function getOrShowStepDoubt(message) {
+                enableButton("askQuestion")
+                if (message.doubts.length == 0) {
+                    var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
+                    var destNode = document.getElementById("idt" + checkedBoxes[1]);
+
+                    doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
+
+                    if (doubt != null) {
+                        $.ajax({
+                            type: "POST",
+                            url: send_feedback,
+                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
+                            success: function (value) {
+                                alert("Dúvida enviada com sucesso")
+                                addDoubtIdtoList(value.doubtId)
+                            }
+                        });
+                    }
+                } else {
+                    for (var i = 0; i < message.doubts.length; i++) {
+                        $.ajax({
+                            type: "POST",
+                            url: increaseFeedbackCount,
+                            data: JSON.stringify({ type: "doubt", id: message.doubts[i].id })
+                        });
+                        sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
+                        if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
+                            if (message.doubts[i].answers.length == 0) {
+                                alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
+                            } else {
+                                for (var j = 0; j < message.doubts[i].answers.length; j++) {
+                                    $.ajax({
+                                        type: "POST",
+                                        url: increaseFeedbackCount,
+                                        data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
+                                    });
+                                    doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
+                                    if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
+                                        answerUsefulness = message.doubts[i].answers[j].usefulness
+                                        answerUsefulness++
+                                        $.ajax({
+                                            type: "POST",
+                                            url: submitDoubtAnswerInfo,
+                                            data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
+                                        });
+                                        j = message.doubts[i].answers.length
+                                    } else if (doubtAnswer && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == noUniversalAnswer) {
+                                        answerUsefulness = message.doubts[i].answers[j].usefulness
+                                        answerUsefulness--
+                                        $.ajax({
+                                            type: "POST",
+                                            url: submitDoubtAnswerInfo,
+                                            data: JSON.stringify({ id: message.doubts[i].answers[j].id, text: message.doubts[i].answers[j].text, usefulness: answerUsefulness })
+                                        });
+                                    }
+                                }
+                            }
+                            i = message.doubts.length
+                        }
+                    }
+                    newDoubt = prompt("Ainda lhe restam dúvidas?")
+                    if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
+                        var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
+                        var destNode = document.getElementById("idt" + checkedBoxes[1]);
+
+                        doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
+
+                        $.ajax({
+                            type: "POST",
+                            url: send_feedback,
+                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
+                            success: function (value) {
+                                alert("Dúvida enviada com sucesso")
+                                addDoubtIdtoList(value.doubtId)
+                            }
+                        });
+                    }
+                }
+                $.ajax({
+                    type: "POST",
+                    url: checkIfUseAiExplanation,
+                    data: "{}",
+                    success: function (value) {
+                        if (value.callOpenAiExplanation == "true") {
+                            enableExplanationButton()
+                        } else {
+                            enableHintButton()
+                        }
+                    }
+                });
             }
         }
 
