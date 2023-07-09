@@ -13,8 +13,9 @@ from datetime import datetime
 from django.http import JsonResponse
 from django.core import serializers
 from unidecode import unidecode
-from django.db.models.signals import pre_save, pre_init
+from django.db.models.signals import pre_save, pre_init, post_save, pre_delete
 from django.db.models import Q
+from django.db import transaction
 
 receivedMinimalFeedbackAmount = 0.1
 receivedHintUsefulnessAmount = 1
@@ -81,11 +82,13 @@ def levenshteinDistance(A, B):
     return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
 
 def transformToSimplerAnswer(answer):
-    withoutSpaces = answer.replace(" ", "")
-    lowerCase = withoutSpaces.lower()
-    noAccent = unidecode(lowerCase)
+    if answer is not None:
+        withoutSpaces = answer.replace(" ", "")
+        lowerCase = withoutSpaces.lower()
+        noAccent = unidecode(lowerCase)
 
-    return noAccent
+        return noAccent
+    return answer
 
 
 #Colinha:
@@ -95,6 +98,24 @@ def transformToSimplerAnswer(answer):
 
 class MyXBlock(XBlock):
     pre_save.connect(Node.pre_save, Node, dispatch_uid=".studentGraph.models.Node") 
+    post_save.connect(Node.post_save, Node, dispatch_uid=".studentGraph.models.Node") 
+    pre_save.connect(Edge.pre_save, Edge, dispatch_uid=".studentGraph.models.Edge") 
+    post_save.connect(Edge.post_save, Edge, dispatch_uid=".studentGraph.models.Edge") 
+    pre_delete.connect(Edge.pre_delete, Edge, dispatch_uid=".studentGraph.models.Edge") 
+    pre_save.connect(Resolution.pre_save, Resolution, dispatch_uid=".studentGraph.models.Resolution") 
+    post_save.connect(Resolution.post_save, Resolution, dispatch_uid=".studentGraph.models.Resolution") 
+    pre_save.connect(ErrorSpecificFeedbacks.pre_save, ErrorSpecificFeedbacks, dispatch_uid=".studentGraph.models.ErrorSpecificFeedbacks") 
+    post_save.connect(ErrorSpecificFeedbacks.post_save, ErrorSpecificFeedbacks, dispatch_uid=".studentGraph.models.ErrorSpecificFeedbacks") 
+    pre_save.connect(Hint.pre_save, Hint, dispatch_uid=".studentGraph.models.Hint") 
+    post_save.connect(Hint.post_save, Hint, dispatch_uid=".studentGraph.models.Hint") 
+    pre_save.connect(Explanation.pre_save, Explanation, dispatch_uid=".studentGraph.models.Explanation") 
+    post_save.connect(Explanation.post_save, Explanation, dispatch_uid=".studentGraph.models.Explanation") 
+    pre_save.connect(Doubt.pre_save, Doubt, dispatch_uid=".studentGraph.models.Doubt") 
+    post_save.connect(Doubt.post_save, Doubt, dispatch_uid=".studentGraph.models.Doubt") 
+    pre_save.connect(Answer.pre_save, Answer, dispatch_uid=".studentGraph.models.Answer") 
+    post_save.connect(Answer.post_save, Answer, dispatch_uid=".studentGraph.models.Answer") 
+    pre_save.connect(KnowledgeComponent.pre_save, KnowledgeComponent, dispatch_uid=".studentGraph.models.KnowledgeComponent") 
+    post_save.connect(KnowledgeComponent.post_save, KnowledgeComponent, dispatch_uid=".studentGraph.models.KnowledgeComponent") 
 
     #Se o aluno já fez o exercício
     alreadyAnswered = Boolean(
@@ -321,6 +342,7 @@ class MyXBlock(XBlock):
                 self.usedSteps.append((transformToSimplerAnswer(lastElement), transformToSimplerAnswer(element)))
             lastElement = element
 
+    @transaction.atomic
     def updateStateAndStepsCounters(self):
         loadedProblem = Problem.objects.get(id=self.problemId)
 
@@ -328,7 +350,7 @@ class MyXBlock(XBlock):
         [usedStates.append(x) for x in self.usedStates if x not in usedStates]
 
         for state in usedStates:
-            node= Node.objects.get(problem=loadedProblem, title=state)
+            node= Node.objects.select_for_update().get(problem=loadedProblem, title=state)
             node.counter += 1
             node.save()
 
@@ -346,6 +368,7 @@ class MyXBlock(XBlock):
         
         return usedSteps
 
+    @transaction.atomic
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
         graphData = data.get('graphData')
@@ -353,22 +376,25 @@ class MyXBlock(XBlock):
         loadedProblem = Problem.objects.get(id=self.problemId)
 
         for node in graphData['nodes']:
-            nodeModel = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
+            nodeModel = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
             if not nodeModel.exists():
                 n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
                 n1.save()
             else:
                 nodeModel = nodeModel.first()
-                nodeModel.correctness = float(node["correctness"])
-                nodeModel.fixedValue = float(node["fixedValue"])
-                nodeModel.visible = float(node["visible"])
-                nodeModel.nodePositionX = node["x"]
-                nodeModel.nodePositionY = node["y"]
-                nodeModel.linkedSolution = node["linkedSolution"]
-                nodeModel.dateModified = datetime.now()
-                nodeModel.save()
-                if node["modifiedCorrectness"] == 1:
-                    self.recalculateResolutionCorrectnessFromNode(nodeModel)
+
+                if ("x" in node and nodeModel.nodePositionX != node["x"]) or ("y" in node and nodeModel.nodePositionY != node["y"]) or nodeModel.linkedSolution != node["linkedSolution"] or nodeModel.correctness != float(node["correctness"]) or nodeModel.fixedValue != float(node["fixedValue"]) or nodeModel.visible != float(node["visible"]):
+                    nodeModel.correctness = float(node["correctness"])
+                    nodeModel.fixedValue = float(node["fixedValue"])
+                    nodeModel.visible = float(node["visible"])
+                    nodeModel.nodePositionX = node["x"]
+                    nodeModel.nodePositionY = node["y"]
+                    if nodeModel.linkedSolution is not None or node["linkedSolution"] != "":
+                        nodeModel.linkedSolution = node["linkedSolution"]
+                    nodeModel.dateModified = datetime.now()
+                    nodeModel.save()
+                    if node["modifiedCorrectness"] == 1:
+                        self.recalculateResolutionCorrectnessFromNode(nodeModel)
 
             if "stroke" in node:
                 if node["stroke"] == finalNodeStroke:
@@ -378,6 +404,9 @@ class MyXBlock(XBlock):
                         toNode = Node.objects.get(problem=loadedProblem, title="_end_")
                         e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
                         e1.save()
+                    startEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=transformToSimplerAnswer(node["id"]))
+                    if startEdge.exists():
+                        startEdge.first().delete()
                 elif node["stroke"] == initialNodeStroke:
                     edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=transformToSimplerAnswer(node["id"]))
                     if not edgeModel.exists():
@@ -385,6 +414,24 @@ class MyXBlock(XBlock):
                         toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
                         e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
                         e1.save()
+                    endEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
+                    if endEdge.exists():
+                        endEdge.first().delete()
+                elif node["stroke"] == None:
+                    endEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
+                    if endEdge.exists():
+                        endEdge.first().delete()
+                    startEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=transformToSimplerAnswer(node["id"]))
+                    if startEdge.exists():
+                        startEdge.first().delete()
+            else:
+                endEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
+                if endEdge.exists():
+                    endEdge.first().delete()
+                startEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=transformToSimplerAnswer(node["id"]))
+                if startEdge.exists():
+                    startEdge.first().delete()
+
 
 
         for edge in graphData['edges']:
@@ -395,14 +442,15 @@ class MyXBlock(XBlock):
                 e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
                 e1.save()
             else:
-                edgeModel = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
-                edgeModel.correctness = float(edge["correctness"])
-                edgeModel.visible = edge["visible"]
-                edgeModel.dateModified = datetime.now()
-                edgeModel.fixedValue = float(edge["fixedValue"])
-                edgeModel.save()
-                if edge["modifiedCorrectness"] == 1:
-                    self.recalculateResolutionCorrectnessFromEdge(edgeModel)
+                edgeModel = Edge.objects.select_for_update().get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
+                if edgeModel.correctness != float(edge["correctness"]) or edgeModel.visible != edge["visible"] or edgeModel.fixedValue != float(edge["fixedValue"]):
+                    edgeModel.correctness = float(edge["correctness"])
+                    edgeModel.visible = edge["visible"]
+                    edgeModel.dateModified = datetime.now()
+                    edgeModel.fixedValue = float(edge["fixedValue"])
+                    edgeModel.save()
+                    if edge["modifiedCorrectness"] == 1:
+                        self.recalculateResolutionCorrectnessFromEdge(edgeModel)
 
         return {}
     
@@ -410,9 +458,10 @@ class MyXBlock(XBlock):
         return data[key] if key in data else defaultValue
 
     @XBlock.json_handler
+    @transaction.atomic
     def import_data(self,data,suffix=''):
         problemData = ast.literal_eval(data.get('problemData'))
-        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedProblem = Problem.objects.select_for_update().get(id=self.problemId)
         startNode = Node.objects.get(problem=loadedProblem, title="_start_")
         endNode = Node.objects.get(problem=loadedProblem, title="_end_")
 
@@ -433,7 +482,7 @@ class MyXBlock(XBlock):
         #return {"debug": problemData}
 
         for node in problemData['nodes']:
-            nodeModel = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node["title"]))
+            nodeModel = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(node["title"]))
             if not nodeModel.exists():
                 n1 = Node(title=node["title"], linkedSolution=self.setDataOrUseDefault(node, "linkedSolution", None), correctness=float(self.setDataOrUseDefault(node,"correctness", 0)), problem=loadedProblem, nodePositionX=self.setDataOrUseDefault(node, "x", -1), nodePositionY=self.setDataOrUseDefault(node, "y", -1), dateAdded=datetime.now(), fixedValue=self.setDataOrUseDefault(node, "fixedValue", 0))
                 n1.save()
@@ -450,13 +499,13 @@ class MyXBlock(XBlock):
 
             if "type" in node:
                 if node["type"] == "initial":
-                    possibleFinalEdge = Edge.objects.filter(sourceNode=n1, destNode=endNode, problem=loadedProblem)
+                    possibleFinalEdge = Edge.objects.select_for_update().filter(sourceNode=n1, destNode=endNode, problem=loadedProblem)
                     if possibleFinalEdge.exists():
                         possibleFinalEdge.first().delete()
                     e1 = Edge(sourceNode=startNode, destNode=n1, problem=loadedProblem, dateAdded=datetime.now())
                     e1.save()
                 elif node["type"] == "final":
-                    possibleInitialEdge = Edge.objects.filter(sourceNode=startNode, destNode=n1, problem=loadedProblem)
+                    possibleInitialEdge = Edge.objects.select_for_update().filter(sourceNode=startNode, destNode=n1, problem=loadedProblem)
                     if possibleInitialEdge.exists():
                         possibleInitialEdge.first().delete()
                     e1 = Edge(sourceNode=n1, destNode=endNode, problem=loadedProblem, dateAdded=datetime.now())
@@ -565,10 +614,11 @@ class MyXBlock(XBlock):
         return {"doubts": nodeDoubts}
 
     @XBlock.json_handler
+    @transaction.atomic
     def delete_doubts(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
         for doubt in data.get("doubts"):
-            loadedDoubt = Doubt.objects.filter(problem=loadedProblem, id=doubt.get("id"))
+            loadedDoubt = Doubt.objects.select_for_update().filter(problem=loadedProblem, id=doubt.get("id"))
             if loadedDoubt.exists():
                 existingDoubt = loadedDoubt.first()
                 existingDoubt.edge = None
@@ -578,10 +628,11 @@ class MyXBlock(XBlock):
         return {"result": "success"}
 
     @XBlock.json_handler
+    @transaction.atomic
     def delete_answers(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
         for answer in data.get("answers"):
-            loadedAnswer = Answer.objects.filter(problem=loadedProblem, id=answer.get("id"))
+            loadedAnswer = Answer.objects.select_for_update().filter(problem=loadedProblem, id=answer.get("id"))
             if loadedAnswer.exists():
                 existingAnswer = loadedAnswer.first()
                 existingAnswer.doubt = None
@@ -590,13 +641,14 @@ class MyXBlock(XBlock):
         return {"result": "success"}
 
     @XBlock.json_handler
+    @transaction.atomic
     def delete_feedbacks(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
 
         if data.get("hints") is not None:
             allHints = data.get("hints")
             for hint in allHints:
-                loadedHint = Hint.objects.filter(problem=loadedProblem, id=hint.get("id"))
+                loadedHint = Hint.objects.select_for_update().filter(problem=loadedProblem, id=hint.get("id"))
                 if loadedHint.exists():
                     existingHint = loadedHint.first()
                     existingHint.edge = None
@@ -604,7 +656,7 @@ class MyXBlock(XBlock):
         if data.get("explanations") is not None:
             allExplanations = data.get("explanations")
             for explanation in allExplanations:
-                loadedExplanation = Explanation.objects.filter(problem=loadedProblem, id=explanation.get("id"))
+                loadedExplanation = Explanation.objects.select_for_update().filter(problem=loadedProblem, id=explanation.get("id"))
                 if loadedExplanation.exists():
                     existingExplanation = loadedExplanation.first()
                     existingExplanation.edge = None
@@ -612,7 +664,7 @@ class MyXBlock(XBlock):
         if data.get("errorSpecificFeedbacks") is not None:
             allFeedbacks = data.get("errorSpecificFeedbacks")
             for feedback in allFeedbacks:
-                loadedFeedback = ErrorSpecificFeedbacks.objects.filter(problem=loadedProblem, id=feedback.get("id"))
+                loadedFeedback = ErrorSpecificFeedbacks.objects.select_for_update().filter(problem=loadedProblem, id=feedback.get("id"))
                 if loadedFeedback.exists():
                     existingFeedback = loadedFeedback.first()
                     existingFeedback.edge = None
@@ -652,11 +704,12 @@ class MyXBlock(XBlock):
         return {"errorSpecificFeedbacks": errorSpecificFeedbacks, "explanations": explanations, "hints": hints, "doubts": edgeDoubts}
 
     @XBlock.json_handler
+    @transaction.atomic
     def submit_doubt_answer_info(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
 
         answerId = data.get("id")
-        loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answerId)
+        loadedAnswer = Answer.objects.select_for_update().get(problem=loadedProblem, id=answerId)
         loadedAnswer.dateModified = datetime.now()
         loadedAnswer.usefulness = data.get("usefulness")
         loadedAnswer.text = data.get("text")
@@ -666,6 +719,7 @@ class MyXBlock(XBlock):
 
 
     @XBlock.json_handler
+    @transaction.atomic
     def submit_node_info(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
         loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
@@ -675,7 +729,7 @@ class MyXBlock(XBlock):
         allDoubts = data.get("doubts")
         for doubt in allDoubts:
             if "id" in doubt:
-                loadedDoubt = Doubt.objects.get(problem=loadedProblem, node=loadedNode, id=doubt["id"])
+                loadedDoubt = Doubt.objects.select_for_update().get(problem=loadedProblem, node=loadedNode, id=doubt["id"])
                 loadedDoubt.dateModified = datetime.now()
             else:
                 loadedDoubt = Doubt(problem=loadedProblem, node=loadedNode, dateAdded=datetime.now())
@@ -687,7 +741,7 @@ class MyXBlock(XBlock):
             for answer in allAnswers:
                 newElement = False
                 if "id" in answer and answer['id'] != "":
-                    loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answer["id"])
+                    loadedAnswer = Answer.objects.select_for_update().get(problem=loadedProblem, id=answer["id"])
                     loadedAnswer.dateModified = datetime.now()
                 else:
                     loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
@@ -705,6 +759,7 @@ class MyXBlock(XBlock):
 
 
     @XBlock.json_handler
+    @transaction.atomic
     def submit_edge_info(self,data,suffix=''):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
@@ -719,7 +774,7 @@ class MyXBlock(XBlock):
             for hint in allHints:
                 newHint = False
                 if "id" in hint and hint['id'] != "":
-                    loadedHint = Hint.objects.get(problem=loadedProblem, edge=loadedEdge, id=hint["id"])
+                    loadedHint = Hint.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=hint["id"])
                     loadedHint.dateModified = datetime.now()
                 else:
                     loadedHint = Hint(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
@@ -738,7 +793,7 @@ class MyXBlock(XBlock):
             for errorSpecificFeedback in allErrorSpecificFeedbacks:
                 newErrorSpecificFeedback = False
                 if "id" in errorSpecificFeedback and errorSpecificFeedback['id'] != "":
-                    loadedError = ErrorSpecificFeedbacks.objects.get(problem=loadedProblem, edge=loadedEdge, id=errorSpecificFeedback["id"])
+                    loadedError = ErrorSpecificFeedbacks.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=errorSpecificFeedback["id"])
                     loadedError.dateModified = datetime.now()
                 else:
                     loadedError = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
@@ -757,7 +812,7 @@ class MyXBlock(XBlock):
             for explanation in allExplanations:
                 newExplanation = False
                 if "id" in explanation and explanation['id'] != "":
-                    loadedExplanation = Explanation.objects.get(problem=loadedProblem, edge=loadedEdge, id=explanation["id"])
+                    loadedExplanation = Explanation.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=explanation["id"])
                     loadedExplanation.dateModified = datetime.now()
                 else:
                     loadedExplanation = Explanation(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
@@ -774,7 +829,7 @@ class MyXBlock(XBlock):
             allDoubts = data.get("doubts")
             for doubt in allDoubts:
                 if "id" in doubt:
-                    loadedDoubt = Doubt.objects.get(problem=loadedProblem, edge=loadedEdge, id=doubt["id"])
+                    loadedDoubt = Doubt.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=doubt["id"])
                     loadedDoubt.dateModified = datetime.now()
                 else:
                     loadedDoubt = Doubt(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
@@ -786,7 +841,7 @@ class MyXBlock(XBlock):
                 for answer in allAnswers:
                     newElement = False
                     if "id" in answer and answer['id'] != "":
-                        loadedAnswer = Answer.objects.get(problem=loadedProblem, id=answer["id"])
+                        loadedAnswer = Answer.objects.select_for_update().get(problem=loadedProblem, id=answer["id"])
                         loadedAnswer.dateModified = datetime.now()
                     else:
                         loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
@@ -914,8 +969,9 @@ class MyXBlock(XBlock):
             return {'result':'exists'}
 
     @XBlock.json_handler
+    @transaction.atomic
     def submit_data(self,data,suffix=''):
-        loadedProblem = Problem.objects.get(id=self.problemId)
+        loadedProblem = Problem.objects.select_for_update().get(id=self.problemId)
 
         self.problemTitle = data.get('problemTitle')
         self.problemDescription = data.get('problemDescription')
@@ -939,10 +995,11 @@ class MyXBlock(XBlock):
         return {'result':'success'}
 
     @XBlock.json_handler
+    @transaction.atomic
     def recommend_feedback(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
         if data.get("existingType") == "hint":
-            loadedHint = Hint.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
+            loadedHint = Hint.objects.select_for_update().get(problem = loadedProblem, id=data.get("existingHintId"))
 
             if data.get("message") == yesUniversalAnswer:
                 loadedHint.usefulness += receivedHintUsefulnessAmount
@@ -951,7 +1008,7 @@ class MyXBlock(XBlock):
         
             loadedHint.save()
         elif data.get("existingType") == "explanation":
-            loadedExplanation = Explanation.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
+            loadedExplanation = Explanation.objects.select_for_update().get(problem = loadedProblem, id=data.get("existingHintId"))
 
             if data.get("message") == yesUniversalAnswer:
                 loadedExplanation.usefulness += receivedHintUsefulnessAmount
@@ -960,7 +1017,7 @@ class MyXBlock(XBlock):
         
             loadedExplanation.save()
         elif data.get("existingType") == "errorSpecificFeedback":
-            loadedSpecificFeedback = ErrorSpecificFeedbacks.objects.get(problem = loadedProblem, id=data.get("existingHintId"))
+            loadedSpecificFeedback = ErrorSpecificFeedbacks.objects.select_for_update().get(problem = loadedProblem, id=data.get("existingHintId"))
 
             if data.get("message") == yesUniversalAnswer:
                 loadedSpecificFeedback.usefulness += receivedHintUsefulnessAmount
@@ -972,16 +1029,19 @@ class MyXBlock(XBlock):
         return {'result':'success'}
 
     @XBlock.json_handler
+    @transaction.atomic
     def send_feedback(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
         
         feedbackType = data.get("type")
         if feedbackType == "minimalState":
-            loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
-        elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'minimalStep' or feedbackType == 'hint' or feedbackType == 'knowledgeComponent':
+            loadedNode = Node.objects.select_for_update().get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("node")))
+        elif feedbackType == 'errorSpecific' or feedbackType == 'explanation' or feedbackType == 'hint' or feedbackType == 'knowledgeComponent':
             loadedEdge = Edge.objects.get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("nodeFrom")), destNode__title=transformToSimplerAnswer(data.get("nodeTo")))
+        elif feedbackType == 'minimalStep':
+            loadedEdge = Edge.objects.select_for_update().get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(data.get("nodeFrom")), destNode__title=transformToSimplerAnswer(data.get("nodeTo")))
         elif feedbackType == 'knowledgeComponent':
-            loadedNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("nodeFrom")))
+            loadedNode = Node.objects.select_for_update().get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("nodeFrom")))
 
         if feedbackType == 'minimalStep':
             if data.get("message") == yesUniversalAnswer:
@@ -1052,7 +1112,7 @@ class MyXBlock(XBlock):
             if step.exists():
                 doubt.edge = step[0]
             else:
-                fromState = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeFrom")))
+                fromState = Node.objects.select_for_update().filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeFrom")))
                 if fromState.exists():
                     newSourceNode = fromState[0]    
                 else:
@@ -1060,7 +1120,7 @@ class MyXBlock(XBlock):
                     newSourceNode.save()
                     newSourceNode = Node.objects.get(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeFrom")))
                 
-                toState = Node.objects.filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeTo")))
+                toState = Node.objects.select_for_update().filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeTo")))
                 if toState.exists():
                     newDestNode = toState[0]    
                     doubt.node = newDestNode
@@ -1101,7 +1161,6 @@ class MyXBlock(XBlock):
         wrongStep = 0
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        endNode = Node.objects.get(problem=loadedProblem, title="_end_")
         #Ver até onde está certo
         for step in answerArray:
             lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
@@ -1238,15 +1297,16 @@ class MyXBlock(XBlock):
 
 
             hintFound = False
-            edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextCorrectStep))
-            if edgeForStep.exists():
-                hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
-                if hintForStep.exists():
-                    hintFound = True
-                    for hint in hintForStep:
-                        hintList.append(hint.text)
-                        hintIdList.append(hint.id)
-                        hintIdType.append("hint")
+            if nextCorrectStep is not None and possibleIncorrectAnswer.get("lastCorrectElement") is not None:
+                edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(nextCorrectStep))
+                if edgeForStep.exists():
+                    hintForStep = Hint.objects.filter(problem=loadedProblem, edge=edgeForStep.first()).order_by("-usefulness", "priority")
+                    if hintForStep.exists():
+                        hintFound = True
+                        for hint in hintForStep:
+                            hintList.append(hint.text)
+                            hintIdList.append(hint.id)
+                            hintIdType.append("hint")
             if not hintFound:
                 for hintPossibleStep in nextPossibleCorrectSteps:
                     edgeForStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(hintPossibleStep))
@@ -1429,25 +1489,26 @@ class MyXBlock(XBlock):
         self.increaseFeedbackCount(loadedProblem, data.get("type"), data.get("id"))
         return {"status": "OK"}
 
+    @transaction.atomic
     def increaseFeedbackCount(self, loadedProblem, type, id):
         if type == "hint":
-            hint = Hint.objects.get(problem = loadedProblem, id = id)
+            hint = Hint.objects.select_for_update().get(problem = loadedProblem, id = id)
             hint.counter += 1
             hint.save()
         elif type == "explanation":
-            explanation = Explanation.objects.get(problem = loadedProblem, id = id)
+            explanation = Explanation.objects.select_for_update().get(problem = loadedProblem, id = id)
             explanation.counter += 1
             explanation.save()
         elif type == "errorSpecificFeedback":
-            errorSpecific = ErrorSpecificFeedbacks.objects.get(problem = loadedProblem, id = id)
+            errorSpecific = ErrorSpecificFeedbacks.objects.select_for_update().get(problem = loadedProblem, id = id)
             errorSpecific.counter += 1
             errorSpecific.save()
         elif type == "doubt":
-            doubt = Doubt.objects.get(problem = loadedProblem, id = id)
+            doubt = Doubt.objects.select_for_update().get(problem = loadedProblem, id = id)
             doubt.counter += 1
             doubt.save()
         elif type == "answer":
-            answer = Answer.objects.get(problem = loadedProblem, id = id)
+            answer = Answer.objects.select_for_update().get(problem = loadedProblem, id = id)
             answer.counter += 1
             answer.save()
 
@@ -1741,10 +1802,10 @@ class MyXBlock(XBlock):
 
             if lastNode.exists() and not currentNode.exists():
                 n2 = Node(title=step, problem=loadedProblem, dateAdded=datetime.now())
+                n2.save()
             else:
                 n2 = currentNode.first()
             
-            n2.save()
 
             
             currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
@@ -1753,8 +1814,6 @@ class MyXBlock(XBlock):
                 e1.save()
             else:
                 e1 = currentEdge.first()
-                e1.save()
-
 
 
             self.studentResolutionsSteps.append(str((lastElement, step)))
@@ -2094,9 +2153,10 @@ class MyXBlock(XBlock):
         else:
             return relatedSteps
     
+    @transaction.atomic
     def recalculateResolutionCorrectnessFromNode(self, node):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        allResolutions = Resolution.objects.select_for_update().select_for_update().filter(problem=loadedProblem)
         resolutionsToBeModified = []
         for resolution in allResolutions:
             usedNodes = ast.literal_eval(resolution.nodeIdList)
@@ -2108,9 +2168,10 @@ class MyXBlock(XBlock):
             resolution.correctness = self.corretudeResolucao(resolution)
             resolution.save()
 
+    @transaction.atomic
     def recalculateResolutionCorrectnessFromEdge(self, edge):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allResolutions = Resolution.objects.filter(problem=loadedProblem)
+        allResolutions = Resolution.objects.select_for_update().filter(problem=loadedProblem)
         resolutionsToBeModified = []
         for resolution in allResolutions:
             usedNodes = ast.literal_eval(resolution.edgeIdList)
@@ -2233,9 +2294,10 @@ class MyXBlock(XBlock):
 
         return {"resolutionId": r1.id, "nodeIdList": nodeArray, "edgeIdList": edgeArray}
 
+    @transaction.atomic
     def calculateValidityAndCorrectness(self, resolutionId):
 
-        r1 = Resolution.objects.get(id = resolutionId)
+        r1 = Resolution.objects.select_for_update().get(id = resolutionId)
         r1.correctness = self.corretudeResolucao(r1)
         r1.save()
 

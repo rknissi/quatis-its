@@ -161,7 +161,7 @@ function MyXBlockEdit(runtime, element) {
           break;
         }
     }
-    reApplyConfig();
+    //reApplyConfig();
   }
 
   function changeStepCorrectness(sourceName, distName, value, fixedValue){
@@ -276,7 +276,7 @@ function MyXBlockEdit(runtime, element) {
     }
 
     if (sourceStateExists && destStateExists) {
-      var data = {
+      var info = {
         from: sourceState,
         to: destState,
         counter: 0,
@@ -288,7 +288,7 @@ function MyXBlockEdit(runtime, element) {
         visible: 1,
         modifiedCorrectness: 0
       };
-      addEdge(data);
+      addEdge(info);
       reApplyConfig();
     } else {
       window.alert("Um dos estados do passo não existe. Crie o estado antes de criar o passo")
@@ -321,7 +321,7 @@ function MyXBlockEdit(runtime, element) {
         shapeType = finalNodeShape;
     }
 
-    var data;
+    var body;
 
     var fixedValueCheckbox = el.find('input[id=stateFixedValue]').is(':checked')
     if (fixedValueCheckbox == true) {
@@ -331,7 +331,7 @@ function MyXBlockEdit(runtime, element) {
     }
 
     if (dropDownValue === 'normalState') {
-      data = {
+      body = {
         id: stateName,
         counter: 0,
         height: defaultNodeHeight,
@@ -346,7 +346,7 @@ function MyXBlockEdit(runtime, element) {
         modifiedCorrectness: 0
       };
     } else {
-      data = {
+      body = {
         id: stateName,
         counter: 0,
         height: defaultNodeHeight,
@@ -363,7 +363,7 @@ function MyXBlockEdit(runtime, element) {
         modifiedCorrectness: 0
       };
     }
-    addNode(data)
+    addNode(body)
     reApplyConfig();
   });
 

@@ -1,4 +1,5 @@
 from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent
+from django.db import transaction
 import copy
 
 #VisualGraphProperties
@@ -43,6 +44,7 @@ unknownState = [-0.69999, 0.69999]
 correctState = [0.7, 1]
 defaultStateValue = 0
 
+@transaction.atomic
 def createGraphInitialPositions(problemId):
 
     currentX = 0
@@ -63,7 +65,7 @@ def createGraphInitialPositions(problemId):
     loadedProblem.isCalculatingPos = 1
     loadedProblem.save()
 
-    endEdges = Edge.objects.filter(problem=loadedProblem, destNode__title = '_end_')
+    endEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, destNode__title = '_end_')
     for edge in endEdges:
         endNodes.append(edge.sourceNode)
 
@@ -80,14 +82,27 @@ def createGraphInitialPositions(problemId):
 
     nextEdges = []
     for node in endNodes:
-        nextEdges.extend(Edge.objects.filter(problem=loadedProblem, destNode = node).exclude(sourceNode = node))
+        nextEdges.extend(Edge.objects.select_for_update().filter(problem=loadedProblem, destNode = node).exclude(sourceNode = node))
 
     createGraphInitialPositionsNextSteps(nextEdges, usedEdges, currentY, loadedProblem)
+
+    needToCalculate = Node.objects.filter(problem=loadedProblem, alreadyCalculatedPos = 0)
+    if needToCalculate.exists():
+        for needTocalculateNode in needToCalculate:
+            pos = avoidSamePosFromAnotherNode(currentX, currentY, loadedProblem)
+            needTocalculateNode.nodePositionX = pos['x']
+            needTocalculateNode.nodePositionY = pos['y']
+
+            needTocalculateNode.alreadyCalculatedPos = 1
+            needTocalculateNode.save()
+
+
 
     loadedProblem.isCalculatingPos = 0
     loadedProblem.save()
 
 
+@transaction.atomic
 def createGraphInitialPositionsNextSteps(nextEdges, usedEdges, currentY, loadedProblem):
     for edge in nextEdges:
         changed = False
@@ -118,7 +133,7 @@ def createGraphInitialPositionsNextSteps(nextEdges, usedEdges, currentY, loadedP
                 if edge.sourceNode.title + edge.destNode.title not in copyUsedEdges:
                     copyUsedEdges.append(edge.sourceNode.title + edge.destNode.title)
 
-            nextEdgesToCalc = Edge.objects.filter(problem=loadedProblem, destNode = node, sourceNode__visible = 1, sourceNode__customPos = 0)
+            nextEdgesToCalc = Edge.objects.select_for_update().filter(problem=loadedProblem, destNode = node, sourceNode__visible = 1, sourceNode__customPos = 0)
 
             createGraphInitialPositionsNextSteps(nextEdgesToCalc, copyUsedEdges, currentY - graphWidthExtraValueY, loadedProblem)
 
@@ -199,13 +214,23 @@ def getJsonFromProblemGraph(problemId):
 
     for source in allNodes:
         edgeObjList = Edge.objects.filter(problem=loadedProblem, sourceNode = source)
+        if not edgeObjList.exists() and source.title != "_end_" and source.visible == 1 and source not in addedNodes:
+            nodeColor = getNodeColor(source)
+            node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "fill": nodeColor, "correctness": source.correctness, "fixedValue": source.fixedValue, "linkedSolution": source.linkedSolution, "visible": source.visible, "modifiedCorrectness": 0}
+            if source.nodePositionX != -1 and source.nodePositionY != -1:
+                node["x"] = source.nodePositionX
+                node["y"] = source.nodePositionY
+                fixedPos = True
+            nodeList.append(node)
+            addedNodes.append(source)
+
         for edgeObj in edgeObjList:
             dest = edgeObj.destNode
             if source.title == "_start_":
                 nodeColor = getNodeColor(dest)
                 if dest not in addedNodes:
                     if dest.visible == 1:
-                        node = {"id": dest.title, "counter": dest.counter, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape ,"normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "fixedValue": dest.fixedValue, "linkedSolution": dest.linkedSolution, "visible": dest.visible, "modifiedCorrectness": 0}
+                        node = {"id": dest.title, "counter": dest.counter, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "stroke": initialNodeStroke, "correctness": dest.correctness, "fixedValue": dest.fixedValue, "linkedSolution": dest.linkedSolution, "visible": dest.visible, "modifiedCorrectness": 0}
                         if dest.nodePositionX != -1 and dest.nodePositionY != -1:
                             node["x"] = dest.nodePositionX
                             node["y"] = dest.nodePositionY
@@ -215,13 +240,13 @@ def getJsonFromProblemGraph(problemId):
                 else: 
                     if dest.visible == 1:
                         pos = addedNodes.index(dest)
-                        nodeList[pos] = {"id": dest.title, "counter": dest.counter, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "normal": {"stroke": initialNodeStroke}, "correctness": dest.correctness, "linkedSolution": dest.linkedSolution, "fixedValue": dest.fixedValue, "visible": dest.visible, "modifiedCorrectness": 0}
+                        nodeList[pos] = {"id": dest.title, "counter": dest.counter, "height": defaultNodeHeight, "fill": nodeColor, "shape": initialNodeShape , "stroke": initialNodeStroke, "correctness": dest.correctness, "linkedSolution": dest.linkedSolution, "fixedValue": dest.fixedValue, "visible": dest.visible, "modifiedCorrectness": 0}
                 
             elif dest.title == "_end_":
                 nodeColor = getNodeColor(source)
                 if source not in addedNodes:
                     if source.visible == 1:
-                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
+                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape ,"fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
@@ -231,7 +256,7 @@ def getJsonFromProblemGraph(problemId):
                 else:
                     if source.visible == 1:
                         pos = addedNodes.index(source)
-                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "normal": {"stroke": finalNodeStroke}, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
+                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY
