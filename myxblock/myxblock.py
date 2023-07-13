@@ -354,6 +354,7 @@ class MyXBlock(XBlock):
         for state in usedStates:
             node = Node.objects.select_for_update().get(problem=loadedProblem, title=state)
             node.counter += 1
+            node.dateModified = datetime.now()
             node.save()
 
 
@@ -371,6 +372,7 @@ class MyXBlock(XBlock):
         for edge in usedSteps:
             step = Edge.objects.select_for_update().get(problem=loadedProblem, sourceNode__title=edge[0], destNode__title = edge[1])
             step.counter += 1
+            step.dateModified = datetime.now()
             step.save()
         
         return usedSteps
@@ -1503,22 +1505,27 @@ class MyXBlock(XBlock):
         if type == "hint":
             hint = Hint.objects.select_for_update().get(problem = loadedProblem, id = id)
             hint.counter += 1
+            hint.dateModified = datetime.now()
             hint.save()
         elif type == "explanation":
             explanation = Explanation.objects.select_for_update().get(problem = loadedProblem, id = id)
             explanation.counter += 1
+            explanation.dateModified = datetime.now()
             explanation.save()
         elif type == "errorSpecificFeedback":
             errorSpecific = ErrorSpecificFeedbacks.objects.select_for_update().get(problem = loadedProblem, id = id)
             errorSpecific.counter += 1
+            errorSpecific.dateModified = datetime.now()
             errorSpecific.save()
         elif type == "doubt":
             doubt = Doubt.objects.select_for_update().get(problem = loadedProblem, id = id)
             doubt.counter += 1
+            doubt.dateModified = datetime.now()
             doubt.save()
         elif type == "answer":
             answer = Answer.objects.select_for_update().get(problem = loadedProblem, id = id)
             answer.counter += 1
+            answer.dateModified = datetime.now()
             answer.save()
 
     
