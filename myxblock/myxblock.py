@@ -298,6 +298,8 @@ class MyXBlock(XBlock):
         #Também precisa inicializar
         frag.initialize_js('MyXBlock')
         self.lastWrongElementCount = 0
+        self.usedStates = []
+        self.usedSteps = []
         return frag
 
     problem_view = student_view
@@ -350,9 +352,10 @@ class MyXBlock(XBlock):
         [usedStates.append(x) for x in self.usedStates if x not in usedStates]
 
         for state in usedStates:
-            node= Node.objects.select_for_update().get(problem=loadedProblem, title=state)
+            node = Node.objects.select_for_update().get(problem=loadedProblem, title=state)
             node.counter += 1
             node.save()
+
 
         usedSteps = []
         for step in self.usedSteps:
@@ -365,6 +368,10 @@ class MyXBlock(XBlock):
                         alreadyInserted = True
                 if not alreadyInserted:
                     usedSteps.append(step)
+        for edge in usedSteps:
+            step = Edge.objects.select_for_update().get(problem=loadedProblem, sourceNode__title=edge[0], destNode__title = edge[1])
+            step.counter += 1
+            step.save()
         
         return usedSteps
 
@@ -781,9 +788,10 @@ class MyXBlock(XBlock):
                     newHint = True
 
                 loadedHint.text = hint["text"]
-                loadedHint.usefulness = hint["usefulness"]
-                loadedHint.priority = hint["priority"]
+                loadedHint.usefulness = int(hint["usefulness"])
+                loadedHint.priority = int(hint["priority"])
                 loadedHint.save()
+                newHints.append({"id": loadedHint.id, "text": loadedHint.text, "usefulness": loadedHint.usefulness, "priority": loadedHint.priority})
                 if newHint:
                     newHints.append({"id": loadedHint.id, "text": loadedHint.text, "usefulness": loadedHint.usefulness, "priority": loadedHint.priority})
 
@@ -800,8 +808,8 @@ class MyXBlock(XBlock):
                     newErrorSpecificFeedback = True
 
                 loadedError.text = errorSpecificFeedback["text"]
-                loadedError.usefulness = errorSpecificFeedback["usefulness"]
-                loadedError.priority = errorSpecificFeedback["priority"]
+                loadedError.usefulness = int(errorSpecificFeedback["usefulness"])
+                loadedError.priority = int(errorSpecificFeedback["priority"])
                 loadedError.save()
                 if newErrorSpecificFeedback:
                     newErrorSpecificFeedbacks.append({"id": loadedError.id, "text": loadedError.text, "usefulness": loadedError.usefulness, "priority": loadedError.priority})
@@ -819,8 +827,8 @@ class MyXBlock(XBlock):
                     newExplanation = True
 
                 loadedExplanation.text = explanation["text"]
-                loadedExplanation.usefulness = explanation["usefulness"]
-                loadedExplanation.priority = explanation["priority"]
+                loadedExplanation.usefulness = int(explanation["usefulness"])
+                loadedExplanation.priority = int(explanation["priority"])
                 loadedExplanation.save()
                 if newExplanation:
                     newExplanations.append({"id": loadedExplanation.id, "text": loadedExplanation.text, "usefulness": loadedExplanation.usefulness, "priority": loadedExplanation.priority})
@@ -848,7 +856,7 @@ class MyXBlock(XBlock):
                         newElement = True
 
                     if "usefulness" in answer:
-                        loadedAnswer.usefulness = answer["usefulness"]
+                        loadedAnswer.usefulness = int(answer["usefulness"])
                 
                     loadedAnswer.text = answer["text"]
                     loadedAnswer.save()
@@ -1111,6 +1119,7 @@ class MyXBlock(XBlock):
             step = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(data.get("nodeFrom")), destNode__title = transformToSimplerAnswer(data.get("nodeTo")))
             if step.exists():
                 doubt.edge = step[0]
+                doubt.node = step[0].destNode
             else:
                 fromState = Node.objects.select_for_update().filter(problem=loadedProblem, title = transformToSimplerAnswer(data.get("nodeFrom")))
                 if fromState.exists():
@@ -1931,8 +1940,6 @@ class MyXBlock(XBlock):
                 message = "Sua resolução e/ou resposta final estão incorretas"
 
         self.updateStateAndStepsCounters()
-        self.usedStates = []
-        self.usedSteps = []
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):

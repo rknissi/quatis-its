@@ -595,14 +595,14 @@ function MyXBlock(runtime, element, data) {
             + firstNode.value + "-->" + secondNode.value 
             + "\n\nOu você tem dúvida no ponto de parada\n" + secondNode.value 
             + "\nE não sabe como prosseguir?" 
-            + "\n\nDigite 'primeiro' para ndicar uma dúvida na transição, ou 'segundo' caso seja uma dúvida no ponto de parada" );
+            + "\n\nDigite 'primeiro' para indicar uma dúvida na transição, ou 'segundo' caso seja uma dúvida no ponto de parada" );
         if (choice == null || (choice.toLowerCase() != "primeiro" && choice.toLowerCase() != "segundo")) {
             alert("Escolha inválida. Por favor escreva 'primeiro' ou 'segundo'")
             enableButton("askQuestion")
             return
         }
 
-        if (choice.toLowerCase == "segundo") {
+        if (choice.toLowerCase() == "segundo") {
 
             var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
             var destNode = document.getElementById("idt" + checkedBoxes[1]);
@@ -851,7 +851,7 @@ function MyXBlock(runtime, element, data) {
                 $.ajax({
                     type: "POST",
                     url: recommend_feedback,
-                    data: JSON.stringify({ message: yesUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "explanation" })
+                    data: JSON.stringify({ message: yesUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "errorSpecificFeedback" })
                 });
                 sentFeedback = true
             }
@@ -887,7 +887,7 @@ function MyXBlock(runtime, element, data) {
                 $.ajax({
                     type: "POST",
                     url: recommend_feedback,
-                    data: JSON.stringify({ message: noUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "explanation" })
+                    data: JSON.stringify({ message: noUniversalAnswer, existingHint: hints[actualHint], existingHintId: hintsIds[actualHint], existingType: "errorSpecificFeedback" })
                 });
                 sentFeedback = true
             }

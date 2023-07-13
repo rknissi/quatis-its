@@ -48,7 +48,7 @@ class Node(models.Model):
 		instance.title = transformToSimplerAnswer(instance.title)
 		if instance.id is not None:
 			old = Node.objects.get(id = instance.id)
-			if old.title != instance.title or old.correctness != instance.correctness or old.fixedValue != instance.fixedValue or old.visible != instance.visible or old.linkedSolution != instance.linkedSolution:
+			if old.title != instance.title or old.correctness != instance.correctness or old.fixedValue != instance.fixedValue or old.visible != instance.visible or old.linkedSolution != instance.linkedSolution or old.counter != instance.counter:
 				newEntry = Node_history(problem=instance.problem, title = instance.title, 
 					nodePositionX = instance.nodePositionX, nodePositionY = instance.nodePositionY, 
 			   		correctness = instance.correctness, fixedValue = instance.fixedValue,
@@ -234,11 +234,13 @@ class ErrorSpecificFeedbacks(models.Model):
 	@staticmethod
 	def pre_save(sender, instance, **kwargs):
 		if instance.id is not None:
-			newEntry = ErrorSpecificFeedbacks_history(problem = instance.problem, edge = instance.edge, 
-	       		text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
-	       		priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
-		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
-			newEntry.save()
+			old = ErrorSpecificFeedbacks.objects.get(id = instance.id)
+			if old.edge != instance.edge or old.text != instance.text or old.priority != instance.priority or old.usefulness != instance.usefulness or old.counter != instance.counter:
+				newEntry = ErrorSpecificFeedbacks_history(problem = instance.problem, edge = instance.edge, 
+	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+	       			priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
+		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
+				newEntry.save()
 
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
@@ -289,11 +291,13 @@ class Hint(models.Model):
 	@staticmethod
 	def pre_save(sender, instance, **kwargs):
 		if instance.id is not None:
-			newEntry = Hint_history(problem = instance.problem, edge = instance.edge, 
-	       		text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
-	       		priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
-		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
-			newEntry.save()
+			old = Hint.objects.get(id = instance.id)
+			if old.edge != instance.edge or old.text != instance.text or old.priority != instance.priority or old.usefulness != instance.usefulness or old.counter != instance.counter:
+				newEntry = Hint_history(problem = instance.problem, edge = instance.edge, 
+	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+	       			priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
+		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
+				newEntry.save()
 
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
@@ -344,11 +348,13 @@ class Explanation(models.Model):
 
 	def pre_save(sender, instance, **kwargs):
 		if instance.id is not None:
-			newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, 
-	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
-	       			priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
-		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
-			newEntry.save()
+			old = Explanation.objects.get(id = instance.id)
+			if old.edge != instance.edge or old.text != instance.text or old.priority != instance.priority or old.usefulness != instance.usefulness or old.counter != instance.counter:
+				newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, 
+	       				text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+	       				priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
+		   				originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
+				newEntry.save()
 
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
@@ -398,11 +404,13 @@ class Doubt(models.Model):
 
 	def pre_save(sender, instance, **kwargs):
 		if instance.id is not None:
-			newEntry = Doubt_history(problem = instance.problem, type = instance.type, 
-	       		edge = instance.edge, node = instance.node, text = instance.text,
-		   		dateAdded = instance.dateAdded, dateModified = instance.dateModified, counter = instance.counter, 
-		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
-			newEntry.save()
+			old = Doubt.objects.get(id = instance.id)
+			if old.edge != instance.edge or old.text != instance.text or old.node != instance.node or old.counter != instance.counter:
+				newEntry = Doubt_history(problem = instance.problem, type = instance.type, 
+	       			edge = instance.edge, node = instance.node, text = instance.text,
+		   			dateAdded = instance.dateAdded, dateModified = instance.dateModified, counter = instance.counter, 
+		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
+				newEntry.save()
 
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
@@ -451,11 +459,13 @@ class Answer(models.Model):
 
 	def pre_save(sender, instance, **kwargs):
 		if instance.id is not None:
-			newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, 
-	       		text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
-		   		usefulness = instance.usefulness, counter = instance.counter, 
-		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
-			newEntry.save()
+			old = Answer.objects.get(id = instance.id)
+			if old.doubt != instance.doubt or old.text != instance.text or old.usefulness != instance.usefulness or old.counter != instance.counter:
+				newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, 
+	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+		   			usefulness = instance.usefulness, counter = instance.counter, 
+		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
+				newEntry.save()
 
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
