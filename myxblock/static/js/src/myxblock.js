@@ -310,7 +310,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.minimalState.length > 0) {
             for(var i = 0; i < value.minimalState.length; i++){
-                feedback = prompt("O seguinte ponto de parada da resolução faz sentido existir nesse exercício\n" + value.minimalState[i]);
+                feedback = prompt("O seguinte ponto de parada da resolução faz sentido existir nesse exercício?\n" + value.minimalState[i]);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
