@@ -16,6 +16,7 @@ function MyXBlockEdit(runtime, element) {
   var generateAnswersUrl = runtime.handlerUrl(element, 'generate_answers');
   var deleteFeedbacksUrl = runtime.handlerUrl(element, 'delete_feedbacks');
   var returnFullExplanationUrl = runtime.handlerUrl(element, 'return_full_explanation');
+  var resetCountersUrl = runtime.handlerUrl(element, 'reset_counters');
   
   var lastWindowBeforeDoubts = null
   var editingFeedbackType = null
@@ -454,7 +455,6 @@ function MyXBlockEdit(runtime, element) {
   });
 
   $('#generate_report', element).click(function(eventObject) {
-    var el = $(element);
     var data = {
     };
 
@@ -466,13 +466,25 @@ function MyXBlockEdit(runtime, element) {
   });
 
   $('#export_graph', element).click(function(eventObject) {
-    var el = $(element);
     var data = {};
 
     $.ajax({
       type: "POST",
       url: exportDataUrl,
       data: JSON.stringify(data)
+    });
+  });
+
+  $('#reset_counters', element).click(function(eventObject) {
+    var data = {};
+
+    $.ajax({
+      type: "POST",
+      url: resetCountersUrl,
+      data: JSON.stringify(data),
+      success: function (data) {
+        window.alert("Informações de contagens zerados")
+      }   
     });
   });
 
@@ -663,9 +675,11 @@ function MyXBlockEdit(runtime, element) {
 
                       var id = doubts[i].id;
                       var text = doubts[i].text;
+                      var counter = doubts[i].counter;
                       var el = document.createElement("option");
                       el.textContent = text;
                       el.value = id;
+                      el.counter = counter;
                       select.appendChild(el);
 
                       currentDoubtAnswers.set(id, doubts[i].answers)
@@ -1545,18 +1559,23 @@ function MyXBlockEdit(runtime, element) {
 
         var errorMessage = document.getElementById("errorMessage");
         errorMessage.style.display = "none";
-        creategraph(value);
+        creategraph(value, 0);
       }   
    });
   });
 
-  function creategraph (value) {
+  function creategraph (value, retry) {
     try {
       createOrReloadGraph(value)
     } catch(error) {
       var errorMessage = document.getElementById("errorMessage");
       errorMessage.style.display = "block";
-      creategraph(value);
+      if (retry < 50) {
+        creategraph(value, retry + 1);
+      } else {
+        var errorMessage = document.getElementById("errorMessage");
+        errorMessage.style.display = "block";
+      }
     }
   }
 
