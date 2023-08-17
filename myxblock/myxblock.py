@@ -378,6 +378,44 @@ class MyXBlock(XBlock):
         return usedSteps
 
     @transaction.atomic
+    def update_edge_feedbacks(self, edgeModel, loadedProblem):
+        doubts = Doubt.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
+        for doubt in doubts:
+            answers = Answer.objects.select_for_update().filter(problem=loadedProblem, doubt=doubt)
+            for answer in answers:
+                answer.doubt = None
+                answer.save()
+            doubt.edge = None
+            doubt.save()
+
+        explanations = Explanation.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
+        for explanation in explanations:
+            explanation.edge = None
+            explanation.save()
+
+        hints = Hint.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
+        for hint in hints:
+            hint.edge = None
+            hint.save()
+
+        errorSpecifics = ErrorSpecificFeedbacks.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
+        for errorSpecific in errorSpecifics:
+            errorSpecific.edge = None
+            errorSpecific.save()
+
+    @transaction.atomic
+    def update_node_feedbacks(self, nodeModel, loadedProblem):
+        doubts = Doubt.objects.select_for_update().filter(problem=loadedProblem, node=nodeModel)
+        for doubt in doubts:
+            answers = Answer.objects.select_for_update().filter(problem=loadedProblem, doubt=doubt)
+            for answer in answers:
+                answer.doubt = None
+                answer.save()
+            doubt.node = None
+            doubt.save()
+
+
+    @transaction.atomic
     @XBlock.json_handler
     def submit_graph_data(self,data,suffix=''):
         graphData = data.get('graphData')
@@ -397,19 +435,36 @@ class MyXBlock(XBlock):
                     nodeModel.fixedValue = float(node["fixedValue"])
                     nodeModel.visible = float(node["visible"])
                     if float(node["visible"]) == 0:
-                        doubts = Doubt.objects.select_for_update().filter(problem=loadedProblem, node=nodeModel)
-                        for doubt in doubts:
-                            answers = Answer.objects.select_for_update().filter(problem=loadedProblem, doubt=doubt)
-                            for answer in answers:
-                                answer.doubt = None
-                                answer.save()
-                            doubt.node = None
-                            doubt.save()
+                        self.update_node_feedbacks(nodeModel, loadedProblem)
+                        
+                        sourceEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = nodeModel)
+                        if sourceEdges.exists():
+                            for sourceEdge in sourceEdges:
+                                self.update_edge_feedbacks(sourceEdge, loadedProblem)
+                                sourceEdge.visible = 0
+                                sourceEdge.save()
+
+                        destEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, destNode = nodeModel)
+                        if destEdges.exists():
+                            for destEdge in destEdges:
+                                self.update_edge_feedbacks(destEdge, loadedProblem)
+                                destEdge.visible = 0
+                                destEdge.save()
 
                     nodeModel.nodePositionX = node["x"]
                     nodeModel.nodePositionY = node["y"]
-                    if nodeModel.linkedSolution is not None or node["linkedSolution"] != "":
+
+                    emptyLinkedSOlution = True
+                    if nodeModel.linkedSolution and not nodeModel.linkedSolution.isspace():
+                        emptyLinkedSOlution = False
+
+                    newEmptyLinkedSOlution = True
+                    if node["linkedSolution"] and not node["linkedSolution"].isspace():
+                        newEmptyLinkedSOlution = False
+                    
+                    if not (emptyLinkedSOlution == True and newEmptyLinkedSOlution == True):
                         nodeModel.linkedSolution = node["linkedSolution"]
+
                     nodeModel.dateModified = datetime.now()
                     nodeModel.save()
                     if node["modifiedCorrectness"] == 1:
@@ -466,30 +521,7 @@ class MyXBlock(XBlock):
                     edgeModel.correctness = float(edge["correctness"])
                     edgeModel.visible = edge["visible"]
                     if edge["visible"] == 0:
-                        doubts = Doubt.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
-                        for doubt in doubts:
-                            answers = Answer.objects.select_for_update().filter(problem=loadedProblem, doubt=doubt)
-                            for answer in answers:
-                                answer.doubt = None
-                                answer.save()
-                            doubt.edge = None
-                            doubt.save()
-
-                        explanations = Explanation.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
-                        for explanation in explanations:
-                            explanation.edge = None
-                            explanation.save()
-
-                        hints = Hint.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
-                        for hint in hints:
-                            hint.edge = None
-                            hint.save()
-
-                        errorSpecifics = ErrorSpecificFeedbacks.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
-                        for errorSpecific in errorSpecifics:
-                            errorSpecific.edge = None
-                            errorSpecific.save()
-
+                        self.update_edge_feedbacks(edgeModel, loadedProblem)
                     edgeModel.dateModified = datetime.now()
                     edgeModel.fixedValue = float(edge["fixedValue"])
                     edgeModel.save()
@@ -1266,7 +1298,8 @@ class MyXBlock(XBlock):
             lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
             currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
 
-            if currentNode.exists() and Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first()).exists() and currentNode.first().correctness >= correctState[0]:
+            edge = Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first())
+            if currentNode.exists() and edge.exists() and edge.first().correctness >= stronglyValidStep[0]  and currentNode.first().correctness >= correctState[0]:
                 beforeLast = lastElement
                 lastElement = step
                 wrongStep = wrongStep + 1
@@ -1328,6 +1361,7 @@ class MyXBlock(XBlock):
         return {"feedback": generate_hint(self.openApiToken, data.get("from"), data.get("to"))}
 
     @XBlock.json_handler
+    @transaction.atomic
     def get_hint_for_last_step(self, data, suffix=''):
 
         answerArray = data['userAnswer'].split('\n')
@@ -1365,14 +1399,17 @@ class MyXBlock(XBlock):
             hintIdType = []
 
 
-            possibleState = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(wrongElement))
+            possibleState = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(wrongElement))
             if not possibleState.exists():
                 newNode = Node(title=transformToSimplerAnswer(wrongElement), problem=loadedProblem, dateAdded=datetime.now())
                 newNode.save()
             else:
                 newNode = possibleState.first()
+                if newNode.visible == 0:
+                    newNode.visible = 1
+                    newNode.save()
 
-            possibleStep = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(lastCorrectElement), destNode=newNode)
+            possibleStep = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(lastCorrectElement), destNode=newNode)
             if not possibleStep.exists():
                 possibleLastState = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(lastCorrectElement))
                 if not possibleLastState.exists():
@@ -1383,7 +1420,11 @@ class MyXBlock(XBlock):
 
                 newEdge = Edge(problem=loadedProblem, sourceNode=lastState, destNode=newNode, dateAdded=datetime.now())
                 newEdge.save()
-
+            else:
+                newEdge = possibleStep.first()
+                if newEdge.visible == 0:
+                    newEdge.visible = 1
+                    newEdge.save()
 
             edgeForSpecificFeedback = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(possibleIncorrectAnswer.get("lastCorrectElement")), destNode__title=transformToSimplerAnswer(wrongElement))
             if edgeForSpecificFeedback.exists():
@@ -1864,6 +1905,7 @@ class MyXBlock(XBlock):
         return returnjson
 
     #Envia a resposta final
+    @transaction.atomic
     @XBlock.json_handler
     def send_answer(self, data, suffix=''):
 
@@ -1901,29 +1943,36 @@ class MyXBlock(XBlock):
         #LEMBRAR DE FAZER O IF DE ÚLTINO ELEMENTO PARA NÃO FICAR FEIO
         for step in answerArray:
 
-            lastNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
-            currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
+            lastNode = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
+            currentNode = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
 
             if not lastNode.exists():
                 n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now())
                 n1.save()
             else:
                 n1 = lastNode.first()
+                if n1.visible == 0:
+                    n1.visible = 1
+                    n1.save()
 
             if lastNode.exists() and not currentNode.exists():
                 n2 = Node(title=step, problem=loadedProblem, dateAdded=datetime.now())
                 n2.save()
             else:
                 n2 = currentNode.first()
+                if n2.visible == 0:
+                    n2.visible = 1
+                    n2.save()
             
-
-            
-            currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
+            currentEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
             if not currentEdge.exists():
                 e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
                 e1.save()
             else:
                 e1 = currentEdge.first()
+                if e1.visible == 0:
+                    e1.visible = 1
+                    e1.save()
 
 
             self.studentResolutionsSteps.append(str((lastElement, step)))
@@ -1950,7 +1999,12 @@ class MyXBlock(XBlock):
             currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(step))
             edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
 
-            if (edgeList.exists() and edgeList[0].correctness >= validStep[0] and lastNode.correctness >= correctState[0] and currentNode.correctness >= correctState[0]):
+            if lastElement == '_start_':
+                lastElement = step
+                currentStep = currentStep + 1
+                continue
+
+            if (edgeList.exists() and edgeList[0].correctness >= stronglyValidStep[0] and lastNode.correctness >= correctState[0] and currentNode.correctness >= correctState[0]):
                 endNodes = Edge.objects.filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
                 if  (endNodes.exists()):
                     isStepsCorrect = True
@@ -1961,7 +2015,6 @@ class MyXBlock(XBlock):
                     continue
             else:
                 if ((edgeList.exists() and edgeList[0].correctness > possiblyInvalidStep[0] and edgeList[0].correctness <= possiblyValidStep[0]) or (lastNode.correctness >= unknownState[0] and lastNode.correctness <= unknownState[1]) or (currentNode.correctness >= unknownState[0] and currentNode.correctness <= unknownState[1])):
-                    wrongElement = step
                     break
                 else:
                     isStepsCorrect = False

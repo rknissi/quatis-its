@@ -97,7 +97,6 @@ def createGraphInitialPositions(problemId):
             needTocalculateNode.save()
 
 
-
     loadedProblem.isCalculatingPos = 0
     loadedProblem.save()
 
@@ -196,7 +195,6 @@ def avoidSamePosFromAnotherNodeRight(x, y, loadedProblem):
             return rightX
 
     return  x
-
 
 def getJsonFromProblemGraph(problemId):
     nodeList = []

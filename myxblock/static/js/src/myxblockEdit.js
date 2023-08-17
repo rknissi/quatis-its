@@ -68,6 +68,11 @@ function MyXBlockEdit(runtime, element) {
         break;
       }
     }
+    for (i = 0; i < data.edges.length; ++i) {
+      if (nodeName === data.edges[i].from || nodeName === data.edges[i].to) {
+        data.edges[i].visible = 0
+      }
+    }
     reApplyConfig();
   }
 
