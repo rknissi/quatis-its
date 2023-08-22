@@ -269,8 +269,8 @@ function MyXBlockEdit(runtime, element) {
     var sourceStateExists = false
     var destStateExists = false
 
-    var sourceState = el.find('input[id=sourceState]').val()
-    var destState = el.find('input[id=destState]').val()
+    var sourceState = el.find('input[id=sourceState]').val().toLowerCase().replaceAll(' ', '')
+    var destState = el.find('input[id=destState]').val().toLowerCase().replaceAll(' ', '')
 
     for (i = 0; i < data.nodes.length; ++i) {
       if (sourceState === data.nodes[i].id) {
@@ -280,8 +280,14 @@ function MyXBlockEdit(runtime, element) {
         destStateExists = true
       }
     }
+    var correctness = el.find('input[id=stepCorrectness]').val()
+    if (!correctness) {
+      correctness = 0
+    }
 
-    if (sourceStateExists && destStateExists) {
+    if (sourceState == destState) {
+      window.alert("Ambos estados são iguais, selecione estados diferentes")
+    } else if (sourceStateExists && destStateExists) {
       var info = {
         from: sourceState,
         to: destState,
@@ -289,17 +295,19 @@ function MyXBlockEdit(runtime, element) {
         normal: { stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()) },
         hovered: { stroke: { thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()) } },
         selected: { stroke: { color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' } },
-        correctness: el.find('input[id=stepCorrectness]').val(),
+        correctness: correctness,
         fixedValue: fixedValueCheckbox,
         visible: 1,
         modifiedCorrectness: 0
       };
+      document.getElementById('sourceState').value = null;
+      document.getElementById('destState').value = null;
+      document.getElementById('stepCorrectness').value = null;
       addEdge(info);
       reApplyConfig();
     } else {
       window.alert("Um dos estados do passo não existe. Crie o estado antes de criar o passo")
     }
-
   });
 
 
@@ -317,6 +325,11 @@ function MyXBlockEdit(runtime, element) {
       if (stateName === data.nodes[i].id) {
         window.alert("Você já dicionou um estado com o mesmo nome")
       }
+    }
+
+    var correctness = el.find('input[id=stateCorrectness]').val()
+    if (!correctness) {
+      correctness = 0
     }
 
     if (dropDownValue === 'initialState') {
@@ -342,7 +355,7 @@ function MyXBlockEdit(runtime, element) {
         counter: 0,
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
-        correctness: el.find('input[id=stateCorrectness]').val(),
+        correctness: correctness,
         fixedValue: fixedValueCheckbox,
         linkedSolution: null,
         visible: 1,
@@ -369,6 +382,8 @@ function MyXBlockEdit(runtime, element) {
         modifiedCorrectness: 0
       };
     }
+    document.getElementById('stateName').value = null;
+    document.getElementById('stateCorrectness').value = null;
     addNode(body)
     reApplyConfig();
   });
@@ -377,6 +392,11 @@ function MyXBlockEdit(runtime, element) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
     removeNode(id)
+
+    var nodeMenu = document.getElementById("nodeMenu");
+    var addMenu = document.getElementById("addMenu");
+    nodeMenu.style.display = "none";
+    addMenu.style.display = "block";
   });
 
   $('#removeStep', element).click(function(eventObject) {
@@ -384,6 +404,11 @@ function MyXBlockEdit(runtime, element) {
     var from = el.find('input[id=editStepSource]').val()
     var to = el.find('input[id=editStepDest]').val()
     removeEdge(from, to)
+
+    var edgeMenu = document.getElementById("edgeMenu");
+    var addMenu = document.getElementById("addMenu");
+    edgeMenu.style.display = "none";
+    addMenu.style.display = "block";
   });
 
 
@@ -1484,6 +1509,12 @@ function MyXBlockEdit(runtime, element) {
         feedbackIdElement.value = value.newHints[i].id
       }
     }
+
+    var edgeMenu = document.getElementById("edgeMenu");
+    var feedbackMenu = document.getElementById("feedbackMenu");
+    edgeMenu.style.display = "block";
+    feedbackMenu.style.display = "none";
+
   }
 
   $('#removeFeedback', element).click(function(eventObject) {

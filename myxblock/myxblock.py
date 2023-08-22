@@ -2203,7 +2203,7 @@ class MyXBlock(XBlock):
             transformedResolution.append(transformToSimplerAnswer(item))
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CFEE = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1])
+        CFEE = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1], visisble = 1)
         for stepEE in CFEE:
             sourceNodeTitleEE = stepEE.sourceNode.title 
             if sourceNodeTitleEE in transformedResolution:
@@ -2227,7 +2227,7 @@ class MyXBlock(XBlock):
             transformedResolution.append(transformToSimplerAnswer(item))
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CDI = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
+        CDI = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visisble = 1)
         for stepHint in CDI:
             sourceNodeTitleEX = stepHint.sourceNode.title 
             if sourceNodeTitleEX in transformedResolution:
@@ -2249,7 +2249,7 @@ class MyXBlock(XBlock):
             transformedResolution.append(transformToSimplerAnswer(item))
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CEX = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
+        CEX = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visisble = 1)
         for stepEX in CEX:
             sourceNodeTitleEX = stepEX.sourceNode.title 
             if sourceNodeTitleEX in transformedResolution:
@@ -2288,8 +2288,8 @@ class MyXBlock(XBlock):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
 
-        CCC1 = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1])
-        CCC2 = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0])
+        CCC1 = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1], visisble = 1)
+        CCC2 = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visisble = 1)
 
         for stepCC in CCC2:
             sourceNodeTitleEX = stepCC.sourceNode.title 
