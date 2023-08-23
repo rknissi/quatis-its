@@ -297,7 +297,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.minimalStep.length > 0) {
             for(var i = 0; i < value.minimalStep.length; i++){
-                feedback = prompt("A seguinte transição está correta no contexto do exercício?\n" + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
+                feedback = prompt("Está ação está correta?\n" + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
@@ -310,7 +310,14 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.minimalState.length > 0) {
             for(var i = 0; i < value.minimalState.length; i++){
-                feedback = prompt("O seguinte ponto de parada da resolução faz sentido existir nesse exercício?\n" + value.minimalState[i]);
+                promptMessage = "A seguinte situação está correta?\n" + value.minimalState[i] + "\nPara a seguinte resolução:\n"
+                for (var j = 0; j < value.minimalStateResolutions[i].length; j++) {
+                    promptMessage = promptMessage.concat(value.minimalStateResolutions[i][j])
+                    if (j != value.minimalStateResolutions[i].length - 1) {
+                        promptMessage = promptMessage.concat(" --> ")
+                    }
+                }
+                feedback = prompt(promptMessage);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
@@ -324,7 +331,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.errorSpecific.length > 0) {
             for(var i = 0; i < value.errorSpecific.length; i++){
-                var feedback = prompt("Como você explicaria o porquê a seguinte transição está incorreta?\n" + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
+                var feedback = prompt("Por que a conta abaixo está errada?\n" + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -357,7 +364,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.hints.length > 0) {
             for(var i = 0; i < value.hints.length; i++){
-                var feedback = prompt("Qual dica você daria para a seguinte transição, para ajudar os alunos que não souberem como ir do primeiro ponto para o segundo?\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
+                var feedback = prompt("Qual dica você daria para resolver a seguinte etapa?\nNão vale dar dar a resposta, heim!\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -372,7 +379,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.explanation.length > 0) {
             for(var i = 0; i < value.explanation.length; i++){
-                var feedback = prompt("Como você explicaria o porquê que a transição abaixo está correta?\n" + value.explanation[i] + " --> " + value.explanation[i + 1]);
+                var feedback = prompt("Como você resolveu a seguinte etapa?\n" + value.explanation[i] + " --> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({

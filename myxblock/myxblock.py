@@ -2030,13 +2030,23 @@ class MyXBlock(XBlock):
         minimal = self.getMinimalFeedbackFromStudentResolution(answerArray, generatedResolution["nodeIdList"])
         minimalSteps = []
         minimalStates = []
-        #minimalSteps = minimal
-        for model in minimal:
+        resolutionForStates = []
+        resCount = 0
+        for model in minimal["askInfoSteps"]:
             if isinstance(model, Edge):
                 minimalSteps.append(model.sourceNode.title)
                 minimalSteps.append(model.destNode.title)
             else:
                 minimalStates.append(model.title)
+                resolutionNames = []
+                for resStateId in ast.literal_eval(minimal["askInfoResolutions"][resCount].nodeIdList):
+                    nodeToBeAdded = Node.objects.get(id = resStateId)
+                    if nodeToBeAdded.title != "_start_" and nodeToBeAdded.title != "_end_":
+                        resolutionNames.append(nodeToBeAdded.title)
+                        if (nodeToBeAdded.id == model.id):
+                            break
+                resolutionForStates.append(resolutionNames)
+                resCount += 1
 
         errorSpecific = self.getErrorSpecificFeedbackFromProblemGraph(answerArray)
         errorSpecificSteps = []
@@ -2095,10 +2105,11 @@ class MyXBlock(XBlock):
                 message = "Sua resolução e/ou resposta final estão incorretas"
 
         self.updateStateAndStepsCounters()
-        return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps}
+        return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
         askInfoSteps = []
+        askInfoResolutions = []
         loadedProblem = Problem.objects.get(id=self.problemId)
         previousStateName = "_start_"
         nextStateName = None
@@ -2117,14 +2128,11 @@ class MyXBlock(XBlock):
                 for step in inforSteps1:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    #if step.destNode.title not in transformedResolution and step.destNode not in askInfoSteps:
-                    #    askInfoSteps.append(step.destNode)
+
                 inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(correctness = 1).exclude(correctness = -1)
                 for step in inforSteps2:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    #if step.destNode.title not in transformedResolution and step.destNode not in askInfoSteps:
-                    #    askInfoSteps.append(step.destNode)
 
                 #Experimental
                 commonIds = nodeIdList[:len(nodeIdList)-(len(nodeIdList) - (index))]
@@ -2142,26 +2150,18 @@ class MyXBlock(XBlock):
                             askInfoSteps.append(possibleEdge.first())
                         if possibleEdge.first().sourceNode not in askInfoSteps and possibleEdge.first().sourceNode.correctness != 1 and possibleEdge.first().sourceNode.correctness != -1:
                             askInfoSteps.append(possibleEdge.first().sourceNode)
+                            askInfoResolutions.append(infoStep)
 
-                #Como obter outros estados no mesmo nivel? Podemos fazer buscando por resolutions, mas ficaria pesado
-                #inforSteps3 = Edge.objects.filter(problem=loadedProblem).exclude(sourceNode__title = previousStateName, destNode__title=stateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
-                #for step in inforSteps3:
-                #    if step not in askInfoSteps:
-                #        askInfoSteps.append(step)
             
             if nextStateName != "_end_":
                 inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(correctness = 1).exclude(correctness = -1)
                 for step in inforSteps4:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    #if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
-                    #    askInfoSteps.append(step.sourceNode)
                 inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(correctness = 1).exclude(correctness = -1)
                 for step in inforSteps5:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                    #if step.sourceNode.title not in resolution and step.sourceNode not in askInfoSteps:
-                    #    askInfoSteps.append(step.sourceNode)
  
                 #Experimental
                 commonIds = nodeIdList[:len(nodeIdList)-(len(nodeIdList) - (index + 1))]
@@ -2179,20 +2179,15 @@ class MyXBlock(XBlock):
                             askInfoSteps.append(possibleEdge.first())
                         if possibleEdge.first().destNode not in askInfoSteps and possibleEdge.first().destNode.correctness != 1 and possibleEdge.first().destNode.correctness != -1:
                             askInfoSteps.append(possibleEdge.first().destNode)
-
-                #Como obter outros estados no mesmo nivel? Podemos fazer buscando por resolutions, mas ficaria pesado
-                #inforSteps6 = Edge.objects.filter(problem=loadedProblem).exclude(destNode__title = nextStateName, sourceNode__title = stateName).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_")
-                #for step in inforSteps6:
-                #    if step not in askInfoSteps:
-                #        askInfoSteps.append(step)
+                            askInfoResolutions.append(infoStep)
 
             previousStateName = stateName
 
         askInfoSteps.sort(key=orderMinimalFeedback)
         if askInfoSteps is not None and len(askInfoSteps) >= maxMinimumFeedback:
-            return askInfoSteps[0:maxMinimumFeedback]
+            return {"askInfoSteps": askInfoSteps[0:maxMinimumFeedback], "askInfoResolutions": askInfoResolutions}
         else:
-            return askInfoSteps
+            return {"askInfoSteps": askInfoSteps, "askInfoResolutions": askInfoResolutions}
 
 
     def getErrorSpecificFeedbackFromProblemGraph(self, resolution):
@@ -2203,7 +2198,7 @@ class MyXBlock(XBlock):
             transformedResolution.append(transformToSimplerAnswer(item))
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CFEE = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1], visisble = 1)
+        CFEE = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1], visible = 1)
         for stepEE in CFEE:
             sourceNodeTitleEE = stepEE.sourceNode.title 
             if sourceNodeTitleEE in transformedResolution:
@@ -2227,7 +2222,7 @@ class MyXBlock(XBlock):
             transformedResolution.append(transformToSimplerAnswer(item))
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CDI = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visisble = 1)
+        CDI = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visible = 1)
         for stepHint in CDI:
             sourceNodeTitleEX = stepHint.sourceNode.title 
             if sourceNodeTitleEX in transformedResolution:
@@ -2249,7 +2244,7 @@ class MyXBlock(XBlock):
             transformedResolution.append(transformToSimplerAnswer(item))
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        CEX = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visisble = 1)
+        CEX = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visible = 1)
         for stepEX in CEX:
             sourceNodeTitleEX = stepEX.sourceNode.title 
             if sourceNodeTitleEX in transformedResolution:
@@ -2288,8 +2283,8 @@ class MyXBlock(XBlock):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
 
-        CCC1 = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1], visisble = 1)
-        CCC2 = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visisble = 1)
+        CCC1 = Edge.objects.filter(problem=loadedProblem, correctness__lt = possiblyInvalidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__lte = incorrectState[1], visible = 1)
+        CCC2 = Edge.objects.filter(problem=loadedProblem, correctness__gte = stronglyValidStep[0], sourceNode__correctness__gte = correctState[0], destNode__correctness__gte = correctState[0], visible = 1)
 
         for stepCC in CCC2:
             sourceNodeTitleEX = stepCC.sourceNode.title 
