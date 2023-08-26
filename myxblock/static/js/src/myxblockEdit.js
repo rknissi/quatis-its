@@ -528,7 +528,9 @@ function MyXBlockEdit(runtime, element) {
       problemDescription: el.find('input[id=problemDescription]').val(),
       multipleChoiceProblem: multipleChoice,
       problemDefaultHint: el.find('input[id=problemDefaultHint]').val(),
+      problemDefaultHintEnglish: el.find('input[id=problemDefaultHintEnglish]').val(),
       problemInitialHint: el.find('input[id=problemInitialHint]').val(),
+      problemInitialHintEnglish: el.find('input[id=problemInitialHintEnglish]').val(),
       problemAnswer1: el.find('input[id=problemAnswer1]').val(),
       problemAnswer2: el.find('input[id=problemAnswer2]').val(),
       problemAnswer3: el.find('input[id=problemAnswer3]').val(),
@@ -538,7 +540,8 @@ function MyXBlockEdit(runtime, element) {
       problemTags: el.find('input[id=problemTags]').val(),
       callOpenAiExplanation: el.find('input[id=callOpenAiExplanation]').val(),
       questionToAsk: el.find('input[id=questionToAsk]').val(),
-      openApiToken: el.find('input[id=openApiToken]').val()
+      openApiToken: el.find('input[id=openApiToken]').val(),
+      language: el.find('input[id=language]').val()
     };
 
     $.ajax({

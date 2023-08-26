@@ -35,6 +35,38 @@ function MyXBlock(runtime, element, data) {
     var noneAnswerColor = "none"
     var doubtAnswerColor = "yellow"
 
+    var PT = 0
+    var EN = 1
+
+    var language = 0
+
+    var explanationMessages = ["Como você resolveu a seguinte etapa?\n", "How would you solve the following step?\n"]
+    var hintMessages = ["Qual dica você daria para resolver a seguinte etapa?\nNão vale dar dar a resposta, heim!\n", "Which hint would be useful on the following step?\nGiving away the answer is not a hint!\n"]
+    var errorSpecificMessages = ["Por que a ação abaixo está errada?\n", "Why the following action is not valid?\n"]
+    var stepMessage = ["Esta ação está correta?\n", "Is the following action correct?\n"]
+    var stateMessage1 = ["A seguinte situação está correta?\n", "Is the following situation correct?\n"]
+    var stateMessage2 = ["\nPara a seguinte resolução:\n", "\nFor the resolution:\n"]
+    var stepDoubtMessage1 = ["Como você responderia a seguinte dúvida?\n", "How would you answer the question: \n"]
+    var stepDoubtMessage2 = ["\nDa ação: ", "\nFor the action: "]
+    var stateDoubtMessage1 = ["Como você responderia a seguinte dúvida?\n", "How would you answer the question: \n"]
+    var stateDoubtMessage2 = ["\nPara ajudar a realizar a próxima ação a partir de: ", "\nTo help to get to the next step from: "]
+    var emptyResolutionMessage = ["Sua resolução não pode ser vazia", "Your resolution cannot be empty"]
+    var doubtSentMessage = ["Dúvida enviada com sucesso", "Question was sent successfully"]
+    var alreadyCreatedDoubtMessage = ["Essa dúvida já foi realizada por um colega seu, e ninguém ainda a respondeu", "This question was made by another person, but there are still no answers"]
+    var whatDoubtStateMessage = ["Qual dúvida te impede de saber como prosseguir a partir de: \n", "What question is preventing you from continuing coming from: "]
+    var whatDoubtStepMessage = ["Qual a dúvida para a seguinte transição? \n", "What's your question about the action? \n"]
+    var sameDoubtMessage = ["Essa dúvida é a mesma que você tem?\n", "Is this the same question that you have?\n"]
+    var answerMessage = ["Isso responde sua dúvida ou é útil?\n", "Does this answers your question or is it useful to you?\n"]
+    var newDoubtMessage1 = ["Você tem dúvidas na transição \n", "Do you have a question in the action\n"]
+    var newDoubtMessage2 = ["\n\nOu você não sabe como prosseguir do passo\n", "\n\nOr you can't continue from the following step: \n"]
+    var newDoubtMessage3 = ["\n\nDigite 'primeiro' se for na transição, ou 'segundo' se não sabe como prosseguir", "\n\nWrite 'first' if it's on the action, or 'second' if you don't know how to proceed"]
+    var invalidDoubtChoiceMessage = ["Escolha inválida. Por favor escreva 'primeiro' ou 'segundo'", "Invalid choice. Please choice between 'first' and 'second'"]
+    var stillHaveDoubts = ["Ainda lhe restam dúvidas?", "Do you still have any questions?"]
+
+    var doubtChoiceFirst = ["primeiro", "first"]
+    var doubtChoiceSecond = ["segundo", "second"]
+
+
     function disableButton(buttonElement) {
         document.getElementById(buttonElement).disabled = true;
     }
@@ -61,6 +93,10 @@ function MyXBlock(runtime, element, data) {
     }
 
     function defineValues(value) {
+        if (value.language != 'pt') {
+            language = EN
+        }
+
         $('#question', element).text(value.title);
 
         $('#description', element).text(value.description);
@@ -297,7 +333,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.minimalStep.length > 0) {
             for(var i = 0; i < value.minimalStep.length; i++){
-                feedback = prompt("Está ação está correta?\n" + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
+                feedback = prompt(stepMessage[language] + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
@@ -310,7 +346,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.minimalState.length > 0) {
             for(var i = 0; i < value.minimalState.length; i++){
-                promptMessage = "A seguinte situação está correta?\n" + value.minimalState[i] + "\nPara a seguinte resolução:\n"
+                promptMessage = stateMessage1[language] + value.minimalState[i] + stateMessage2[language]
                 for (var j = 0; j < value.minimalStateResolutions[i].length; j++) {
                     promptMessage = promptMessage.concat(value.minimalStateResolutions[i][j])
                     if (j != value.minimalStateResolutions[i].length - 1) {
@@ -331,7 +367,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.errorSpecific.length > 0) {
             for(var i = 0; i < value.errorSpecific.length; i++){
-                var feedback = prompt("Por que a conta abaixo está errada?\n" + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
+                var feedback = prompt(errorSpecificMessages[language] + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -364,7 +400,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.hints.length > 0) {
             for(var i = 0; i < value.hints.length; i++){
-                var feedback = prompt("Qual dica você daria para resolver a seguinte etapa?\nNão vale dar dar a resposta, heim!\n" + value.explanation[i] + " -> " + value.explanation[i + 1]);
+                var feedback = prompt(hintMessages[language] + value.explanation[i] + " -> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -379,7 +415,7 @@ function MyXBlock(runtime, element, data) {
         }
         if (value.explanation.length > 0) {
             for(var i = 0; i < value.explanation.length; i++){
-                var feedback = prompt("Como você resolveu a seguinte etapa?\n" + value.explanation[i] + " --> " + value.explanation[i + 1]);
+                var feedback = prompt(explanationMessages[language] + value.explanation[i] + " --> " + value.explanation[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
@@ -395,7 +431,7 @@ function MyXBlock(runtime, element, data) {
         if (value.doubtsSteps.length > 0) {
             for(var i = 0; i < value.doubtsSteps.length; i++){
                 if (!doubtIds.includes(value.doubtsSteps[i].doubtId)) {
-                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsSteps[i].message + "\nDa transição " + value.doubtsSteps[i].source + " --> " + value.doubtsSteps[i].dest);
+                    var feedback = prompt(stepDoubtMessage1[language] + value.doubtsSteps[i].message + stepDoubtMessage2[language] + value.doubtsSteps[i].source + " --> " + value.doubtsSteps[i].dest);
                     if (feedback != null) {
                         $.ajax({
                             type: "POST",
@@ -409,7 +445,7 @@ function MyXBlock(runtime, element, data) {
         if (value.doubtsNodes.length > 0) {
             for(var i = 0; i < value.doubtsNodes.length; i++){
                 if (!doubtIds.includes(value.doubtsNodes[i].doubtId)) {
-                    var feedback = prompt("Como você responderia a seguinte dúvida?\n" + value.doubtsNodes[i].message + "\nDo ponto de parada da resolução " + value.doubtsNodes[i].node);
+                    var feedback = prompt(stateDoubtMessage1[language] + value.doubtsNodes[i].message + stateDoubtMessage2[language] + value.doubtsNodes[i].node);
                     if (feedback != null) {
                         $.ajax({
                             type: "POST",
@@ -478,7 +514,7 @@ function MyXBlock(runtime, element, data) {
         disableButton("answerButton")
         var userAnswer = getCompleteAnswer()
         if (userAnswer.replace(/(\r\n|\n|\r)/gm, "") == "") {
-            alert("Sua resolução não pode ser vazia")
+            alert(emptyResolutionMessage[language])
             return
         }
         var radioAnswer = $("input:radio[name=radioAnswer]:checked").val()
@@ -598,24 +634,25 @@ function MyXBlock(runtime, element, data) {
         var firstNode = document.getElementById("idt" + checkedBoxes[0]);
         var secondNode = document.getElementById("idt" + checkedBoxes[1]);
 
-        choice = prompt("Você tem dúvidas na transição \n" 
+        choice = prompt(newDoubtMessage1[language] 
             + firstNode.value + "-->" + secondNode.value 
-            + "\n\nOu você tem dúvida no ponto de parada\n" + secondNode.value 
-            + "\nE não sabe como prosseguir?" 
-            + "\n\nDigite 'primeiro' para indicar uma dúvida na transição, ou 'segundo' caso seja uma dúvida no ponto de parada" );
-        if (choice == null || (choice.toLowerCase() != "primeiro" && choice.toLowerCase() != "segundo")) {
-            alert("Escolha inválida. Por favor escreva 'primeiro' ou 'segundo'")
+            + newDoubtMessage2[language] 
+            + secondNode.value 
+            + newDoubtMessage3[language] );
+
+        if (choice == null || (choice.toLowerCase() != doubtChoiceFirst[language] && choice.toLowerCase() != doubtChoiceSecond[language])) {
+            alert(invalidDoubtChoiceMessage[language])
             enableButton("askQuestion")
             return
         }
 
-        if (choice.toLowerCase() == "segundo") {
+        if (choice.toLowerCase() == doubtChoiceSecond[language]) {
 
             var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
             var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
             if (sourceNode.value == "" || destNode.value == "") {
-                alert("Selecione apenas passos que contenham algo escrito")
+                //alert("Selecione apenas passos que contenham algo escrito")
                 return
             }
             $.ajax({
@@ -630,14 +667,14 @@ function MyXBlock(runtime, element, data) {
                 if (message.doubts.length == 0) {
                     var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                     var destNode = document.getElementById("idt" + checkedBoxes[1]);
-                    doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + destNode.value);
+                    doubt = prompt(whatDoubtStateMessage[language] + destNode.value);
                     if (doubt != null) {
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
                             data: JSON.stringify({ type: "doubtState", message: doubt, nodeTo: destNode.value, nodeFrom: sourceNode.value }),
                             success: function (value) {
-                                alert("Dúvida enviada com sucesso")
+                                alert(doubtSentMessage[language])
                                 addDoubtIdtoList(value.doubtId)
                             }
                         });
@@ -651,10 +688,10 @@ function MyXBlock(runtime, element, data) {
                                 data: JSON.stringify({ type: "doubt", id: message.doubts[i].id })
                             });
                         }
-                        sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
+                        sameDoubt = prompt(sameDoubtMessage[language] + message.doubts[i].text)
                         if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
                             if (message.doubts[i].answers.length == 0) {
-                                alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
+                                alert(alreadyCreatedDoubtMessage[language])
                             } else {
                                 for (var j = 0; j < message.doubts[i].answers.length; j++) {
                                     $.ajax({
@@ -662,7 +699,7 @@ function MyXBlock(runtime, element, data) {
                                         url: increaseFeedbackCount,
                                         data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
                                     });
-                                    doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
+                                    doubtAnswer = prompt(answerMessage[language] + message.doubts[i].answers[j].text)
                                     if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness++
@@ -686,18 +723,18 @@ function MyXBlock(runtime, element, data) {
                             i = message.doubts.length
                         }
                     }
-                    newDoubt = prompt("Ainda lhe restam dúvidas?")
+                    newDoubt = prompt(stillHaveDoubts[language])
                     if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
                         var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                         var destNode = document.getElementById("idt" + checkedBoxes[1]);
-                        doubt = prompt("Qual a dúvida para o seguinte ponto de parada na resolução?\n" + destNode.value);
+                        doubt = prompt(whatDoubtStateMessage[language] + destNode.value);
                         if (doubt != null) {
                             $.ajax({
                                 type: "POST",
                                 url: send_feedback,
-                                data: JSON.stringify({ type: "doubtState", message: doubt, nnodeTo: destNode.value, nodeFrom: sourceNode.value }),
+                                data: JSON.stringify({ type: "doubtState", message: doubt, nodeTo: destNode.value, nodeFrom: sourceNode.value }),
                                 success: function (value) {
-                                    alert("Dúvida enviada com sucesso")
+                                    alert(doubtSentMessage[language])
                                     addDoubtIdtoList(value.doubtId)
                                 }
                             });
@@ -739,7 +776,7 @@ function MyXBlock(runtime, element, data) {
                     var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                     var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
-                    doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
+                    doubt = prompt(whatDoubtStepMessage[language] + sourceNode.value + " -> " + destNode.value);
 
                     if (doubt != null) {
                         $.ajax({
@@ -747,7 +784,7 @@ function MyXBlock(runtime, element, data) {
                             url: send_feedback,
                             data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
                             success: function (value) {
-                                alert("Dúvida enviada com sucesso")
+                                alert(doubtSentMessage[language])
                                 addDoubtIdtoList(value.doubtId)
                             }
                         });
@@ -759,10 +796,10 @@ function MyXBlock(runtime, element, data) {
                             url: increaseFeedbackCount,
                             data: JSON.stringify({ type: "doubt", id: message.doubts[i].id })
                         });
-                        sameDoubt = prompt("Essa dúvida é a mesma que você tem?\n" + message.doubts[i].text)
+                        sameDoubt = prompt(sameDoubtMessage[language] + message.doubts[i].text)
                         if (sameDoubt && checkIfUserInputIsValid(sameDoubt) && getUserAnswer(sameDoubt) == yesUniversalAnswer) {
                             if (message.doubts[i].answers.length == 0) {
-                                alert("Essa dúvida já foi realizada por um colega seu. Estamos esperando alguém responder essa dúvida")
+                                alert(alreadyCreatedDoubtMessage[language])
                             } else {
                                 for (var j = 0; j < message.doubts[i].answers.length; j++) {
                                     $.ajax({
@@ -770,7 +807,7 @@ function MyXBlock(runtime, element, data) {
                                         url: increaseFeedbackCount,
                                         data: JSON.stringify({ type: "answer", id: message.doubts[i].answers[j].id })
                                     });
-                                    doubtAnswer = prompt("Isso responde sua dúvida ou é útil?\n" + message.doubts[i].answers[j].text)
+                                    doubtAnswer = prompt(answerMessage[language] + message.doubts[i].answers[j].text)
                                     if (doubtAnswer && checkIfUserInputIsValid(doubtAnswer) && getUserAnswer(doubtAnswer) == yesUniversalAnswer) {
                                         answerUsefulness = message.doubts[i].answers[j].usefulness
                                         answerUsefulness++
@@ -794,19 +831,19 @@ function MyXBlock(runtime, element, data) {
                             i = message.doubts.length
                         }
                     }
-                    newDoubt = prompt("Ainda lhe restam dúvidas?")
+                    newDoubt = prompt(stillHaveDoubts[language])
                     if (newDoubt && checkIfUserInputIsValid(newDoubt) && getUserAnswer(newDoubt) == yesUniversalAnswer) {
                         var sourceNode = document.getElementById("idt" + checkedBoxes[0]);
                         var destNode = document.getElementById("idt" + checkedBoxes[1]);
 
-                        doubt = prompt("Qual a dúvida para a seguinte transição de pontos da resolução?\n" + sourceNode.value + " -> " + destNode.value);
+                        doubt = prompt(whatDoubtStepMessage[language] + sourceNode.value + " -> " + destNode.value);
 
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
                             data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
                             success: function (value) {
-                                alert("Dúvida enviada com sucesso")
+                                alert(doubtSentMessage[language])
                                 addDoubtIdtoList(value.doubtId)
                             }
                         });

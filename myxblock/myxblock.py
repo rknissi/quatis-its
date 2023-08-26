@@ -183,8 +183,18 @@ class MyXBlock(XBlock):
         help="If there is no available hint",
     )
 
+    problemDefaultHintEnglish = String(
+        default="Please check if your resolution and answer are correct. Check for hints or write a question if necessary", scope=Scope.content,
+        help="If there is no available hint",
+    )
+
     problemInitialHint = String(
         default="Inicialmente, coloque o mesmo que está no enunciado", scope=Scope.content,
+        help="If thew student dont know how to start the process",
+    )
+
+    problemInitialHintEnglish = String(
+        default="First, put what's on the question", scope=Scope.content,
         help="If thew student dont know how to start the process",
     )
 
@@ -238,6 +248,10 @@ class MyXBlock(XBlock):
         help="OpenAI token in Base64",
     )
 
+    language = String(
+        default="pt", scope=Scope.content,
+        help="Language",
+    )
 
     #Resposta desse bloco
     answerSteps = List(
@@ -283,7 +297,10 @@ class MyXBlock(XBlock):
     # TO-DO: change this view to display your data your own way.
     def student_view(self, context=None):
         #Adiciona qual arquivo HTML será usado
-        html = self.resource_string("static/html/myxblock.html")
+        if self.language == "pt":
+            html = self.resource_string("static/html/myxblock.html")
+        else:
+            html = self.resource_string("static/html/myxblockEn.html")
         loadedProblem = Problem.objects.filter(id=self.problemId)
         if loadedProblem.exists():
             loadedMultipleChoiceProblem = loadedProblem[0].multipleChoiceProblem
@@ -317,7 +334,9 @@ class MyXBlock(XBlock):
                                          problemDescription=self.problemDescription,
                                          multipleChoiceProblem=loadedMultipleChoiceProblem,
                                          problemDefaultHint=self.problemDefaultHint,
+                                         problemDefaultHintEnglish=self.problemDefaultHintEnglish,
                                          problemInitialHint=self.problemInitialHint,
+                                         problemInitialHintEnglish=self.problemInitialHintEnglish,
                                          problemAnswer1=self.problemAnswer1,
                                          problemAnswer2=self.problemAnswer2,
                                          problemAnswer3=self.problemAnswer3,
@@ -327,7 +346,8 @@ class MyXBlock(XBlock):
                                          problemTags=self.problemTags,
                                          callOpenAiExplanation=self.callOpenAiExplanation,
                                          questionToAsk=self.questionToAsk,
-                                         openApiToken=self.openApiToken
+                                         openApiToken=self.openApiToken,
+                                         language=self.language
                                          ))
         frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
 
@@ -536,7 +556,6 @@ class MyXBlock(XBlock):
     @XBlock.json_handler
     @transaction.atomic
     def import_data(self,data,suffix=''):
-        #problemData = ast.literal_eval(data.get('problemData'))
         problemData = json.loads(data.get('problemData'))
         loadedProblem = Problem.objects.select_for_update().get(id=self.problemId)
         startNode = Node.objects.get(problem=loadedProblem, title="_start_")
@@ -546,7 +565,9 @@ class MyXBlock(XBlock):
         self.problemDescription = self.setDataOrUseDefault(problemData, "problemDescription", self.problemDescription)
         loadedProblem.multipleChoiceProblem = self.setDataOrUseDefault(problemData, "multipleChoiceProblem", loadedProblem.multipleChoiceProblem)
         self.problemDefaultHint = self.setDataOrUseDefault(problemData, "problemDefaultHint", self.problemDefaultHint)
+        self.problemDefaultHintEnglish = self.setDataOrUseDefault(problemData, "problemDefaultHintEnglish", self.problemDefaultHint)
         self.problemInitialHint = self.setDataOrUseDefault(problemData, "problemInitialHint", self.problemInitialHint)
+        self.problemInitialHintEnglish = self.setDataOrUseDefault(problemData, "problemInitialHintEnglish", self.problemInitialHint)
         self.problemAnswer1 = self.setDataOrUseDefault(problemData, "problemAnswer1", self.problemAnswer1)
         self.problemAnswer2 = self.setDataOrUseDefault(problemData, "problemAnswer2", self.problemAnswer2)
         self.problemAnswer3 = self.setDataOrUseDefault(problemData, "problemAnswer3", self.problemAnswer3)
@@ -557,10 +578,7 @@ class MyXBlock(XBlock):
         self.callOpenAiExplanation = self.setDataOrUseDefault(problemData, "callOpenAiExplanation", self.callOpenAiExplanation)
         self.questionToAsk = self.setDataOrUseDefault(problemData, "questionToAsk", self.questionToAsk)
         self.openApiToken = self.setDataOrUseDefault(problemData, "openApiToken", self.openApiToken)
-        self.openApiToken = self.setDataOrUseDefault(problemData, "openApiToken", self.openApiToken)
-
-
-        #return {"debug": problemData}
+        self.language = self.setDataOrUseDefault(problemData, "language", self.language)
 
         for node in problemData['nodes']:
             nodeModel = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(node["title"]))
@@ -1108,7 +1126,9 @@ class MyXBlock(XBlock):
         self.problemDescription = data.get('problemDescription')
         loadedProblem.multipleChoiceProblem = data.get('multipleChoiceProblem')
         self.problemDefaultHint = data.get('problemDefaultHint')
+        self.problemDefaultHintEnglish = data.get('problemDefaultHintEnglish')
         self.problemInitialHint = data.get('problemInitialHint')
+        self.problemInitialHintEnglish = data.get('problemInitialHintEnglish')
         self.problemAnswer1 = data.get('problemAnswer1')
         self.problemAnswer2 = data.get('problemAnswer2')
         self.problemAnswer3 = data.get('problemAnswer3')
@@ -1118,6 +1138,7 @@ class MyXBlock(XBlock):
         self.callOpenAiExplanation = data.get('callOpenAiExplanation')
         self.questionToAsk = data.get('questionToAsk')
         self.openApiToken = data.get('openApiToken')
+        self.language = data.get('language')
         self.problemTags = ast.literal_eval(data.get('problemTags'))
         loadedProblem.dateModified=datetime.now()
 
@@ -1376,7 +1397,11 @@ class MyXBlock(XBlock):
         wrongElement = possibleIncorrectAnswer.get("wrongElement")
         lastCorrectElement = possibleIncorrectAnswer.get("lastCorrectElement")
 
-        hintText = self.problemDefaultHint
+        if self.language == "pt":
+            hintText = self.problemDefaultHint
+        else:
+            hintText = self.problemDefaultHintEnglish
+
         hintId = 0
         hintList = None
 
@@ -1463,11 +1488,17 @@ class MyXBlock(XBlock):
 
                 if not hintFound:
                     if possibleIncorrectAnswer.get("lastCorrectElement") == "_start_":
-                        hintList.append(self.problemInitialHint)
+                        if self.language == "pt":
+                            hintList.append(self.problemInitialHint)
+                        else:
+                            hintList.append(self.problemInitialHintEnglish)
                         hintIdList.append(0)
                         hintIdType.append("hint")
                     else:
-                        hintList.append(self.problemDefaultHint)
+                        if self.language == "pt":
+                            hintList.append(self.problemDefaultHint)
+                        else:
+                            hintList.append(self.problemDefaultHintEnglish)
                         hintIdList.append(0)
                         hintIdType.append("hint")
 
@@ -1534,12 +1565,18 @@ class MyXBlock(XBlock):
                                         hintIdType.append("hint")
                     
                         if not hintFound:
+                            if self.language == "pt":
                                 hintList.append(self.problemDefaultHint)
-                                hintIdList.append(0)
-                                hintIdType.append("hint")
+                            else:
+                                hintList.append(self.problemDefaultHintEnglish)
+                            hintIdList.append(0)
+                            hintIdType.append("hint")
 
                 else:
-                    hintList.append(self.problemDefaultHint)
+                    if self.language == "pt":
+                        hintList.append(self.problemDefaultHint)
+                    else:
+                        hintList.append(self.problemDefaultHintEnglish)
                     hintIdList.append(0)
                     hintIdType.append("hint")
 
@@ -1550,11 +1587,15 @@ class MyXBlock(XBlock):
                 #Para casos é a primeira dica
             
                 if (wrongStepCount == 0):
-                    hintText = self.problemInitialHint
+                    if self.language == "pt":
+                        hintText = self.problemInitialHint
+                        self.currentHints = [self.problemInitialHint]
+                    else:
+                        hintText = self.problemInitialHintEnglish
+                        self.currentHints = [self.problemInitialHintEnglish]
                     hintId = 0
                     hintType = "hint"
                     typeChose = 1
-                    self.currentHints = [self.problemInitialHint]
                 #Para casos onde está tudo correto, então ele verifica se o último elemento são os corretos
                 elif (newHints):
                     self.lastWrongElement = str((possibleIncorrectAnswer.get("beforeLast"), possibleIncorrectAnswer.get("lastCorrectElement")))
@@ -1616,7 +1657,10 @@ class MyXBlock(XBlock):
                     self.increaseFeedbackCount(loadedProblem, hintType, hintId)
 
         except IndexError as error:
-            hintText = self.problemDefaultHint
+            if self.language == "pt":
+                hintText = self.problemDefaultHint
+            else:
+                hintText = self.problemDefaultHintEnglish
             hintId = 0
             hintType = "hint"
             raise
@@ -1763,7 +1807,9 @@ class MyXBlock(XBlock):
         returnjson["problemDescription"] = self.problemDescription
         returnjson["multipleChoiceProblem"] = loadedProblem.multipleChoiceProblem
         returnjson["problemDefaultHint"] = self.problemDefaultHint
+        returnjson["problemDefaultHintEnglish"] = self.problemDefaultHintEnglish
         returnjson["problemInitialHint"] = self.problemInitialHint
+        returnjson["problemInitialHintEnglish"] = self.problemInitialHintEnglish
         returnjson["problemAnswer1"] = self.problemAnswer1
         returnjson["problemAnswer2"] = self.problemAnswer2
         returnjson["problemAnswer3"] = self.problemAnswer3
@@ -1882,6 +1928,7 @@ class MyXBlock(XBlock):
 
                     doubtJson["text"] = edgeDoubt.text
                     edgeDoubtAnswers = Answer.objects.filter(problem=loadedProblem, doubt = edgeDoubt)
+                    answerJson = None
                     if edgeDoubtAnswers.exists():
                         for edgeDoubtAnswer in edgeDoubtAnswers:
                             answerJson = {}
@@ -2090,19 +2137,38 @@ class MyXBlock(XBlock):
         self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
         if isAnswerCorrect == None:
             if loadedProblem.multipleChoiceProblem == 0:
-                message = "Sua resolução está em análise"
+                if self.language == 'pt':
+                    message = "Sua resolução está em análise"
+                else:
+                    message = "Your resolution is being analyzed"
             else:
-                message = "Sua resposta e resolução estão em análise"
+                if self.language == 'pt':
+                    message = "Sua resposta e resolução estão em análise"
+                else:
+                    message = "Both your answer and resolution are being analyzed"
+
         elif isAnswerCorrect:
             if loadedProblem.multipleChoiceProblem == 0:
-                message = "Sua resolução está correta! Parabéns"
+                if self.language == 'pt':
+                    message = "Sua resolução está correta! Parabéns!"
+                else:
+                    message = "Congratulations! Your resolution is correct!"
             else:
-                message = "Sua resposta e resolução estão ambas corretas! Parabéns"
+                if self.language == 'pt':
+                    message = "Sua resposta e resolução estão ambas corretas! Parabéns!"
+                else:
+                    message = "Both your answer and resolutions are correct! Congratulations!"
         elif not isAnswerCorrect:
             if loadedProblem.multipleChoiceProblem == 0:
-                message = "Sua resolução está incorreta"
+                if self.language == 'pt':
+                    message = "Sua resolução está incorreta"
+                else:
+                    message = "Your resolution is incorrect"
             else:
-                message = "Sua resolução e/ou resposta final estão incorretas"
+                if self.language == 'pt':
+                    message = "Sua resolução e/ou resposta final estão incorretas"
+                else:
+                    message = "Your resolution and/or your answer are incorrect"
 
         self.updateStateAndStepsCounters()
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
@@ -2469,11 +2535,11 @@ class MyXBlock(XBlock):
         if not loadedProblem.exists():
             return {"title": self.problemTitle, "description": self.problemDescription, 
             "answer1": self.problemAnswer1, "answer2": self.problemAnswer2, "answer3": self.problemAnswer3, "answer4": self.problemAnswer4, "answer5": self.problemAnswer5,
-            "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered)}
+            "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered), "language": self.language}
 
         return {"title": self.problemTitle, "description": self.problemDescription, 
         "answer1": self.problemAnswer1, "answer2": self.problemAnswer2, "answer3": self.problemAnswer3, "answer4": self.problemAnswer4, "answer5": self.problemAnswer5,
-        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered), "multipleChoiceProblem": loadedProblem[0].multipleChoiceProblem}
+        "subject": self.problemSubject, "tags": self.problemTags, "alreadyAnswered": str(self.alreadyAnswered), "multipleChoiceProblem": loadedProblem[0].multipleChoiceProblem, "language": self.language}
 
 
     # TO-DO: change this to create the scenarios you'd like to see in the
