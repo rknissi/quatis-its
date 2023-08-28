@@ -169,8 +169,10 @@ class Resolution(models.Model):
 	nodeIdList = models.TextField(default="")
 	edgeIdList = models.TextField(default="")
 	studentId = models.TextField()
+	attempt = models.IntegerField(default=0)
 	correctness = models.FloatField(default=0)
-	dateAdded = models.DateTimeField()
+	dateStarted = models.DateTimeField()
+	dateFinished = models.DateTimeField(default=None, blank=True, null=True)
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 
 	class Meta:
@@ -181,7 +183,7 @@ class Resolution(models.Model):
 		if instance.id is not None:
 			newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, 
 	       		edgeIdList = instance.edgeIdList, studentId = instance.studentId, 
-		   		correctness = instance.correctness, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+		   		correctness = instance.correctness, dateStarted = instance.dateStarted, dateFinished = instance.dateFinished, attempt = instance.attempt, dateModified = instance.dateModified, 
 		   		originalId = instance.id, historyDate = datetime.now(), historyAction = "save")
 			newEntry.save()
 
@@ -190,7 +192,7 @@ class Resolution(models.Model):
 		if created:
 			newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, 
 	       		edgeIdList = instance.edgeIdList, studentId = instance.studentId, 
-		   		correctness = instance.correctness, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+		   		correctness = instance.correctness, dateStarted = instance.dateStarted, dateFinished = instance.dateFinished, attempt = instance.attempt, dateModified = instance.dateModified, 
 		   		originalId = instance.id, historyDate = datetime.now(), historyAction = "created")
 			newEntry.save()
 
@@ -198,7 +200,7 @@ class Resolution(models.Model):
 	def pre_delete(sender, instance, **kwargs):
 		newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, 
 	       edgeIdList = instance.edgeIdList, studentId = instance.studentId, 
-		   correctness = instance.correctness, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+		   correctness = instance.correctness, dateStarted = instance.dateStarted, dateFinished = instance.dateFinished, attempt = instance.attempt, dateModified = instance.dateModified, 
 		   originalId = instance.id, historyDate = datetime.now(), historyAction = "delete")
 		newEntry.save()
 
@@ -208,7 +210,9 @@ class Resolution_history(models.Model):
 	edgeIdList = models.TextField(default="")
 	studentId = models.TextField()
 	correctness = models.FloatField(default=0)
-	dateAdded = models.DateTimeField()
+	attempt = models.IntegerField(default=0)
+	dateStarted = models.DateTimeField()
+	dateFinished = models.DateTimeField(default=None, blank=True, null=True)
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	originalId = models.IntegerField(default=None, blank=True, null=True)
 	historyDate = models.DateTimeField(default=None, blank=True, null=True)
@@ -222,6 +226,7 @@ class ErrorSpecificFeedbacks(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='errorSpecificFeedbackEdge', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
@@ -237,7 +242,7 @@ class ErrorSpecificFeedbacks(models.Model):
 			old = ErrorSpecificFeedbacks.objects.get(id = instance.id)
 			if old.edge != instance.edge or old.text != instance.text or old.priority != instance.priority or old.usefulness != instance.usefulness or old.counter != instance.counter:
 				newEntry = ErrorSpecificFeedbacks_history(problem = instance.problem, edge = instance.edge, 
-	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, studentId = instance.studentId,
 	       			priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
 				newEntry.save()
@@ -246,7 +251,7 @@ class ErrorSpecificFeedbacks(models.Model):
 	def post_save(sender, instance, created, **kwargs):
 		if created:
 			newEntry = ErrorSpecificFeedbacks_history(problem = instance.problem, edge = instance.edge, 
-	       		text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+	       		text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, studentId = instance.studentId, 
 	       		priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "created")
 			newEntry.save()
@@ -254,7 +259,7 @@ class ErrorSpecificFeedbacks(models.Model):
 	@staticmethod
 	def pre_delete(sender, instance, **kwargs):
 		newEntry = ErrorSpecificFeedbacks_history(problem = instance.problem, edge = instance.edge, 
-	       text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
+	       text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, studentId = instance.studentId, 
 	       priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   originalId = instance.id, historyDate = datetime.now(),historyAction =  "delete")
 		newEntry.save()
@@ -263,6 +268,7 @@ class ErrorSpecificFeedbacks_history(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='historyErrorSpecificFeedbackEdge', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
@@ -279,6 +285,7 @@ class Hint(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='hintsEdge', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
@@ -293,7 +300,7 @@ class Hint(models.Model):
 		if instance.id is not None:
 			old = Hint.objects.get(id = instance.id)
 			if old.edge != instance.edge or old.text != instance.text or old.priority != instance.priority or old.usefulness != instance.usefulness or old.counter != instance.counter:
-				newEntry = Hint_history(problem = instance.problem, edge = instance.edge, 
+				newEntry = Hint_history(problem = instance.problem, edge = instance.edge, studentId = instance.studentId, 
 	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 	       			priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
@@ -302,7 +309,7 @@ class Hint(models.Model):
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
 		if created:
-			newEntry = Hint_history(problem = instance.problem, edge = instance.edge, 
+			newEntry = Hint_history(problem = instance.problem, edge = instance.edge, studentId = instance.studentId, 
 	       		text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 	       		priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "created")
@@ -310,7 +317,7 @@ class Hint(models.Model):
 
 	@staticmethod
 	def pre_delete(sender, instance, **kwargs):
-		newEntry = Hint_history(problem = instance.problem, edge = instance.edge, 
+		newEntry = Hint_history(problem = instance.problem, edge = instance.edge, studentId = instance.studentId, 
 	       text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 	       priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   originalId = instance.id, historyDate = datetime.now(),historyAction =  "delete")
@@ -320,6 +327,7 @@ class Hint_history(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='historyHintsEdge', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
@@ -336,6 +344,7 @@ class Explanation(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='explanationsEdge', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
@@ -350,7 +359,7 @@ class Explanation(models.Model):
 		if instance.id is not None:
 			old = Explanation.objects.get(id = instance.id)
 			if old.edge != instance.edge or old.text != instance.text or old.priority != instance.priority or old.usefulness != instance.usefulness or old.counter != instance.counter:
-				newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, 
+				newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, studentId = instance.studentId, 
 	       				text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 	       				priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   				originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
@@ -359,7 +368,7 @@ class Explanation(models.Model):
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
 		if created:
-			newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, 
+			newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, studentId = instance.studentId, 
 	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 	       			priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "created")
@@ -367,7 +376,7 @@ class Explanation(models.Model):
 
 	@staticmethod
 	def pre_delete(sender, instance, **kwargs):
-		newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, 
+		newEntry = Explanation_history(problem = instance.problem, edge = instance.edge, studentId = instance.studentId, 
 	       text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 	       priority = instance.priority, usefulness = instance.usefulness, counter = instance.counter, 
 		   originalId = instance.id, historyDate = datetime.now(),historyAction =  "delete")
@@ -377,6 +386,7 @@ class Explanation_history(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='historyExplanationsEdge', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	priority = models.IntegerField(default=0)
@@ -395,6 +405,7 @@ class Doubt(models.Model):
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='doubtEdge', blank=True, null=True)
 	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='doubtNode', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	counter = models.IntegerField(default=0)
@@ -407,7 +418,7 @@ class Doubt(models.Model):
 			old = Doubt.objects.get(id = instance.id)
 			if old.edge != instance.edge or old.text != instance.text or old.node != instance.node or old.counter != instance.counter:
 				newEntry = Doubt_history(problem = instance.problem, type = instance.type, 
-	       			edge = instance.edge, node = instance.node, text = instance.text,
+	       			edge = instance.edge, node = instance.node, text = instance.text, studentId = instance.studentId,
 		   			dateAdded = instance.dateAdded, dateModified = instance.dateModified, counter = instance.counter, 
 		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
 				newEntry.save()
@@ -416,7 +427,7 @@ class Doubt(models.Model):
 	def post_save(sender, instance, created, **kwargs):
 		if created:
 			newEntry = Doubt_history(problem = instance.problem, type = instance.type, 
-	       		edge = instance.edge, node = instance.node, text = instance.text,
+	       		edge = instance.edge, node = instance.node, text = instance.text, studentId = instance.studentId,
 		   		dateAdded = instance.dateAdded, dateModified = instance.dateModified, counter = instance.counter, 
 		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "created")
 			newEntry.save()
@@ -424,7 +435,7 @@ class Doubt(models.Model):
 	@staticmethod
 	def pre_delete(sender, instance, **kwargs):
 		newEntry = Doubt_history(problem = instance.problem, type = instance.type, 
-	       edge = instance.edge, node = instance.node, text = instance.text,
+	       edge = instance.edge, node = instance.node, text = instance.text, studentId = instance.studentId,
 		   dateAdded = instance.dateAdded, dateModified = instance.dateModified, counter = instance.counter, 
 		   originalId = instance.id, historyDate = datetime.now(),historyAction =  "delete")
 		newEntry.save()
@@ -435,6 +446,7 @@ class Doubt_history(models.Model):
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='historyDoubtEdge', blank=True, null=True)
 	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='historyDoubtNode', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	counter = models.IntegerField(default=0)
@@ -449,6 +461,7 @@ class Answer(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	doubt = models.ForeignKey(Doubt, on_delete=models.CASCADE, related_name='AnswerDoubt', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	usefulness = models.IntegerField(default=0)
@@ -461,7 +474,7 @@ class Answer(models.Model):
 		if instance.id is not None:
 			old = Answer.objects.get(id = instance.id)
 			if old.doubt != instance.doubt or old.text != instance.text or old.usefulness != instance.usefulness or old.counter != instance.counter:
-				newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, 
+				newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, studentId = instance.studentId, 
 	       			text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 		   			usefulness = instance.usefulness, counter = instance.counter, 
 		   			originalId = instance.id, historyDate = datetime.now(),historyAction =  "save")
@@ -470,7 +483,7 @@ class Answer(models.Model):
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
 		if created:
-			newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, 
+			newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, studentId = instance.studentId, 
 	       		text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 		   		usefulness = instance.usefulness, counter = instance.counter, 
 		   		originalId = instance.id, historyDate = datetime.now(),historyAction =  "created")
@@ -478,7 +491,7 @@ class Answer(models.Model):
 
 	@staticmethod
 	def pre_delete(sender, instance, **kwargs):
-		newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, 
+		newEntry = Answer_history(problem = instance.problem, doubt = instance.doubt, studentId = instance.studentId, 
 	       text = instance.text, dateAdded = instance.dateAdded, dateModified = instance.dateModified, 
 		   usefulness = instance.usefulness, counter = instance.counter, 
 		   originalId = instance.id, historyDate = datetime.now(),historyAction =  "delete")
@@ -488,6 +501,7 @@ class Answer_history(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	doubt = models.ForeignKey(Doubt, on_delete=models.CASCADE, related_name='historyAnswerDoubt', blank=True, null=True)
 	text = models.TextField()
+	studentId = models.TextField()
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	usefulness = models.IntegerField(default=0)

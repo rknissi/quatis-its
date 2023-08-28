@@ -23,6 +23,7 @@ function MyXBlock(runtime, element, data) {
     var submitDoubtAnswerInfo = runtime.handlerUrl(element, 'submit_doubt_answer_info');
     var checkIfUseAiExplanation = runtime.handlerUrl(element, 'check_if_use_ai_explanation');
     var increaseFeedbackCount = runtime.handlerUrl(element, 'increase_feedback_count');
+    var finishActivityTime = runtime.handlerUrl(element, 'finish_activity_time');
 
     var yesAnswer = ["sim", "s", "yes", "y", "si", "ye"];
     var noAnswer = ["não", "n", "no", "nao"];
@@ -456,6 +457,11 @@ function MyXBlock(runtime, element, data) {
                 }
             }
         }
+        $.ajax({
+          type: "POST",
+          url: finishActivityTime,
+          data: "{}"
+        });
     }
 
     async function create_initial_positions() {

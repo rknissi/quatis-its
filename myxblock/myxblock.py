@@ -16,6 +16,7 @@ from unidecode import unidecode
 from django.db.models.signals import pre_save, pre_init, post_save, pre_delete
 from django.db.models import Q
 from django.db import transaction
+from xblock.runtime import Runtime
 
 receivedMinimalFeedbackAmount = 0.1
 receivedHintUsefulnessAmount = 1
@@ -123,9 +124,14 @@ class MyXBlock(XBlock):
         help="If the student already answered the exercise",
     )
 
-    studentId = Boolean(
+    studentId = Integer(
         default=0, scope=Scope.user_state,
         help="StudentId for the problem",
+    )
+
+    studentRetries = Integer(
+        default=0, scope=Scope.user_state,
+        help="How many attempts",
     )
 
     #ùltimo erro cometido pelo aluno
@@ -297,12 +303,17 @@ class MyXBlock(XBlock):
     # TO-DO: change this view to display your data your own way.
     def student_view(self, context=None):
         #Adiciona qual arquivo HTML será usado
+        self.studentId = self.runtime.user_id
+        self.studentRetries += 1
+
         if self.language == "pt":
             html = self.resource_string("static/html/myxblock.html")
         else:
             html = self.resource_string("static/html/myxblockEn.html")
         loadedProblem = Problem.objects.filter(id=self.problemId)
         if loadedProblem.exists():
+            r1 = Resolution(problem=loadedProblem[0], studentId = self.studentId, dateStarted = datetime.now(), attempt = self.studentRetries)
+            r1.save()
             loadedMultipleChoiceProblem = loadedProblem[0].multipleChoiceProblem
             frag = Fragment(str(html).format(block=self, multipleChoiceProblem=loadedMultipleChoiceProblem,useai=self.callOpenAiExplanation))
         else: 
@@ -365,6 +376,19 @@ class MyXBlock(XBlock):
             lastElement = element
 
     @transaction.atomic
+    @XBlock.json_handler
+    def finish_activity_time(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        r1 = Resolution.objects.select_for_update().filter(problem=loadedProblem, studentId = self.studentId, attempt = self.studentRetries)
+
+        if r1.exists():
+            existingRes = r1.first()
+            existingRes.dateFinished = datetime.now()
+            existingRes.save()
+
+        return {"status": "Success"}
+
+    @transaction.atomic
     def updateStateAndStepsCounters(self):
         loadedProblem = Problem.objects.get(id=self.problemId)
 
@@ -398,7 +422,7 @@ class MyXBlock(XBlock):
         return usedSteps
 
     @transaction.atomic
-    def update_edge_feedbacks(self, edgeModel, loadedProblem):
+    def remove_edge_feedbacks(self, edgeModel, loadedProblem):
         doubts = Doubt.objects.select_for_update().filter(problem=loadedProblem, edge=edgeModel)
         for doubt in doubts:
             answers = Answer.objects.select_for_update().filter(problem=loadedProblem, doubt=doubt)
@@ -424,7 +448,7 @@ class MyXBlock(XBlock):
             errorSpecific.save()
 
     @transaction.atomic
-    def update_node_feedbacks(self, nodeModel, loadedProblem):
+    def remove_node_feedbacks(self, nodeModel, loadedProblem):
         doubts = Doubt.objects.select_for_update().filter(problem=loadedProblem, node=nodeModel)
         for doubt in doubts:
             answers = Answer.objects.select_for_update().filter(problem=loadedProblem, doubt=doubt)
@@ -455,19 +479,19 @@ class MyXBlock(XBlock):
                     nodeModel.fixedValue = float(node["fixedValue"])
                     nodeModel.visible = float(node["visible"])
                     if float(node["visible"]) == 0:
-                        self.update_node_feedbacks(nodeModel, loadedProblem)
+                        self.remove_node_feedbacks(nodeModel, loadedProblem)
                         
                         sourceEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = nodeModel)
                         if sourceEdges.exists():
                             for sourceEdge in sourceEdges:
-                                self.update_edge_feedbacks(sourceEdge, loadedProblem)
+                                self.remove_edge_feedbacks(sourceEdge, loadedProblem)
                                 sourceEdge.visible = 0
                                 sourceEdge.save()
 
                         destEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, destNode = nodeModel)
                         if destEdges.exists():
                             for destEdge in destEdges:
-                                self.update_edge_feedbacks(destEdge, loadedProblem)
+                                self.remove_edge_feedbacks(destEdge, loadedProblem)
                                 destEdge.visible = 0
                                 destEdge.save()
 
@@ -541,7 +565,7 @@ class MyXBlock(XBlock):
                     edgeModel.correctness = float(edge["correctness"])
                     edgeModel.visible = edge["visible"]
                     if edge["visible"] == 0:
-                        self.update_edge_feedbacks(edgeModel, loadedProblem)
+                        self.remove_edge_feedbacks(edgeModel, loadedProblem)
                     edgeModel.dateModified = datetime.now()
                     edgeModel.fixedValue = float(edge["fixedValue"])
                     edgeModel.save()
@@ -618,12 +642,12 @@ class MyXBlock(XBlock):
 
             if "doubts" in node:
                 for doubt in node["doubts"]:
-                    d1 = Doubt(node=n1, type=0, text=doubt["text"], problem=loadedProblem, dateAdded=datetime.now())
+                    d1 = Doubt(node=n1, studentId = self.studentId, type=0, text=doubt["text"], problem=loadedProblem, dateAdded=datetime.now())
                     d1.save()
 
                     if "answers" in doubt:
                         for answer in doubt["answers"]:
-                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=self.setDataOrUseDefault(answer, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
+                            a1 = Answer(doubt=d1, text=answer["text"], studentId = self.studentId, usefulness=self.setDataOrUseDefault(answer, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                             a1.save()
 
         for edge in problemData['edges']:
@@ -643,27 +667,27 @@ class MyXBlock(XBlock):
 
             if "hints" in edge:
                 for hint in edge["hints"]:
-                    h1 = Hint(edge=e1, text=hint["text"], priority=self.setDataOrUseDefault(hint, "priority", 0), usefulness=self.setDataOrUseDefault(hint, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
+                    h1 = Hint(edge=e1, text=hint["text"], studentId = self.studentId, priority=self.setDataOrUseDefault(hint, "priority", 0), usefulness=self.setDataOrUseDefault(hint, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                     h1.save()
 
             if "explanations" in edge:
                 for explanation in edge["explanations"]:
-                    ex1 = Explanation(edge=e1, text=explanation["text"], priority=self.setDataOrUseDefault(explanation, "priority", 0), usefulness=self.setDataOrUseDefault(explanation, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
+                    ex1 = Explanation(edge=e1, studentId = self.studentId, text=explanation["text"], priority=self.setDataOrUseDefault(explanation, "priority", 0), usefulness=self.setDataOrUseDefault(explanation, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                     ex1.save()
 
             if "errorSpecificFeedbacks" in edge:
                 for errorSpecificFeedback in edge["errorSpecificFeedbacks"]:
-                    esf1 = ErrorSpecificFeedbacks(edge=e1, text=errorSpecificFeedback["text"], priority=self.setDataOrUseDefault(errorSpecificFeedback, "priority", 0), usefulness=self.setDataOrUseDefault(errorSpecificFeedback, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
+                    esf1 = ErrorSpecificFeedbacks(edge=e1, studentId = self.studentId, text=errorSpecificFeedback["text"], priority=self.setDataOrUseDefault(errorSpecificFeedback, "priority", 0), usefulness=self.setDataOrUseDefault(errorSpecificFeedback, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                     esf1.save()
 
             if "doubts" in edge:
                 for doubt in edge["doubts"]:
-                    d1 = Doubt(edge=e1, type=1, text=doubt["text"], problem=loadedProblem, dateAdded=datetime.now())
+                    d1 = Doubt(edge=e1, type=1, studentId = self.studentId, text=doubt["text"], problem=loadedProblem, dateAdded=datetime.now())
                     d1.save()
 
                     if "answers" in doubt:
                         for answer in doubt["answers"]:
-                            a1 = Answer(doubt=d1, text=answer["text"], usefulness=self.setDataOrUseDefault(answer, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
+                            a1 = Answer(doubt=d1, text=answer["text"], studentId = self.studentId, usefulness=self.setDataOrUseDefault(answer, "usefulness", 0), problem=loadedProblem, dateAdded=datetime.now())
                             a1.save()
 
         createGraphInitialPositions(self.problemId)
@@ -880,7 +904,7 @@ class MyXBlock(XBlock):
                 loadedDoubt = Doubt.objects.select_for_update().get(problem=loadedProblem, node=loadedNode, id=doubt["id"])
                 loadedDoubt.dateModified = datetime.now()
             else:
-                loadedDoubt = Doubt(problem=loadedProblem, node=loadedNode, dateAdded=datetime.now())
+                loadedDoubt = Doubt(problem=loadedProblem, node=loadedNode, dateAdded=datetime.now(), studentId = self.studentId)
 
             loadedDoubt.text = doubt["text"]
             loadedDoubt.save()
@@ -892,7 +916,7 @@ class MyXBlock(XBlock):
                     loadedAnswer = Answer.objects.select_for_update().get(problem=loadedProblem, id=answer["id"])
                     loadedAnswer.dateModified = datetime.now()
                 else:
-                    loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
+                    loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now(), studentId = self.studentId)
                     newElement = True
 
                 if "usefulness" in answer:
@@ -925,14 +949,13 @@ class MyXBlock(XBlock):
                     loadedHint = Hint.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=hint["id"])
                     loadedHint.dateModified = datetime.now()
                 else:
-                    loadedHint = Hint(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+                    loadedHint = Hint(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now(), studentId = self.studentId)
                     newHint = True
 
                 loadedHint.text = hint["text"]
                 loadedHint.usefulness = int(hint["usefulness"])
                 loadedHint.priority = int(hint["priority"])
                 loadedHint.save()
-                newHints.append({"id": loadedHint.id, "text": loadedHint.text, "usefulness": loadedHint.usefulness, "priority": loadedHint.priority})
                 if newHint:
                     newHints.append({"id": loadedHint.id, "text": loadedHint.text, "usefulness": loadedHint.usefulness, "priority": loadedHint.priority})
 
@@ -945,7 +968,7 @@ class MyXBlock(XBlock):
                     loadedError = ErrorSpecificFeedbacks.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=errorSpecificFeedback["id"])
                     loadedError.dateModified = datetime.now()
                 else:
-                    loadedError = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+                    loadedError = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now(), studentId = self.studentId)
                     newErrorSpecificFeedback = True
 
                 loadedError.text = errorSpecificFeedback["text"]
@@ -964,7 +987,7 @@ class MyXBlock(XBlock):
                     loadedExplanation = Explanation.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=explanation["id"])
                     loadedExplanation.dateModified = datetime.now()
                 else:
-                    loadedExplanation = Explanation(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+                    loadedExplanation = Explanation(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now(), studentId = self.studentId)
                     newExplanation = True
 
                 loadedExplanation.text = explanation["text"]
@@ -981,7 +1004,7 @@ class MyXBlock(XBlock):
                     loadedDoubt = Doubt.objects.select_for_update().get(problem=loadedProblem, edge=loadedEdge, id=doubt["id"])
                     loadedDoubt.dateModified = datetime.now()
                 else:
-                    loadedDoubt = Doubt(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now())
+                    loadedDoubt = Doubt(problem=loadedProblem, edge=loadedEdge, dateAdded=datetime.now(), studentId = self.studentId)
 
                 loadedDoubt.text = doubt["text"]
                 loadedDoubt.save()
@@ -993,7 +1016,7 @@ class MyXBlock(XBlock):
                         loadedAnswer = Answer.objects.select_for_update().get(problem=loadedProblem, id=answer["id"])
                         loadedAnswer.dateModified = datetime.now()
                     else:
-                        loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now())
+                        loadedAnswer = Answer(problem=loadedProblem, doubt=loadedDoubt, dateAdded=datetime.now(), studentId = self.studentId)
                         newElement = True
 
                     if "usefulness" in answer:
@@ -1025,12 +1048,14 @@ class MyXBlock(XBlock):
         hint21 = Hint(problem=problemFK, edge=e2)
         hint21.text="hint 1"
         hint21.dateAdded = datetime.now()
+        hint21.studentId = self.studentId
         hint21.priority = 1
         hint21.usefulness = 1000
 
         hint22 = Hint(problem=problemFK, edge=e2)
         hint22.text="Hint 2"
         hint22.dateAdded = datetime.now()
+        hint22.studentId = self.studentId
         hint22.priority = 2
         hint22.usefulness = 1000
 
@@ -1040,6 +1065,7 @@ class MyXBlock(XBlock):
         errorSpecificFeedback1 = ErrorSpecificFeedbacks(problem=problemFK, edge=e2)
         errorSpecificFeedback1.text="Error Specific feedback 1"
         errorSpecificFeedback1.dateAdded = datetime.now()
+        errorSpecificFeedback1.studentId = self.studentId
         errorSpecificFeedback1.priority = 1
         errorSpecificFeedback1.usefulness = 1000
         errorSpecificFeedback1.save()
@@ -1047,6 +1073,7 @@ class MyXBlock(XBlock):
         errorSpecificFeedback2 = ErrorSpecificFeedbacks(problem=problemFK, edge=e2)
         errorSpecificFeedback2.text="Error Specific Feedback 2"
         errorSpecificFeedback2.dateAdded = datetime.now()
+        errorSpecificFeedback2.studentId = self.studentId
         errorSpecificFeedback2.priority = 2
         errorSpecificFeedback2.usefulness = 1000
         errorSpecificFeedback2.save()
@@ -1054,6 +1081,7 @@ class MyXBlock(XBlock):
         explanations1 = Explanation(problem=problemFK, edge=e2)
         explanations1.text="Explanation feedback 1"
         explanations1.dateAdded = datetime.now()
+        explanations1.studentId = self.studentId
         explanations1.priority = 1
         explanations1.usefulness = 1000
         explanations1.save()
@@ -1061,6 +1089,7 @@ class MyXBlock(XBlock):
         explanations2 = Explanation(problem=problemFK, edge=e2)
         explanations2.text="Explanation Feedback 2"
         explanations2.dateAdded = datetime.now()
+        explanations2.studentId = self.studentId
         explanations2.priority = 2
         explanations2.usefulness = 1000
         explanations2.save()
@@ -1225,6 +1254,7 @@ class MyXBlock(XBlock):
             errorSpecificFeedback = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge)
             errorSpecificFeedback.text=data.get("message")
             errorSpecificFeedback.dateAdded = datetime.now()
+            errorSpecificFeedback.studentId = self.studentId
             errorSpecificFeedback.priority = 1
             errorSpecificFeedback.usefulness = 0
             errorSpecificFeedback.save()
@@ -1232,6 +1262,7 @@ class MyXBlock(XBlock):
             knowledgeComponent = KnowledgeComponent(problem=loadedProblem, edge=loadedEdge, node=loadedNode)
             knowledgeComponent.text=data.get("message")
             knowledgeComponent.dateAdded = datetime.now()
+            knowledgeComponent.studentId = self.studentId
             knowledgeComponent.priority = 1
             knowledgeComponent.usefulness = 0
             knowledgeComponent.save()
@@ -1239,6 +1270,7 @@ class MyXBlock(XBlock):
             explanation = Explanation(problem=loadedProblem, edge=loadedEdge)
             explanation.text=data.get("message")
             explanation.dateAdded = datetime.now()
+            explanation.studentId = self.studentId
             explanation.priority = 1
             explanation.usefulness = 0
             explanation.save()
@@ -1246,6 +1278,7 @@ class MyXBlock(XBlock):
             hint = Hint(problem=loadedProblem, edge=loadedEdge)
             hint.text=data.get("message")
             hint.dateAdded = datetime.now()
+            hint.studentId = self.studentId
             hint.priority = 1
             hint.usefulness = 0
             hint.save()
@@ -1253,6 +1286,7 @@ class MyXBlock(XBlock):
             loadedDoubt = Doubt.objects.get(problem=loadedProblem, id=data.get("doubtId"))
             answer = Answer(problem=loadedProblem, doubt=loadedDoubt)
             answer.dateAdded = datetime.now()
+            answer.studentId = self.studentId
             answer.text = data.get("message")
             answer.usefulness = 0
             answer.save()
@@ -1296,6 +1330,7 @@ class MyXBlock(XBlock):
 
             doubt.text=data.get("message")
             doubt.dateAdded = datetime.now()
+            doubt.studentId = self.studentId
 
             doubt.save()
 
@@ -2134,7 +2169,8 @@ class MyXBlock(XBlock):
 
         #self.alreadyAnswered = True
 
-        self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
+        if "resolutionId" in generatedResolution:
+            self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
         if isAnswerCorrect == None:
             if loadedProblem.multipleChoiceProblem == 0:
                 if self.language == 'pt':
@@ -2516,10 +2552,16 @@ class MyXBlock(XBlock):
         edgeArray.append(currentEdge.id)
         lastNode = currentNode
 
-        r1 = Resolution(nodeIdList = nodeArray, edgeIdList = edgeArray, problem=loadedProblem, correctness=0, dateAdded=datetime.now())
-        r1.save()
+        r1 = Resolution.objects.filter(problem=loadedProblem, studentId = self.studentId, attempt = self.studentRetries)
+        if r1.exists():
+            existingRes = r1.first()
+            existingRes.nodeIdList = nodeArray
+            existingRes.edgeIdList = edgeArray
+            existingRes.correctness = 0
+            existingRes.save()
+            return {"resolutionId": existingRes.id, "nodeIdList": nodeArray, "edgeIdList": edgeArray}
 
-        return {"resolutionId": r1.id, "nodeIdList": nodeArray, "edgeIdList": edgeArray}
+        return {"nodeIdList": nodeArray, "edgeIdList": edgeArray}
 
     @transaction.atomic
     def calculateValidityAndCorrectness(self, resolutionId):
