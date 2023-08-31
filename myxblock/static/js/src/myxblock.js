@@ -460,7 +460,10 @@ function MyXBlock(runtime, element, data) {
         $.ajax({
           type: "POST",
           url: finishActivityTime,
-          data: "{}"
+          data: "{}",
+          success: function (value) {
+            alert("This is your confirmation code, please use it on your questionaire from Amazon MTurk to confirm your experiment: " + value.confirmationCode)
+            }
         });
     }
 

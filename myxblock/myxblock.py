@@ -1,4 +1,6 @@
 import json
+import string
+import random
 from re import I
 import pkg_resources
 from web_fragments.fragment import Fragment
@@ -17,6 +19,8 @@ from django.db.models.signals import pre_save, pre_init, post_save, pre_delete
 from django.db.models import Q
 from django.db import transaction
 from xblock.runtime import Runtime
+from django.core.management import call_command
+
 
 receivedMinimalFeedbackAmount = 0.1
 receivedHintUsefulnessAmount = 1
@@ -382,11 +386,17 @@ class MyXBlock(XBlock):
         r1 = Resolution.objects.select_for_update().filter(problem=loadedProblem, studentId = self.studentId, attempt = self.studentRetries)
 
         if r1.exists():
+            confirmation = self.generateConfirmationKey(10)
             existingRes = r1.first()
             existingRes.dateFinished = datetime.now()
+            existingRes.confirmationKey = confirmation
             existingRes.save()
 
-        return {"status": "Success"}
+        return {"status": "Success", "confirmationCode": confirmation}
+
+    def generateConfirmationKey(self, randonLength):
+        return str(self.studentId) + ''.join(random.choices(string.ascii_uppercase, k=randonLength))
+
 
     @transaction.atomic
     def updateStateAndStepsCounters(self):
@@ -2207,6 +2217,12 @@ class MyXBlock(XBlock):
                     message = "Your resolution and/or your answer are incorrect"
 
         self.updateStateAndStepsCounters()
+
+        #output = open("output_filename",'w') # Point stdout at a file for dumping data to.
+        #call_command('dumpdata','studentGraph',format='json',indent=3,stdout=output)
+        #call_command('dumpdata','studentGraph',format='json',indent=3)
+        #output.close()
+
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
@@ -2419,7 +2435,7 @@ class MyXBlock(XBlock):
     @transaction.atomic
     def recalculateResolutionCorrectnessFromNode(self, node):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allResolutions = Resolution.objects.select_for_update().select_for_update().filter(problem=loadedProblem)
+        allResolutions = Resolution.objects.select_for_update().select_for_update().filter(problem=loadedProblem, nodeIdList__isnull = False, edgeIdList__isnull= False).exclude(nodeIdList__exact='', edgeIdList__exact='')
         resolutionsToBeModified = []
         for resolution in allResolutions:
             usedNodes = ast.literal_eval(resolution.nodeIdList)
@@ -2434,7 +2450,7 @@ class MyXBlock(XBlock):
     @transaction.atomic
     def recalculateResolutionCorrectnessFromEdge(self, edge):
         loadedProblem = Problem.objects.get(id=self.problemId)
-        allResolutions = Resolution.objects.select_for_update().filter(problem=loadedProblem)
+        allResolutions = Resolution.objects.select_for_update().filter(problem=loadedProblem, nodeIdList__isnull = False, edgeIdList__isnull= False).exclude(nodeIdList__exact='', edgeIdList__exact='')
         resolutionsToBeModified = []
         for resolution in allResolutions:
             usedNodes = ast.literal_eval(resolution.edgeIdList)
