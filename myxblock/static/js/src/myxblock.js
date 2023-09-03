@@ -274,13 +274,14 @@ function MyXBlock(runtime, element, data) {
             var removeBack = false
             for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
                 var partialAnswer = document.getElementById("idt" + i);
-                if (partialAnswer.value == value.wrongElement) {
+                if (partialAnswer.value == value.wrongElement && !removeBack) {
                     if (value.wrongElementCorrectness < 0) {
                         partialAnswer.style.background = wrongAnswerColor
                     } else {
                         partialAnswer.style.background = doubtAnswerColor
                     }
                     removeBack = true
+
                 } else {
                     if (removeBack) {
                         partialAnswer.style.background = noneAnswerColor
