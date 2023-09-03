@@ -223,6 +223,17 @@ class Resolution_history(models.Model):
 	class Meta:
 		app_label  = 'studentGraph'
 
+class Attempt(models.Model):
+	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
+	nodeIdList = models.TextField(default="")
+	edgeIdList = models.TextField(default="")
+	studentId = models.TextField()
+	attempt = models.IntegerField(default=0)
+	dateCreated = models.DateTimeField()
+
+	class Meta:
+		app_label  = 'studentGraph'
+
 
 class ErrorSpecificFeedbacks(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)

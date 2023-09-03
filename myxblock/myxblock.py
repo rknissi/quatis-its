@@ -7,7 +7,7 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 import ast 
-from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent
+from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent, Attempt
 from .visualGraph import *
 from .openaiExplanation import *
 from django.utils.timezone import now
@@ -530,7 +530,7 @@ class MyXBlock(XBlock):
                     if not edgeModel.exists():
                         fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
                         toNode = Node.objects.get(problem=loadedProblem, title="_end_")
-                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1, fixedValue = 1)
                         e1.save()
                     startEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=transformToSimplerAnswer(node["id"]))
                     if startEdge.exists():
@@ -540,7 +540,7 @@ class MyXBlock(XBlock):
                     if not edgeModel.exists():
                         fromNode = Node.objects.get(problem=loadedProblem, title="_start_")
                         toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
-                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now())
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1, fixedValue = 1)
                         e1.save()
                     endEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
                     if endEdge.exists():
@@ -1550,6 +1550,8 @@ class MyXBlock(XBlock):
         try:
             #Então está tudo certo, pode dar um OK e seguir em frente
             #MO passo está correto, mas agora é momento de mostrar a dica para o próximo passo.
+
+            self.generateAttempt(answerArray)
             
             lastHint = False
             if (wrongElement == None):
@@ -1562,7 +1564,7 @@ class MyXBlock(XBlock):
                     element = edge.destNode.title
                     loadedProblem = Problem.objects.get(id=self.problemId)
                     nodeElement = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(element))
-                    if nodeElement.correctness >= correctState[0]:
+                    if nodeElement.correctness >= correctState[0] and edge.correctness >= stronglyValidStep[0]:
                         nextElement = element
                         nextPossibleCorrectElementsEdges.append(element)
 
@@ -2074,11 +2076,17 @@ class MyXBlock(XBlock):
         finalElement = '_end_'
 
         currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
-        edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
+        edgeList = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
 
         if not edgeList.exists():
             e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem, dateAdded=datetime.now())
             e1.save()
+        else:
+            e1 = edgeList.first()
+            if e1.visible == 0:
+                e1.visible = 1
+                e1.save()
+            
 
         self.studentResolutionsSteps.append(str((lastElement, finalElement)))
 
@@ -2537,6 +2545,43 @@ class MyXBlock(XBlock):
         if correctValue + incorrectValue != 0:
             return (correctValue-incorrectValue)/(correctValue + incorrectValue)
         return 0
+
+    def generateAttempt(self, resolution):
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
+
+        nodeArray = []
+        edgeArray = []
+        lastNodeName = "_start_"
+        lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastNodeName))
+        nodeArray.append(lastNode.id)
+        earlyBreak = False
+        for node in resolution:
+            currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(node))
+            if currentNode.exists():
+                nodeArray.append(currentNode.first().id)
+            else:
+                earlyBreak = True
+                break
+            currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode.first())
+            if currentEdge.exists():
+                edgeArray.append(currentEdge.first().id)
+            else:
+                earlyBreak = True
+                break
+            lastNode = currentNode.first()
+
+        if not earlyBreak:
+            currentNode = Node.objects.filter(problem=loadedProblem, title="_end_")
+            currentEdge = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode.first())
+            if currentEdge.exists():
+                nodeArray.append(currentNode.first().id)
+                edgeArray.append(currentEdge.first().id)
+
+        a1 = Attempt(problem=loadedProblem, studentId = self.studentId, attempt = self.studentRetries, nodeIdList = nodeArray, edgeIdList = edgeArray, dateCreated = datetime.now())
+        a1.save()
+
+        return {"nodeIdList": nodeArray, "edgeIdList": edgeArray}
 
     def generateResolution(self, resolution):
 
