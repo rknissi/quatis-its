@@ -2626,16 +2626,8 @@ class MyXBlock(XBlock):
         nodeArray.append(lastNode.id)
         for node in resolution:
             currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node))
-            #if currentNode.fixedValue == 0:
-            #    currentNode.correctness = self.corretudeEstado(currentNode)
-            #    currentNode.dateAdded = datetime.now()
-            #    currentNode.save()
             nodeArray.append(currentNode.id)
             currentEdge = Edge.objects.get(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
-            #if currentEdge.fixedValue == 0:
-            #    currentEdge.correctness = self.validadePasso(currentEdge)
-            #    currentEdge.dateAdded = datetime.now()
-            #    currentEdge.save()
             edgeArray.append(currentEdge.id)
             lastNode = currentNode
 
@@ -2666,15 +2658,42 @@ class MyXBlock(XBlock):
     @transaction.atomic
     def update_resolution_correctness(self,data,suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
+        calculatedNodeRes = {}
         allRes = Resolution.objects.select_for_update().filter(problem=loadedProblem, nodeIdList__isnull = False, edgeIdList__isnull= False).exclude(nodeIdList__exact='', edgeIdList__exact='')
         for res in allRes:
-            res.correctness = self.corretudeResolucao(res, False)
-            res.save()
-            if res.correctness == 1:
+            if res.nodeIdList not in calculatedNodeRes:
+                res.correctness = self.corretudeResolucao(res, False)
+                res.save()
+            else:
+                res.correctness = calculatedNodeRes[res.nodeIdList]
+                res.save()
+
+            if res.correctness == 1 and res.nodeIdList not in calculatedNodeRes:
                 lastNodeFromRes = Node.objects.select_for_update().get(id =  ast.literal_eval(res.nodeIdList)[-2])
-                if lastNodeFromRes.linkedSolution == None or lastNodeFromRes.linkedSolution == '':
-                    lastNodeFromRes.linkedSolution = res.selectedOption
+                if lastNodeFromRes.fixedValue == 0:
+                    possibleOptions = {}
+                    allSameRes = Resolution.objects.filter(problem=loadedProblem, nodeIdList = res.nodeIdList, edgeIdList = res.edgeIdList)
+                    for sameRes in allSameRes:
+                        if sameRes.selectedOption not in possibleOptions:
+                            possibleOptions[sameRes.selectedOption] = 1
+                        else:
+                            possibleOptions[sameRes.selectedOption] += 1
+                    finalOption = None
+                    finalOptionCount = None
+
+                    for key in possibleOptions.keys():
+                        if finalOption == None:
+                            finalOption = key
+                            finalOptionCount = possibleOptions[key]
+                        else:
+                            if finalOptionCount < possibleOptions[key]:
+                                finalOption = key
+                                finalOptionCount = possibleOptions[key]
+
+                    lastNodeFromRes.linkedSolution = finalOption
                     lastNodeFromRes.save()
+
+            calculatedNodeRes[res.nodeIdList] = res.correctness
         return {}
 
 
