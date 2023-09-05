@@ -16,4 +16,5 @@ drop table studentGraph_edge_history;
 drop table studentGraph_edge;
 drop table studentGraph_node_history;
 drop table studentGraph_node;
+drop table studentGraph_attempt;
 drop table studentGraph_problem;

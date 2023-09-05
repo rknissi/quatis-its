@@ -24,6 +24,8 @@ function MyXBlock(runtime, element, data) {
     var checkIfUseAiExplanation = runtime.handlerUrl(element, 'check_if_use_ai_explanation');
     var increaseFeedbackCount = runtime.handlerUrl(element, 'increase_feedback_count');
     var finishActivityTime = runtime.handlerUrl(element, 'finish_activity_time');
+    var update_positions = runtime.handlerUrl(element, 'update_positions')
+    var update_resolution_correctness = runtime.handlerUrl(element, 'update_resolution_correctness')
 
     var yesAnswer = ["sim", "s", "yes", "y", "si", "ye"];
     var noAnswer = ["não", "n", "no", "nao"];
@@ -468,10 +470,18 @@ function MyXBlock(runtime, element, data) {
         });
     }
 
-    async function create_initial_positions() {
+    async function updatePositions() {
         $.ajax({
           type: "POST",
-          url: runtime.handlerUrl(element, 'create_initial_positions'),
+          url: update_positions,
+          data: "{}"
+        });
+    }
+
+    async function updateResolutionsCorrectness() {
+        $.ajax({
+          type: "POST",
+          url: update_resolution_correctness,
           data: "{}"
         });
     }
@@ -534,7 +544,8 @@ function MyXBlock(runtime, element, data) {
             url: send_answer,
             data: JSON.stringify({answer: userAnswer, radioAnswer: radioAnswer}),
             success: function (value) {
-                create_initial_positions()
+                updatePositions()
+                updateResolutionsCorrectness()
                 showResults(value)
             } 
         });

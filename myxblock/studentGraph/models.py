@@ -168,6 +168,7 @@ class Resolution(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	nodeIdList = models.TextField(default="")
 	edgeIdList = models.TextField(default="")
+	selectedOption = models.TextField(default=None, blank=True, null=True)
 	confirmationKey = models.TextField(default="")
 	studentId = models.TextField()
 	attempt = models.IntegerField(default=0)
@@ -182,7 +183,7 @@ class Resolution(models.Model):
 	@staticmethod
 	def pre_save(sender, instance, **kwargs):
 		if instance.id is not None:
-			newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, 
+			newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, selectedOption = instance.selectedOption, 
 	       		edgeIdList = instance.edgeIdList, confirmationKey = instance.confirmationKey, studentId = instance.studentId, 
 		   		correctness = instance.correctness, dateStarted = instance.dateStarted, dateFinished = instance.dateFinished, attempt = instance.attempt, dateModified = instance.dateModified, 
 		   		originalId = instance.id, historyDate = datetime.now(), historyAction = "save")
@@ -191,7 +192,7 @@ class Resolution(models.Model):
 	@staticmethod
 	def post_save(sender, instance, created, **kwargs):
 		if created:
-			newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, 
+			newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, selectedOption = instance.selectedOption, 
 	       		edgeIdList = instance.edgeIdList, confirmationKey = instance.confirmationKey, studentId = instance.studentId, 
 		   		correctness = instance.correctness, dateStarted = instance.dateStarted, dateFinished = instance.dateFinished, attempt = instance.attempt, dateModified = instance.dateModified, 
 		   		originalId = instance.id, historyDate = datetime.now(), historyAction = "created")
@@ -199,7 +200,7 @@ class Resolution(models.Model):
 
 	@staticmethod
 	def pre_delete(sender, instance, **kwargs):
-		newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, 
+		newEntry = Resolution_history(problem = instance.problem, nodeIdList = instance.nodeIdList, selectedOption = instance.selectedOption, 
 	       edgeIdList = instance.edgeIdList, confirmationKey = instance.confirmationKey, studentId = instance.studentId, 
 		   correctness = instance.correctness, dateStarted = instance.dateStarted, dateFinished = instance.dateFinished, attempt = instance.attempt, dateModified = instance.dateModified, 
 		   originalId = instance.id, historyDate = datetime.now(), historyAction = "delete")
@@ -209,6 +210,7 @@ class Resolution_history(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	nodeIdList = models.TextField(default="")
 	edgeIdList = models.TextField(default="")
+	selectedOption = models.TextField(default=None, blank=True, null=True)
 	confirmationKey = models.TextField(default="")
 	studentId = models.TextField()
 	correctness = models.FloatField(default=0)

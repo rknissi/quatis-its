@@ -490,12 +490,15 @@ class MyXBlock(XBlock):
                     nodeModel.visible = float(node["visible"])
                     if float(node["visible"]) == 0:
                         self.remove_node_feedbacks(nodeModel, loadedProblem)
+                        nodeModel.correctness = 0
                         
                         sourceEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = nodeModel)
                         if sourceEdges.exists():
                             for sourceEdge in sourceEdges:
                                 self.remove_edge_feedbacks(sourceEdge, loadedProblem)
                                 sourceEdge.visible = 0
+                                if sourceEdge.destNode.title != '_end_':
+                                    sourceEdge.correctness = 0
                                 sourceEdge.save()
 
                         destEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, destNode = nodeModel)
@@ -503,6 +506,8 @@ class MyXBlock(XBlock):
                             for destEdge in destEdges:
                                 self.remove_edge_feedbacks(destEdge, loadedProblem)
                                 destEdge.visible = 0
+                                if destEdge.sourceNode.title != '_start_':
+                                    destEdge.correctness = 0
                                 destEdge.save()
 
                     nodeModel.nodePositionX = node["x"]
@@ -576,6 +581,7 @@ class MyXBlock(XBlock):
                     edgeModel.visible = edge["visible"]
                     if edge["visible"] == 0:
                         self.remove_edge_feedbacks(edgeModel, loadedProblem)
+                        edgeModel.correctness = 0
                     edgeModel.dateModified = datetime.now()
                     edgeModel.fixedValue = float(edge["fixedValue"])
                     edgeModel.save()
@@ -1040,7 +1046,7 @@ class MyXBlock(XBlock):
         return {"status": "Done!", "newAnswers": newAnswers, "newHints": newHints, "newExplanations": newExplanations, "newErrorSpecificFeedbacks": newErrorSpecificFeedbacks}
 
     @XBlock.json_handler
-    def create_initial_positions(self,data,suffix=''):
+    def update_positions(self,data,suffix=''):
         createGraphInitialPositions(self.problemId)
 
         return {"Status": "Ok"}
@@ -1362,9 +1368,9 @@ class MyXBlock(XBlock):
         #Ver até onde está certo
         for step in answerArray:
             lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
-            currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
+            currentNode = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(step), visible = 1)
 
-            edge = Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first())
+            edge = Edge.objects.filter(problem=loadedProblem, sourceNode = lastNode, destNode=currentNode.first(), visible = 1)
             if currentNode.exists() and edge.exists() and edge.first().correctness >= stronglyValidStep[0]  and currentNode.first().correctness >= correctState[0]:
                 beforeLast = lastElement
                 lastElement = step
@@ -1481,12 +1487,15 @@ class MyXBlock(XBlock):
 
             possibleStep = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(lastCorrectElement), destNode=newNode)
             if not possibleStep.exists():
-                possibleLastState = Node.objects.filter(problem=loadedProblem, title=transformToSimplerAnswer(lastCorrectElement))
+                possibleLastState = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(lastCorrectElement))
                 if not possibleLastState.exists():
                     lastState = Node(problem=loadedProblem, title=transformToSimplerAnswer(lastCorrectElement), dateAdded=datetime.now())
                     lastState.save()
                 else:
                     lastState = possibleLastState.first()
+                    if lastState.visible == 0:
+                        lastState.visible = 1
+                        lastState.save()
 
                 newEdge = Edge(problem=loadedProblem, sourceNode=lastState, destNode=newNode, dateAdded=datetime.now())
                 newEdge.save()
@@ -2041,7 +2050,10 @@ class MyXBlock(XBlock):
             currentNode = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
 
             if not lastNode.exists():
-                n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now())
+                if lastElement == '_start_':
+                    n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1)
+                else:
+                    n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now())
                 n1.save()
             else:
                 n1 = lastNode.first()
@@ -2079,7 +2091,7 @@ class MyXBlock(XBlock):
         edgeList = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
 
         if not edgeList.exists():
-            e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem, dateAdded=datetime.now())
+            e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1)
             e1.save()
         else:
             e1 = edgeList.first()
@@ -2095,9 +2107,9 @@ class MyXBlock(XBlock):
         #Verifica se a resposta está correta
         for step in answerArray:
 
-            lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement))
-            currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(step))
-            edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
+            lastNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(lastElement), visible = 1)
+            currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(step), visible = 1)
+            edgeList = Edge.objects.filter(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode, visible = 1)
 
             if lastElement == '_start_':
                 lastElement = step
@@ -2125,7 +2137,11 @@ class MyXBlock(XBlock):
             lastNodes = Node.objects.get(problem = loadedProblem, title = transformToSimplerAnswer(answerArray[-1]))
             isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNodes.linkedSolution))
 
-        generatedResolution = self.generateResolution(answerArray)
+        if loadedProblem.multipleChoiceProblem == 1:
+            generatedResolution = self.generateResolution(answerArray, data['radioAnswer'])
+        else:
+            generatedResolution = self.generateResolution(answerArray, None)
+
 
         minimal = self.getMinimalFeedbackFromStudentResolution(answerArray, generatedResolution["nodeIdList"])
         minimalSteps = []
@@ -2187,8 +2203,6 @@ class MyXBlock(XBlock):
 
         #self.alreadyAnswered = True
 
-        if "resolutionId" in generatedResolution:
-            self.calculateValidityAndCorrectness(generatedResolution["resolutionId"])
         if isAnswerCorrect == None:
             if loadedProblem.multipleChoiceProblem == 0:
                 if self.language == 'pt':
@@ -2225,11 +2239,6 @@ class MyXBlock(XBlock):
                     message = "Your resolution and/or your answer are incorrect"
 
         self.updateStateAndStepsCounters()
-
-        #output = open("output_filename",'w') # Point stdout at a file for dumping data to.
-        #call_command('dumpdata','studentGraph',format='json',indent=3,stdout=output)
-        #call_command('dumpdata','studentGraph',format='json',indent=3)
-        #output.close()
 
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
 
@@ -2452,7 +2461,7 @@ class MyXBlock(XBlock):
                 resolution.save()
                 resolutionsToBeModified.append(resolution)
         for resolution in resolutionsToBeModified:
-            resolution.correctness = self.corretudeResolucao(resolution)
+            resolution.correctness = self.corretudeResolucao(resolution, False)
             resolution.save()
 
     @transaction.atomic
@@ -2467,11 +2476,11 @@ class MyXBlock(XBlock):
                 resolution.save()
                 resolutionsToBeModified.append(resolution)
         for resolution in resolutionsToBeModified:
-            resolution.correctness = self.corretudeResolucao(resolution)
+            resolution.correctness = self.corretudeResolucao(resolution, False)
             resolution.save()
 
 
-    def corretudeResolucao(self, resolution):
+    def corretudeResolucao(self, resolution, innerUpdate):
         loadedProblem = Problem.objects.get(id=self.problemId)
         stateIdList = ast.literal_eval(resolution.nodeIdList)
         stateIdAmount = len(stateIdList) - 2
@@ -2487,13 +2496,22 @@ class MyXBlock(XBlock):
 
         for stateId in stateIdList:
             if stateId != stateIdList[0] and stateId != stateIdList[-1]:
-                state = Node.objects.get(problem=loadedProblem, id = stateId)
-                stateCorrectness = stateCorrectness + self.corretudeEstado(state)
+                if innerUpdate:
+                    state = Node.objects.select_for_update().get(problem=loadedProblem, id = stateId)
+                    stateCorrectness = stateCorrectness + self.corretudeEstado(state, innerUpdate)
+                else:
+                    state = Node.objects.get(problem=loadedProblem, id = stateId)
+                    stateCorrectness = stateCorrectness + state.correctness
+
 
         for stepId in stepIdList:
             if stepId != stepIdList[0] and stepId != stepIdList[-1]:
-                step = Edge.objects.get(problem=loadedProblem, id = stepId)
-                stepCorrectness = stepCorrectness + self.validadePasso(step)
+                if innerUpdate:
+                    step = Edge.objects.select_for_update().get(problem=loadedProblem, id = stepId)
+                    stepCorrectness = stepCorrectness + self.validadePasso(step, innerUpdate)
+                else:
+                    step = Edge.objects.get(problem=loadedProblem, id = stepId)
+                    stepCorrectness = stepCorrectness + step.correctness
                 
         return (1/(2*stateIdAmount)) * (stateCorrectness) + (1/(2*stepIdAmount)) * (stepCorrectness)
     
@@ -2507,20 +2525,27 @@ class MyXBlock(XBlock):
         
         return sum
     
-    def corretudeEstado(self, state):
+    def corretudeEstado(self, state, innerUpdate):
         if state.fixedValue == 1:
             return state.correctness
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt=partiallyCorrectResolution[0])
+        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gte=partiallyCorrectResolution[0])
         incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
 
         correctValue = self.possuiEstadoConjunto(state, correctResolutions)
         incorrectValue = self.possuiEstadoConjunto(state, incorrectResolutions)
     
         if correctValue + incorrectValue != 0:
-            return (correctValue-incorrectValue)/(correctValue + incorrectValue)
-        return 0
+            correctness =  (correctValue-incorrectValue)/(correctValue + incorrectValue)
+        else:
+            correctness = 0
+
+        if innerUpdate:
+            state.correctness = correctness
+            state.save()
+
+        return correctness
     
     def possuiPassoConjunto(self, step, resolutions):
         sum = 0
@@ -2532,19 +2557,26 @@ class MyXBlock(XBlock):
     def possuiPasso(self, step, resolution):
         return step.id in ast.literal_eval(resolution.edgeIdList)
     
-    def validadePasso(self, step):
+    def validadePasso(self, step, innerUpdate):
         if step.fixedValue == 1:
             return step.correctness
         loadedProblem = Problem.objects.get(id=self.problemId)
-        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gt=partiallyCorrectResolution[0])
+        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gte=partiallyCorrectResolution[0])
         incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
 
         correctValue = self.possuiPassoConjunto(step, correctResolutions)
         incorrectValue = self.possuiPassoConjunto(step, incorrectResolutions)
+
     
         if correctValue + incorrectValue != 0:
-            return (correctValue-incorrectValue)/(correctValue + incorrectValue)
-        return 0
+            correctness =  (correctValue-incorrectValue)/(correctValue + incorrectValue)
+        else:
+            correctness =  0
+
+        if innerUpdate:
+            step.correctness = correctness
+            step.save()
+        return correctness
 
     def generateAttempt(self, resolution):
 
@@ -2583,7 +2615,7 @@ class MyXBlock(XBlock):
 
         return {"nodeIdList": nodeArray, "edgeIdList": edgeArray}
 
-    def generateResolution(self, resolution):
+    def generateResolution(self, resolution, selectedOption):
 
         loadedProblem = Problem.objects.get(id=self.problemId)
 
@@ -2594,16 +2626,16 @@ class MyXBlock(XBlock):
         nodeArray.append(lastNode.id)
         for node in resolution:
             currentNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node))
-            if currentNode.fixedValue == 0:
-                currentNode.correctness = self.corretudeEstado(currentNode)
-                currentNode.dateAdded = datetime.now()
-                currentNode.save()
+            #if currentNode.fixedValue == 0:
+            #    currentNode.correctness = self.corretudeEstado(currentNode)
+            #    currentNode.dateAdded = datetime.now()
+            #    currentNode.save()
             nodeArray.append(currentNode.id)
             currentEdge = Edge.objects.get(problem=loadedProblem, sourceNode=lastNode, destNode=currentNode)
-            if currentEdge.fixedValue == 0:
-                currentEdge.correctness = self.validadePasso(currentEdge)
-                currentEdge.dateAdded = datetime.now()
-                currentEdge.save()
+            #if currentEdge.fixedValue == 0:
+            #    currentEdge.correctness = self.validadePasso(currentEdge)
+            #    currentEdge.dateAdded = datetime.now()
+            #    currentEdge.save()
             edgeArray.append(currentEdge.id)
             lastNode = currentNode
 
@@ -2613,23 +2645,37 @@ class MyXBlock(XBlock):
         edgeArray.append(currentEdge.id)
         lastNode = currentNode
 
-        r1 = Resolution.objects.filter(problem=loadedProblem, studentId = self.studentId, attempt = self.studentRetries)
+        r1 = Resolution.objects.select_for_update().filter(problem=loadedProblem, studentId = self.studentId, attempt = self.studentRetries)
         if r1.exists():
             existingRes = r1.first()
             existingRes.nodeIdList = nodeArray
             existingRes.edgeIdList = edgeArray
-            existingRes.correctness = 0
+
+            if (selectedOption != None):
+                existingRes.selectedOption = selectedOption
             existingRes.save()
+            existingRes.refresh_from_db()
+            existingRes.correctness = self.corretudeResolucao(existingRes, True)
+            existingRes.save()
+
             return {"resolutionId": existingRes.id, "nodeIdList": nodeArray, "edgeIdList": edgeArray}
 
         return {"nodeIdList": nodeArray, "edgeIdList": edgeArray}
 
+    @XBlock.json_handler
     @transaction.atomic
-    def calculateValidityAndCorrectness(self, resolutionId):
-
-        r1 = Resolution.objects.select_for_update().get(id = resolutionId)
-        r1.correctness = self.corretudeResolucao(r1)
-        r1.save()
+    def update_resolution_correctness(self,data,suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        allRes = Resolution.objects.select_for_update().filter(problem=loadedProblem, nodeIdList__isnull = False, edgeIdList__isnull= False).exclude(nodeIdList__exact='', edgeIdList__exact='')
+        for res in allRes:
+            res.correctness = self.corretudeResolucao(res, False)
+            res.save()
+            if res.correctness == 1:
+                lastNodeFromRes = Node.objects.select_for_update().get(id =  ast.literal_eval(res.nodeIdList)[-2])
+                if lastNodeFromRes.linkedSolution == None or lastNodeFromRes.linkedSolution == '':
+                    lastNodeFromRes.linkedSolution = res.selectedOption
+                    lastNodeFromRes.save()
+        return {}
 
 
     @XBlock.json_handler

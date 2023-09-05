@@ -24,7 +24,8 @@ correctnessMaxValue = 1
 #Resolution values
 incorrectResolution = [-1, -0.75001]
 partiallyIncorrectResolution = [-0.75, -0.00001]
-partiallyCorrectResolution = [0, 0.74999]
+neutralResolution = [0, 0]
+partiallyCorrectResolution = [0.00001, 0.74999]
 correctResolution = [0.75, 1]
 defaultResolutionValue = 0
 
