@@ -2050,10 +2050,7 @@ class MyXBlock(XBlock):
             currentNode = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(step))
 
             if not lastNode.exists():
-                if lastElement == '_start_':
-                    n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1)
-                else:
-                    n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now())
+                n1 = Node(title=lastElement, problem=loadedProblem, dateAdded=datetime.now())
                 n1.save()
             else:
                 n1 = lastNode.first()
@@ -2072,7 +2069,11 @@ class MyXBlock(XBlock):
             
             currentEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
             if not currentEdge.exists():
-                e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
+                if lastElement == '_start_':
+                    e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1)
+                else:
+                    e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
+
                 e1.save()
             else:
                 e1 = currentEdge.first()
@@ -2135,7 +2136,10 @@ class MyXBlock(XBlock):
             isAnswerCorrect = None
         else:
             lastNodes = Node.objects.get(problem = loadedProblem, title = transformToSimplerAnswer(answerArray[-1]))
-            isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNodes.linkedSolution))
+            if isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or (lastNodes.linkedSolution != None and lastNodes.linkedSolution != "")):
+                isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNodes.linkedSolution))
+            else:
+                isAnswerCorrect = None
 
         if loadedProblem.multipleChoiceProblem == 1:
             generatedResolution = self.generateResolution(answerArray, data['radioAnswer'])
