@@ -2150,7 +2150,6 @@ class MyXBlock(XBlock):
         minimalSteps = []
         minimalStates = []
         resolutionForStates = []
-        resCount = 0
         for model in minimal["askInfoSteps"]:
             if isinstance(model, Edge):
                 minimalSteps.append(model.sourceNode.title)
@@ -2158,14 +2157,13 @@ class MyXBlock(XBlock):
             else:
                 minimalStates.append(model.title)
                 resolutionNames = []
-                for resStateId in ast.literal_eval(minimal["askInfoResolutions"][resCount].nodeIdList):
+                for resStateId in ast.literal_eval(minimal["askInfoResolutions"][model.id].nodeIdList):
                     nodeToBeAdded = Node.objects.get(id = resStateId)
                     if nodeToBeAdded.title != "_start_" and nodeToBeAdded.title != "_end_":
                         resolutionNames.append(nodeToBeAdded.title)
                         if (nodeToBeAdded.id == model.id):
                             break
                 resolutionForStates.append(resolutionNames)
-                resCount += 1
 
         errorSpecific = self.getErrorSpecificFeedbackFromProblemGraph(answerArray)
         errorSpecificSteps = []
@@ -2247,7 +2245,7 @@ class MyXBlock(XBlock):
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
         askInfoSteps = []
-        askInfoResolutions = []
+        askInfoResolutions = {}
         loadedProblem = Problem.objects.get(id=self.problemId)
         previousStateName = "_start_"
         nextStateName = None
@@ -2288,7 +2286,7 @@ class MyXBlock(XBlock):
                             askInfoSteps.append(possibleEdge.first())
                         if possibleEdge.first().sourceNode not in askInfoSteps and possibleEdge.first().sourceNode.correctness != 1 and possibleEdge.first().sourceNode.correctness != -1:
                             askInfoSteps.append(possibleEdge.first().sourceNode)
-                            askInfoResolutions.append(infoStep)
+                            askInfoResolutions[possibleEdge.first().sourceNode.id] = infoStep
 
             
             if nextStateName != "_end_":
@@ -2317,7 +2315,7 @@ class MyXBlock(XBlock):
                             askInfoSteps.append(possibleEdge.first())
                         if possibleEdge.first().destNode not in askInfoSteps and possibleEdge.first().destNode.correctness != 1 and possibleEdge.first().destNode.correctness != -1:
                             askInfoSteps.append(possibleEdge.first().destNode)
-                            askInfoResolutions.append(infoStep)
+                            askInfoResolutions[possibleEdge.first().destNode.id] = infoStep
 
             previousStateName = stateName
 
