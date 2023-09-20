@@ -20,7 +20,7 @@ from django.db.models import Q
 from django.db import transaction
 from xblock.runtime import Runtime
 from django.core.management import call_command
-
+from Levenshtein import distance
 
 receivedMinimalFeedbackAmount = 0.1
 receivedHintUsefulnessAmount = 1
@@ -76,15 +76,6 @@ def orderByTime(element):
     if element.dateModified:
         return element.dateModified
     return element.dateAdded
-
-def levenshteinDistance(A, B):
-    if(len(A) == 0):
-        return len(B)
-    if(len(B) == 0):
-        return len(A)
-    if (A[0] == B[0]):
-        return levenshteinDistance(A[1:], B[1:])
-    return 1 + min(levenshteinDistance(A, B[1:]), levenshteinDistance(A[1:], B), levenshteinDistance(A[1:], B[1:])) 
 
 def transformToSimplerAnswer(answer):
     if answer is not None:
@@ -406,10 +397,12 @@ class MyXBlock(XBlock):
         [usedStates.append(x) for x in self.usedStates if x not in usedStates]
 
         for state in usedStates:
-            node = Node.objects.select_for_update().get(problem=loadedProblem, title=state)
-            node.counter += 1
-            node.dateModified = datetime.now()
-            node.save()
+            node = Node.objects.select_for_update().filter(problem=loadedProblem, title=state)
+            if node.exists():
+                exitingNode = node.first()
+                exitingNode.counter += 1
+                exitingNode.dateModified = datetime.now()
+                exitingNode.save()
 
 
         usedSteps = []
@@ -424,10 +417,12 @@ class MyXBlock(XBlock):
                 if not alreadyInserted:
                     usedSteps.append(step)
         for edge in usedSteps:
-            step = Edge.objects.select_for_update().get(problem=loadedProblem, sourceNode__title=edge[0], destNode__title = edge[1])
-            step.counter += 1
-            step.dateModified = datetime.now()
-            step.save()
+            step = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=edge[0], destNode__title = edge[1])
+            if step.exists():
+                existingStep = step.first()
+                existingStep.counter += 1
+                existingStep.dateModified = datetime.now()
+                existingStep.save()
         
         return usedSteps
 
@@ -1464,7 +1459,8 @@ class MyXBlock(XBlock):
         if  (wrongElement != None):
             possibleSteps = possibleIncorrectAnswer.get("availableCorrectSteps")
             for step in possibleSteps:
-                actualValue = levenshteinDistance(wrongElement, step)
+                #actualValue = levenshteinDistance(wrongElement, step)
+                actualValue = distance(wrongElement, step)
                 nextPossibleCorrectSteps.append(step)
                 if(actualValue < minValue):
                     minValue = actualValue
@@ -1497,7 +1493,10 @@ class MyXBlock(XBlock):
                         lastState.visible = 1
                         lastState.save()
 
-                newEdge = Edge(problem=loadedProblem, sourceNode=lastState, destNode=newNode, dateAdded=datetime.now())
+                if lastState.title == '_start_' or newNode.title == '_end_':
+                    newEdge = Edge(problem=loadedProblem, sourceNode=lastState, destNode=newNode, dateAdded=datetime.now(), correctness = 1, fixedValue = 1)
+                else:
+                    newEdge = Edge(problem=loadedProblem, sourceNode=lastState, destNode=newNode, dateAdded=datetime.now())
                 newEdge.save()
             else:
                 newEdge = possibleStep.first()
@@ -2070,7 +2069,7 @@ class MyXBlock(XBlock):
             currentEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = n1, destNode = n2)
             if not currentEdge.exists():
                 if lastElement == '_start_':
-                    e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1)
+                    e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1, fixedValue=1)
                 else:
                     e1 = Edge(sourceNode = n1, destNode = n2, problem=loadedProblem, dateAdded=datetime.now())
 
@@ -2092,7 +2091,7 @@ class MyXBlock(XBlock):
         edgeList = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode=currentNode, destNode=endNode)
 
         if not edgeList.exists():
-            e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1)
+            e1 = Edge(sourceNode = currentNode, destNode = endNode, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1, fixedValue=1)
             e1.save()
         else:
             e1 = edgeList.first()
