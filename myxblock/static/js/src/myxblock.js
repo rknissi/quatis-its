@@ -153,11 +153,14 @@ function MyXBlock(runtime, element, data) {
             $("#answerButton").css("background", "grey");
             $("#prevHint").css("background", "grey");
             $("#nextHint").css("background", "grey");
-            //document.getElementById('userInput').readOnly = true;
+            $("#addLine").css("background", "grey");
+            $("#removeLine").css("background", "grey");
             document.getElementById("hintButton").disabled = true;
             document.getElementById("answerButton").disabled = true;
             document.getElementById("nextHint").disabled = true;
             document.getElementById("prevHint").disabled = true;
+            document.getElementById("addLine").disabled = true;
+            document.getElementById("removeLine").disabled = true;
             $(':radio:not(:checked)').attr('disabled', true);
         }
 
