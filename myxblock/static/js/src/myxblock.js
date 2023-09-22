@@ -684,7 +684,12 @@ function MyXBlock(runtime, element, data) {
                 + secondNode.value
                 + newDoubtMessage3[language]);
 
-            if (choice == null || (choice.toLowerCase() != doubtChoiceFirst[language] && choice.toLowerCase() != doubtChoiceSecond[language])) {
+            if (choice == null) {
+                enableButton("askQuestion")
+                enableHintButton()
+                return
+            }
+            if ((choice.toLowerCase() != doubtChoiceFirst[language] && choice.toLowerCase() != doubtChoiceSecond[language])) {
                 alert(invalidDoubtChoiceMessage[language])
                 enableButton("askQuestion")
                 return
