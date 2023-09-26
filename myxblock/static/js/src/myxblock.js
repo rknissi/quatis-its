@@ -49,6 +49,7 @@ function MyXBlock(runtime, element, data) {
     var stepMessage = ["Esta ação está correta?\n", "Is the following action correct?\nRemember: we shouldn't skip steps\n"]
     var stateMessage1 = ["A seguinte situação está correta?\n", "Is the following situation correct?\n"]
     var stateMessage2 = ["\nPara a seguinte resolução:\n", "\nFor the solution:\n"]
+    var yesOrNoMessage = ["\nEscreva 'S' para sim, ou 'N' para não", "\nUse the letters 'Y' for yes, or 'N' for no"]
     var stepDoubtMessage1 = ["Como você responderia a seguinte dúvida?\n", "How would you answer the question: \n"]
     var stepDoubtMessage2 = ["\nDa ação: ", "\nFor the action: "]
     var stateDoubtMessage1 = ["Como você responderia a seguinte dúvida?\n", "How would you answer the question: \n"]
@@ -66,10 +67,20 @@ function MyXBlock(runtime, element, data) {
     var invalidDoubtChoiceMessage = ["Escolha inválida. Por favor escreva 'primeiro' ou 'segundo'", "Invalid choice. Please choice between 'first' and 'second'"]
     var stillHaveDoubts = ["Ainda lhe restam dúvidas?", "Do you still have any questions?"]
     var invalidFieldValuesMessage = ["Por favor remova os passos '_start_' e _end_ de sua resolução", "Please remove the steps '_start_' and '_end_' from your solution"]
+    var selfLoopMessage = ["Não coloque 2 passos iguais um após o outro", "Please do not use 2 identical steps that are after each other"]
 
     var doubtChoiceFirst = ["primeiro", "first"]
     var doubtChoiceSecond = ["segundo", "second"]
 
+    function transformToSimplerAnswer(answer) {
+        if (answer) {
+            withoutSpaces = answer.replace(/\s/g, "")
+            lowerCase = withoutSpaces.toLowerCase()
+            noAccent = lowerCase.normalize("NFD").replace(/\p{Diacritic}/gu, "")
+            return noAccent
+        }
+        return answer
+    }
 
     function disableButton(buttonElement) {
         document.getElementById(buttonElement).disabled = true;
@@ -341,7 +352,7 @@ function MyXBlock(runtime, element, data) {
 
         if (value.minimalStep.length > 0) {
             for(var i = 0; i < value.minimalStep.length; i++){
-                feedback = prompt(stepMessage[language] + value.minimalStep[i] + " --> " + value.minimalStep[++i]);
+                feedback = prompt(stepMessage[language] + value.minimalStep[i] + " --> " + value.minimalStep[++i] + yesOrNoMessage[language]);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
                     $.ajax({
@@ -361,6 +372,8 @@ function MyXBlock(runtime, element, data) {
                         promptMessage = promptMessage.concat(" --> ")
                     }
                 }
+                promptMessage = promptMessage.concat(yesOrNoMessage[language])
+
                 feedback = prompt(promptMessage);
 
                 if (feedback && checkIfUserInputIsValid(feedback)) {
@@ -506,6 +519,11 @@ function MyXBlock(runtime, element, data) {
             alert(invalidFieldValuesMessage[language])
             return
         }
+        if (checkIfContainsSelfLoops()) {
+            alert(selfLoopMessage[language])
+            return
+        }
+        
         disableButton("hintButton")
         var userAnswer = getCompleteAnswer()
 
@@ -537,6 +555,18 @@ function MyXBlock(runtime, element, data) {
         return false
     }
 
+    function checkIfContainsSelfLoops() {
+        previousAnswer = null
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            var partialAnswer = transformToSimplerAnswer(document.getElementById("idt" + i).value);
+            if (previousAnswer && previousAnswer == partialAnswer) {
+                return true
+            }
+            previousAnswer = partialAnswer
+        }
+        return false
+    }
+
     function getCompleteAnswer() {
         var completeAnswer = "";
         for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
@@ -549,6 +579,14 @@ function MyXBlock(runtime, element, data) {
     }
 
     $('#answerButton', element).click(function(eventObject) {
+        if (checkIfContainsInvalidFields()) {
+            alert(invalidFieldValuesMessage[language])
+            return
+        }
+        if (checkIfContainsSelfLoops()) {
+            alert(selfLoopMessage[language])
+            return
+        }
         disableButton("answerButton")
         var userAnswer = getCompleteAnswer()
         if (userAnswer.replace(/(\r\n|\n|\r)/gm, "") == "") {
@@ -657,6 +695,10 @@ function MyXBlock(runtime, element, data) {
     $('#askQuestion', element).click(function(eventObject) {
         if (checkIfContainsInvalidFields()) {
             alert(invalidFieldValuesMessage[language])
+            return
+        }
+        if (checkIfContainsSelfLoops()) {
+            alert(selfLoopMessage[language])
             return
         }
         disableButton("askQuestion")

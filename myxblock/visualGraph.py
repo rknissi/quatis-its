@@ -6,9 +6,11 @@ import copy
 defaultArrowStroke = "3 "
 initialNodeShape = "square"
 finalNodeShape = "diamond"
+multipleNodeShape = "star7"
 defaultNodeHeight = 20
 initialNodeStroke = {"color": "black", "dash": "5 5"}
 finalNodeStroke = "1 black"
+multipleNodeStroke = "1 black"
 
 
 graphHeightDefaultValue = 60
@@ -255,7 +257,10 @@ def getJsonFromProblemGraph(problemId):
                 else:
                     if source.visible == 1:
                         pos = addedNodes.index(source)
-                        node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
+                        if nodeList[pos].get("shape") is not None and nodeList[pos].get("shape") == initialNodeShape:
+                            node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": multipleNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
+                        else:
+                            node = {"id": source.title, "counter": source.counter, "height": defaultNodeHeight, "shape": finalNodeShape, "fill": nodeColor, "stroke": finalNodeStroke, "correctness": source.correctness, "linkedSolution": source.linkedSolution, "fixedValue": source.fixedValue, "visible": source.visible, "modifiedCorrectness": 0}
                         if source.nodePositionX != -1 and source.nodePositionY != -1:
                             node["x"] = source.nodePositionX
                             node["y"] = source.nodePositionY

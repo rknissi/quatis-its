@@ -525,7 +525,7 @@ class MyXBlock(XBlock):
                         self.recalculateResolutionCorrectnessFromNode(nodeModel)
 
             if "stroke" in node:
-                if node["stroke"] == finalNodeStroke:
+                if node["stroke"] == finalNodeStroke and node["shape"] == finalNodeShape:
                     edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
                     if not edgeModel.exists():
                         fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
@@ -545,6 +545,20 @@ class MyXBlock(XBlock):
                     endEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
                     if endEdge.exists():
                         endEdge.first().delete()
+                elif node["stroke"] == multipleNodeStroke and node["shape"] == multipleNodeShape:
+                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title="_start_", destNode__title=transformToSimplerAnswer(node["id"]))
+                    if not edgeModel.exists():
+                        fromNode = Node.objects.get(problem=loadedProblem, title="_start_")
+                        toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1, fixedValue = 1)
+                        e1.save()
+
+                    edgeModel = Edge.objects.filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
+                    if not edgeModel.exists():
+                        fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
+                        toNode = Node.objects.get(problem=loadedProblem, title="_end_")
+                        e1 = Edge(sourceNode=fromNode, destNode=toNode, problem=loadedProblem, dateAdded=datetime.now(), correctness = 1, fixedValue = 1)
+                        e1.save()
                 elif node["stroke"] == None:
                     endEdge = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(node["id"]), destNode__title="_end_")
                     if endEdge.exists():

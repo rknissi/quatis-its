@@ -47,6 +47,8 @@ function MyXBlockEdit(runtime, element) {
   var finalNodeShape = "diamond";
   var initialNodeStroke = {"color": "black", "dash": "5 5"};
   var finalNodeStroke = "1 black";
+  var multipleNodeShape = "star7";
+  var multipleNodeStroke = "1 black";
   var normalNodeStroke = null
 
 
@@ -59,6 +61,16 @@ function MyXBlockEdit(runtime, element) {
 
   function reApplyConfig() {
     createOrReloadGraph()
+  }
+
+  function transformToSimplerAnswer(answer) {
+      if (answer) {
+          withoutSpaces = answer.replace(/\s/g, "")
+          lowerCase = withoutSpaces.toLowerCase()
+          noAccent = lowerCase.normalize("NFD").replace(/\p{Diacritic}/gu, "")
+          return noAccent
+      }
+      return answer
   }
 
   function removeNode(nodeName){
@@ -143,6 +155,20 @@ function MyXBlockEdit(runtime, element) {
           data.nodes.splice(i, 1);
           nodeData.stroke = finalNodeStroke
           nodeData.shape = finalNodeShape;
+          addNode(nodeData);
+          break;
+        }
+    }
+    reApplyConfig();
+  }
+
+  function changeNodeToInitialAndFinal(nodeName){
+      for (i = 0; i < data.nodes.length; ++i) {
+        if (nodeName === data.nodes[i].id) {
+          nodeData = data.nodes[i];
+          data.nodes.splice(i, 1);
+          nodeData.stroke = multipleNodeStroke
+          nodeData.shape = multipleNodeShape;
           addNode(nodeData);
           break;
         }
@@ -269,8 +295,8 @@ function MyXBlockEdit(runtime, element) {
     var sourceStateExists = false
     var destStateExists = false
 
-    var sourceState = el.find('input[id=sourceState]').val().toLowerCase().replaceAll(' ', '')
-    var destState = el.find('input[id=destState]').val().toLowerCase().replaceAll(' ', '')
+    var sourceState = transformToSimplerAnswer(el.find('input[id=sourceState]').val())
+    var destState = transformToSimplerAnswer(el.find('input[id=destState]').val())
 
     for (i = 0; i < data.nodes.length; ++i) {
       if (sourceState === data.nodes[i].id) {
@@ -338,6 +364,9 @@ function MyXBlockEdit(runtime, element) {
     } else if (dropDownValue === 'finalState') {
         strokeType = finalNodeStroke;
         shapeType = finalNodeShape;
+    } else if (dropDownValue === 'initialAndFinalState') {
+        strokeType = multipleNodeStroke;
+        shapeType = multipleNodeShape;
     }
 
     var body;
@@ -434,6 +463,8 @@ function MyXBlockEdit(runtime, element) {
       changeNodeToInitial(id)
     } else if (dropDownValue === 'finalState') {
       changeNodeToFinal(id);
+    } else if (dropDownValue === 'initialAndFinalState') {
+      changeNodeToInitialAndFinal(id);
     }
   });
 
@@ -442,6 +473,11 @@ function MyXBlockEdit(runtime, element) {
 
     var from = el.find('input[id=editStepSource]').val()
     var to = el.find('input[id=editStepDest]').val()
+    if (transformToSimplerAnswer(from) == transformToSimplerAnswer(to)) {
+      alert("Não é possível conectar o element com ele mesmo")
+      return
+
+    }
     var value = el.find('input[id=editStepValue]').val()
     var fixedValue = el.find('input[id=editStepFixedValue]').is(':checked')
     if (fixedValue == true) {
@@ -725,6 +761,8 @@ function MyXBlockEdit(runtime, element) {
                   document.getElementById('changeStateType').value = 'finalState';
                 } else if (data.nodes[i].shape === 'square') {
                   document.getElementById('changeStateType').value = 'initialState';
+                } else if (data.nodes[i].shape === 'star7') {
+                  document.getElementById('changeStateType').value = 'initialAndFinalState';
                 } else {
                   document.getElementById('changeStateType').value = 'normalState';
                 }
