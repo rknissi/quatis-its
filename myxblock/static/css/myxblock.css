@@ -123,6 +123,15 @@
     border: solid darkblue 1px;
 }
 
+#instructionsDiv {
+    font-size: 13px;
+    display: table;
+    margin: -100px 0px 30px 0px;
+    border: solid darkblue 1px;
+    float: right;
+    max-width: 50%;
+}
+
 #subjectDiv, #questionDiv, #tagsDiv, #descriptionDiv {
     padding: 5px;
 }

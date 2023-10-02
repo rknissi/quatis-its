@@ -572,6 +572,7 @@ function MyXBlockEdit(runtime, element) {
       problemAnswer3: el.find('input[id=problemAnswer3]').val(),
       problemAnswer4: el.find('input[id=problemAnswer4]').val(),
       problemAnswer5: el.find('input[id=problemAnswer5]').val(),
+      problemCorrectAnswer: el.find('input[id=problemCorrectAnswer]').val(),
       problemSubject: el.find('input[id=problemSubject]').val(),
       problemTags: el.find('input[id=problemTags]').val(),
       callOpenAiExplanation: el.find('input[id=callOpenAiExplanation]').val(),

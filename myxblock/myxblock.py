@@ -152,6 +152,29 @@ class MyXBlock(XBlock):
         help="Last wrong type type from the student",
     )
 
+    viewedHints = List(
+        default=[], scope=Scope.user_state,
+        help="Current hints to be shown to the student",
+    )
+    viewedExplanations = List(
+        default=[], scope=Scope.user_state,
+        help="Current hints to be shown to the student",
+    )
+    viewedErrorSpecific = List(
+        default=[], scope=Scope.user_state,
+        help="Current hints to be shown to the student",
+    )
+    viewedDoubts = List(
+        default=[], scope=Scope.user_state,
+        help="Current hints to be shown to the student",
+    )
+    viewedAnswers = List(
+        default=[], scope=Scope.user_state,
+        help="Current hints to be shown to the student",
+    )
+
+
+
     problemId = Integer(
         default=-1, scope=Scope.content,
         help="Version",
@@ -222,6 +245,11 @@ class MyXBlock(XBlock):
     problemAnswer5 = String(
         default="Option 5", scope=Scope.content,
         help="Item 5 of the problem",
+    )
+
+    problemCorrectAnswer = String(
+        default="Option 2", scope=Scope.content,
+        help="Correct value",
     )
 
     problemSubject = String(
@@ -323,6 +351,12 @@ class MyXBlock(XBlock):
         self.lastWrongElementCount = 0
         self.usedStates = []
         self.usedSteps = []
+        self.viewedHints = []
+        self.viewedExplanations = []
+        self.viewedErrorSpecific = []
+        self.viewedDoubts = []
+        self.viewedAnswers = []
+
         return frag
 
     problem_view = student_view
@@ -348,6 +382,7 @@ class MyXBlock(XBlock):
                                          problemAnswer3=self.problemAnswer3,
                                          problemAnswer4=self.problemAnswer4,
                                          problemAnswer5=self.problemAnswer5,
+                                         problemCorrectAnswer=self.problemCorrectAnswer,
                                          problemSubject=self.problemSubject,
                                          problemTags=self.problemTags,
                                          callOpenAiExplanation=self.callOpenAiExplanation,
@@ -360,14 +395,44 @@ class MyXBlock(XBlock):
         frag.initialize_js('MyXBlockEdit')
         return frag
 
+    @transaction.atomic
     def saveStatesAndSteps(self, elements):
-        for element in elements:
-            self.usedStates.append(transformToSimplerAnswer(element))
+        #for element in elements:
+            #self.usedStates.append(transformToSimplerAnswer(element))
+
+        #lastElement = None
+        #for element in elements:
+            #if lastElement is not None:
+                #self.usedSteps.append((transformToSimplerAnswer(lastElement), transformToSimplerAnswer(element)))
+            #lastElement = element
+
+        loadedProblem = Problem.objects.get(id=self.problemId)
 
         lastElement = None
         for element in elements:
+            if transformToSimplerAnswer(element) not in self.usedStates:
+                node = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(element))
+                if node.exists():
+                    exitingNode = node.first()
+                    exitingNode.counter += 1
+                    exitingNode.dateModified = datetime.now()
+                    exitingNode.save()
+                    self.usedStates.append(transformToSimplerAnswer(element))
+
             if lastElement is not None:
-                self.usedSteps.append((transformToSimplerAnswer(lastElement), transformToSimplerAnswer(element)))
+                alreadyInserted = False
+                for usedStep in self.usedSteps:
+                    if usedStep[0] == transformToSimplerAnswer(lastElement) and usedStep[1] == transformToSimplerAnswer(element):
+                        alreadyInserted = True
+                        break
+                if not alreadyInserted:
+                    step = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(lastElement), destNode__title = transformToSimplerAnswer(element))
+                    if step.exists():
+                        existingStep = step.first()
+                        existingStep.counter += 1
+                        existingStep.dateModified = datetime.now()
+                        existingStep.save()
+                        self.usedSteps.append((transformToSimplerAnswer(lastElement), transformToSimplerAnswer(element)))
             lastElement = element
 
     @transaction.atomic
@@ -622,6 +687,7 @@ class MyXBlock(XBlock):
         self.problemAnswer3 = self.setDataOrUseDefault(problemData, "problemAnswer3", self.problemAnswer3)
         self.problemAnswer4 = self.setDataOrUseDefault(problemData, "problemAnswer4", self.problemAnswer4)
         self.problemAnswer5 = self.setDataOrUseDefault(problemData, "problemAnswer5", self.problemAnswer5)
+        self.problemCorrectAnswer = self.setDataOrUseDefault(problemData, "problemCorrectAnswer", self.problemCorrectAnswer)
         self.problemSubject = self.setDataOrUseDefault(problemData, "problemSubject", self.problemSubject)
         self.problemTags = ast.literal_eval(self.setDataOrUseDefault(problemData, "problemTags", self.problemTags))
         self.callOpenAiExplanation = self.setDataOrUseDefault(problemData, "callOpenAiExplanation", self.callOpenAiExplanation)
@@ -1188,6 +1254,7 @@ class MyXBlock(XBlock):
         self.problemAnswer3 = data.get('problemAnswer3')
         self.problemAnswer4 = data.get('problemAnswer4')
         self.problemAnswer5 = data.get('problemAnswer5')
+        self.problemCorrectAnswer = data.get('problemCorrectAnswer')
         self.problemSubject = data.get('problemSubject')
         self.callOpenAiExplanation = data.get('callOpenAiExplanation')
         self.questionToAsk = data.get('questionToAsk')
@@ -1450,7 +1517,7 @@ class MyXBlock(XBlock):
         if '' in answerArray:
             answerArray =  list(filter(lambda value: value != '', answerArray))
         
-        self.saveStatesAndSteps(answerArray)
+        #self.saveStatesAndSteps(answerArray)
 
         possibleIncorrectAnswer = self.getFirstIncorrectAnswer(answerArray)
         
@@ -1696,6 +1763,7 @@ class MyXBlock(XBlock):
                 if hintId != 0:
                     self.increaseFeedbackCount(loadedProblem, hintType, hintId)
 
+                self.saveStatesAndSteps(answerArray)
                 return {"status": "OK", "hint": hintText, "hintId": hintId, "hintType": hintType, "lastCorrectElement": possibleIncorrectAnswer.get("lastCorrectElement"), "lastHint": lastHint, "debug1": possibleIncorrectAnswer, "debug2": self.lastWrongElement, "debug3": typeChose}
             else:
                 newHints = self.checkIfCurrentHintsAreSame(hintList)
@@ -1735,6 +1803,7 @@ class MyXBlock(XBlock):
             raise
 
         #return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "lastHint": lastHint, "debug1": possibleIncorrectAnswer, "debug2": self.lastWrongElement}
+        self.saveStatesAndSteps(answerArray)
         return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "lastHint": lastHint, "wrongElementCorrectness": newNode.correctness}
 
     @XBlock.json_handler
@@ -1747,29 +1816,39 @@ class MyXBlock(XBlock):
     def increaseFeedbackCount(self, loadedProblem, type, id):
         if type == "hint":
             hint = Hint.objects.select_for_update().get(problem = loadedProblem, id = id)
-            hint.counter += 1
-            hint.dateModified = datetime.now()
-            hint.save()
+            if hint.id not in self.viewedHints:
+                hint.counter += 1
+                hint.dateModified = datetime.now()
+                hint.save()
+                self.viewedHints.append(hint.id)
         elif type == "explanation":
             explanation = Explanation.objects.select_for_update().get(problem = loadedProblem, id = id)
-            explanation.counter += 1
-            explanation.dateModified = datetime.now()
-            explanation.save()
+            if explanation.id not in self.viewedExplanations:
+                explanation.counter += 1
+                explanation.dateModified = datetime.now()
+                explanation.save()
+                self.viewedExplanations.append(explanation.id)
         elif type == "errorSpecificFeedback":
             errorSpecific = ErrorSpecificFeedbacks.objects.select_for_update().get(problem = loadedProblem, id = id)
-            errorSpecific.counter += 1
-            errorSpecific.dateModified = datetime.now()
-            errorSpecific.save()
+            if errorSpecific.id not in self.viewedErrorSpecific:
+                errorSpecific.counter += 1
+                errorSpecific.dateModified = datetime.now()
+                errorSpecific.save()
+                self.viewedErrorSpecific.append(errorSpecific.id)
         elif type == "doubt":
             doubt = Doubt.objects.select_for_update().get(problem = loadedProblem, id = id)
-            doubt.counter += 1
-            doubt.dateModified = datetime.now()
-            doubt.save()
+            if doubt.id not in self.viewedDoubts:
+                doubt.counter += 1
+                doubt.dateModified = datetime.now()
+                doubt.save()
+                self.viewedDoubts.append(doubt.id)
         elif type == "answer":
             answer = Answer.objects.select_for_update().get(problem = loadedProblem, id = id)
-            answer.counter += 1
-            answer.dateModified = datetime.now()
-            answer.save()
+            if answer.id not in self.viewedAnswers:
+                answer.counter += 1
+                answer.dateModified = datetime.now()
+                answer.save()
+                self.viewedAnswers.append(answer.id)
 
     
     def saveCurrentHints (self, data):
@@ -1884,6 +1963,7 @@ class MyXBlock(XBlock):
         returnjson["problemAnswer3"] = self.problemAnswer3
         returnjson["problemAnswer4"] = self.problemAnswer4
         returnjson["problemAnswer5"] = self.problemAnswer5
+        returnjson["problemCorrectAnswer"] = self.problemCorrectAnswer
         returnjson["problemSubject"] = self.problemSubject
         returnjson["callOpenAiExplanation"] = self.callOpenAiExplanation
         returnjson["questionToAsk"] = self.questionToAsk
@@ -2033,7 +2113,7 @@ class MyXBlock(XBlock):
             answerArray =  list(filter(lambda value: value != '', answerArray))
 
         self.answerSteps = answerArray
-        self.saveStatesAndSteps(answerArray)
+        #self.saveStatesAndSteps(answerArray)
 
         if loadedProblem.multipleChoiceProblem == 1 and 'radioAnswer' not in data :
             return {"error": "Nenhuma opções de resposta foi selecionada!"}
@@ -2150,7 +2230,7 @@ class MyXBlock(XBlock):
         else:
             lastNodes = Node.objects.get(problem = loadedProblem, title = transformToSimplerAnswer(answerArray[-1]))
             if isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or (lastNodes.linkedSolution != None and lastNodes.linkedSolution != "")):
-                isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNodes.linkedSolution))
+                isAnswerCorrect = isStepsCorrect and (loadedProblem.multipleChoiceProblem == 0 or (transformToSimplerAnswer(data['radioAnswer']) == transformToSimplerAnswer(lastNodes.linkedSolution) and self.problemCorrectAnswer == data['radioAnswer']))
             else:
                 isAnswerCorrect = None
 
@@ -2253,8 +2333,9 @@ class MyXBlock(XBlock):
                 else:
                     message = "Your resolution and/or your answer are incorrect"
 
-        self.updateStateAndStepsCounters()
+        #self.updateStateAndStepsCounters()
 
+        self.saveStatesAndSteps(answerArray)
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
@@ -2535,8 +2616,9 @@ class MyXBlock(XBlock):
     
     def possuiEstadoConjunto(self, state, resolutions):
         sum = 0
-        for resolution in resolutions:
-            sum = sum + self.possuiEstado(state, resolution)
+        if resolutions.exists():
+            for resolution in resolutions:
+                sum = sum + self.possuiEstado(state, resolution)
         
         return sum
     
@@ -2545,8 +2627,12 @@ class MyXBlock(XBlock):
             return state.correctness
 
         loadedProblem = Problem.objects.get(id=self.problemId)
-        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gte=partiallyCorrectResolution[0])
-        incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
+        if loadedProblem.multipleChoiceProblem == 0:
+            correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gte=partiallyCorrectResolution[0])
+            incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
+        else:
+            correctResolutions = Resolution.objects.filter(problem=loadedProblem, selectedOption=self.problemCorrectAnswer)
+            incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, selectedOption__isnull=False).exclude(selectedOption=self.problemCorrectAnswer)
 
         correctValue = self.possuiEstadoConjunto(state, correctResolutions)
         incorrectValue = self.possuiEstadoConjunto(state, incorrectResolutions)
@@ -2576,8 +2662,12 @@ class MyXBlock(XBlock):
         if step.fixedValue == 1:
             return step.correctness
         loadedProblem = Problem.objects.get(id=self.problemId)
-        correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gte=partiallyCorrectResolution[0])
-        incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
+        if loadedProblem.multipleChoiceProblem == 0:
+            correctResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__gte=partiallyCorrectResolution[0])
+            incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, correctness__lte=partiallyIncorrectResolution[1])
+        else:
+            correctResolutions = Resolution.objects.filter(problem=loadedProblem, selectedOption=self.problemCorrectAnswer)
+            incorrectResolutions = Resolution.objects.filter(problem=loadedProblem, selectedOption__isnull=False).exclude(selectedOption=self.problemCorrectAnswer)
 
         correctValue = self.possuiPassoConjunto(step, correctResolutions)
         incorrectValue = self.possuiPassoConjunto(step, incorrectResolutions)

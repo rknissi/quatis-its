@@ -27,8 +27,8 @@ function MyXBlock(runtime, element, data) {
     var update_positions = runtime.handlerUrl(element, 'update_positions')
     var update_resolution_correctness = runtime.handlerUrl(element, 'update_resolution_correctness')
 
-    var yesAnswer = ["sim", "s", "yes", "y", "si", "ye"];
-    var noAnswer = ["não", "n", "no", "nao"];
+    var yesAnswer = ["sim", "s", "yes", "y", "si", "ye", "yep"];
+    var noAnswer = ["não", "n", "no", "nao", "nope"];
 
     var yesUniversalAnswer = "yes"
     var noUniversalAnswer = "no"
@@ -43,7 +43,7 @@ function MyXBlock(runtime, element, data) {
 
     var language = 0
 
-    var explanationMessages = ["Como você resolveu a seguinte etapa?\n", "Could you explain how to solve the following step?\n"]
+    var explanationMessages = ["Como você resolveu a seguinte etapa?\n", "How would you explain how to solve the following step?\n"]
     var hintMessages = ["Qual dica você daria para resolver a seguinte etapa?\nNão vale dar dar a resposta, heim!\n", "Which hint would be useful on the following step?\nGiving away the answer is not a hint!\n"]
     var errorSpecificMessages = ["Por que a ação abaixo está errada?\n", "Why the following action is not valid?\n"]
     var stepMessage = ["Esta ação está correta?\n", "Is the following action correct?\nRemember: we shouldn't skip steps\n"]
@@ -737,7 +737,12 @@ function MyXBlock(runtime, element, data) {
                 return
             }
         } else {
-            choice = "second"
+            if (language == 0) {
+                choice = "segundo"
+
+            } else {
+                choice = "second"
+            }
         }
 
         if (choice.toLowerCase() == doubtChoiceSecond[language]) {
