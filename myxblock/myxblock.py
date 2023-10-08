@@ -7,7 +7,7 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 import ast 
-from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent, Attempt
+from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent, Attempt, Edge_votes, Node_votes
 from .visualGraph import *
 from .openaiExplanation import *
 from django.utils.timezone import now
@@ -33,8 +33,10 @@ maxHints = 2
 maxDoubts = 2
 maxKnowledgeComponent = 2
 
+maxVotesToFixCorrectness = 5
+
 #Max amount of feedbacks to ask for more
-maxToAsk = 3
+maxToAsk = 2
 
 problemGraphDefault = {'_start_': ['Option 1'], 'Option 1': ["Option 2"], "Option 2": ["_end_"]}
 problemGraphNodePositionsDefault = {}  
@@ -95,9 +97,13 @@ def transformToSimplerAnswer(answer):
 class MyXBlock(XBlock):
     pre_save.connect(Node.pre_save, Node, dispatch_uid=".studentGraph.models.Node") 
     post_save.connect(Node.post_save, Node, dispatch_uid=".studentGraph.models.Node") 
+    pre_save.connect(Node_votes.pre_save, Node_votes, dispatch_uid=".studentGraph.models.Node_votes") 
+    post_save.connect(Node_votes.post_save, Node_votes, dispatch_uid=".studentGraph.models.Node_votes") 
     pre_save.connect(Edge.pre_save, Edge, dispatch_uid=".studentGraph.models.Edge") 
     post_save.connect(Edge.post_save, Edge, dispatch_uid=".studentGraph.models.Edge") 
     pre_delete.connect(Edge.pre_delete, Edge, dispatch_uid=".studentGraph.models.Edge") 
+    pre_save.connect(Edge_votes.pre_save, Edge_votes, dispatch_uid=".studentGraph.models.Edge_votes") 
+    post_save.connect(Edge_votes.post_save, Edge_votes, dispatch_uid=".studentGraph.models.Edge_votes") 
     pre_save.connect(Resolution.pre_save, Resolution, dispatch_uid=".studentGraph.models.Resolution") 
     post_save.connect(Resolution.post_save, Resolution, dispatch_uid=".studentGraph.models.Resolution") 
     pre_save.connect(ErrorSpecificFeedbacks.pre_save, ErrorSpecificFeedbacks, dispatch_uid=".studentGraph.models.ErrorSpecificFeedbacks") 
@@ -397,14 +403,6 @@ class MyXBlock(XBlock):
 
     @transaction.atomic
     def saveStatesAndSteps(self, elements):
-        #for element in elements:
-            #self.usedStates.append(transformToSimplerAnswer(element))
-
-        #lastElement = None
-        #for element in elements:
-            #if lastElement is not None:
-                #self.usedSteps.append((transformToSimplerAnswer(lastElement), transformToSimplerAnswer(element)))
-            #lastElement = element
 
         loadedProblem = Problem.objects.get(id=self.problemId)
 
@@ -452,44 +450,6 @@ class MyXBlock(XBlock):
 
     def generateConfirmationKey(self, randonLength):
         return str(self.studentId) + ''.join(random.choices(string.ascii_uppercase, k=randonLength))
-
-
-    @transaction.atomic
-    def updateStateAndStepsCounters(self):
-        loadedProblem = Problem.objects.get(id=self.problemId)
-
-        usedStates = []
-        [usedStates.append(x) for x in self.usedStates if x not in usedStates]
-
-        for state in usedStates:
-            node = Node.objects.select_for_update().filter(problem=loadedProblem, title=state)
-            if node.exists():
-                exitingNode = node.first()
-                exitingNode.counter += 1
-                exitingNode.dateModified = datetime.now()
-                exitingNode.save()
-
-
-        usedSteps = []
-        for step in self.usedSteps:
-            if len(usedSteps) == 0:
-                usedSteps.append(step)
-            else:
-                alreadyInserted = False
-                for inserted in usedSteps:
-                    if inserted[0] == step[0] and inserted[1] == step[1]:
-                        alreadyInserted = True
-                if not alreadyInserted:
-                    usedSteps.append(step)
-        for edge in usedSteps:
-            step = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode__title=edge[0], destNode__title = edge[1])
-            if step.exists():
-                existingStep = step.first()
-                existingStep.counter += 1
-                existingStep.dateModified = datetime.now()
-                existingStep.save()
-        
-        return usedSteps
 
     @transaction.atomic
     def remove_edge_feedbacks(self, edgeModel, loadedProblem):
@@ -1215,7 +1175,6 @@ class MyXBlock(XBlock):
         nodeList = [n1, n2, n3, n4]
 
         edgeList = self.createInitialEdgeData(nodeList, problemFK)
-        #self.createInitialResolutionData(nodeList, edgeList, problemFK)
         
 
     def createInitialData(self):
@@ -1317,30 +1276,53 @@ class MyXBlock(XBlock):
             loadedNode = Node.objects.select_for_update().get(problem=loadedProblem, title=transformToSimplerAnswer(data.get("nodeFrom")))
 
         if feedbackType == 'minimalStep':
+
+            possibleEdgeVotes = Edge_votes.objects.select_for_update().filter(problem=loadedProblem, edge=loadedEdge)
+            if possibleEdgeVotes.exists():
+                loadedEdgeVotes = possibleEdgeVotes.first()
+                loadedEdgeVotes.dateModified = datetime.now()
+            else:
+                loadedEdgeVotes = Edge_votes(problem=loadedProblem, edge=loadedEdge, dateAdded = datetime.now())
+
             if data.get("message") == yesUniversalAnswer:
-                if loadedEdge.correctness + receivedMinimalFeedbackAmount > validStep[1]:
-                    loadedEdge.correctness = validStep[1]
-                else:
-                    loadedEdge.correctness += receivedMinimalFeedbackAmount
+                loadedEdgeVotes.positiveCounter += 1
             elif data.get("message") == noUniversalAnswer:
-                if loadedEdge.correctness - receivedMinimalFeedbackAmount < invalidStep[0]:
-                    loadedEdge.correctness = invalidStep[0]
-                else:
-                    loadedEdge.correctness -= receivedMinimalFeedbackAmount
-            loadedEdge.save()
+                loadedEdgeVotes.negativeCounter += 1
+
+            loadedEdgeVotes.save()
+
+            if loadedEdgeVotes.positiveCounter >= maxVotesToFixCorrectness:
+                loadedEdge.correctness = 1
+                loadedEdge.fixedValue = 1
+                loadedEdge.save()
+            elif loadedEdgeVotes.negativeCounter >= maxVotesToFixCorrectness:
+                loadedEdge.correctness = -1
+                loadedEdge.fixedValue = 1
+                loadedEdge.save()
 
         elif feedbackType == 'minimalState':
+            possibleNodeVotes = Node_votes.objects.select_for_update().filter(problem=loadedProblem, node=loadedNode)
+            if possibleNodeVotes.exists():
+                loadedNodeVotes = possibleNodeVotes.first()
+                loadedNodeVotes.dateModified = datetime.now()
+            else:
+                loadedNodeVotes = Node_votes(problem=loadedProblem, node=loadedNode, dateAdded = datetime.now())
+
             if data.get("message") == yesUniversalAnswer:
-                if loadedNode.correctness + receivedMinimalFeedbackAmount > correctState[1]:
-                    loadedNode.correctness = correctState[1]
-                else:
-                    loadedNode.correctness += receivedMinimalFeedbackAmount
+                loadedNodeVotes.positiveCounter += 1
             elif data.get("message") == noUniversalAnswer:
-                if loadedNode.correctness - receivedMinimalFeedbackAmount < incorrectState[0]:
-                    loadedNode.correctness = incorrectState[0]
-                else:
-                    loadedNode.correctness -= receivedMinimalFeedbackAmount
-            loadedNode.save()
+                loadedNodeVotes.negativeCounter += 1
+
+            loadedNodeVotes.save()
+
+            if loadedNodeVotes.positiveCounter >= maxVotesToFixCorrectness:
+                loadedNode.correctness = 1
+                loadedNode.fixedValue = 1
+                loadedNode.save()
+            elif loadedNodeVotes.negativeCounter >= maxVotesToFixCorrectness:
+                loadedNode.correctness = -1
+                loadedNode.fixedValue = 1
+                loadedNode.save()
 
         elif feedbackType == 'errorSpecific':
             errorSpecificFeedback = ErrorSpecificFeedbacks(problem=loadedProblem, edge=loadedEdge)
@@ -1517,7 +1499,6 @@ class MyXBlock(XBlock):
         if '' in answerArray:
             answerArray =  list(filter(lambda value: value != '', answerArray))
         
-        #self.saveStatesAndSteps(answerArray)
 
         possibleIncorrectAnswer = self.getFirstIncorrectAnswer(answerArray)
         
@@ -1540,7 +1521,6 @@ class MyXBlock(XBlock):
         if  (wrongElement != None):
             possibleSteps = possibleIncorrectAnswer.get("availableCorrectSteps")
             for step in possibleSteps:
-                #actualValue = levenshteinDistance(wrongElement, step)
                 actualValue = distance(wrongElement, step)
                 nextPossibleCorrectSteps.append(step)
                 if(actualValue < minValue):
@@ -1802,7 +1782,6 @@ class MyXBlock(XBlock):
             hintType = "hint"
             raise
 
-        #return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "lastHint": lastHint, "debug1": possibleIncorrectAnswer, "debug2": self.lastWrongElement}
         self.saveStatesAndSteps(answerArray)
         return {"status": "NOK", "hint": hintText, "wrongElement": wrongElement, "hintId": hintId, "hintType": hintType, "lastHint": lastHint, "wrongElementCorrectness": newNode.correctness}
 
@@ -2333,8 +2312,6 @@ class MyXBlock(XBlock):
                 else:
                     message = "Your resolution and/or your answer are incorrect"
 
-        #self.updateStateAndStepsCounters()
-
         self.saveStatesAndSteps(answerArray)
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
 
@@ -2355,12 +2332,12 @@ class MyXBlock(XBlock):
                 nextStateName = "_end_"
 
             if previousStateName != "_start_":
-                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title=transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(correctness = 1).exclude(correctness = -1)
+                inforSteps1 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title=transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)#.exclude(correctness = 1).exclude(correctness = -1)
                 for step in inforSteps1:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
 
-                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(correctness = 1).exclude(correctness = -1)
+                inforSteps2 = Edge.objects.filter(problem=loadedProblem, destNode__title=transformToSimplerAnswer(stateName)).exclude(sourceNode__title = transformToSimplerAnswer(previousStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)#.exclude(correctness = 1).exclude(correctness = -1)
                 for step in inforSteps2:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
@@ -2385,11 +2362,11 @@ class MyXBlock(XBlock):
 
             
             if nextStateName != "_end_":
-                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(correctness = 1).exclude(correctness = -1)
+                inforSteps4 = Edge.objects.filter(problem=loadedProblem, destNode__title = transformToSimplerAnswer(nextStateName)).exclude(sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)#.exclude(correctness = 1).exclude(correctness = -1)
                 for step in inforSteps4:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
-                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(correctness = 1).exclude(correctness = -1)
+                inforSteps5 = Edge.objects.filter(problem=loadedProblem, sourceNode__title = transformToSimplerAnswer(stateName)).exclude(destNode__title = transformToSimplerAnswer(nextStateName)).exclude(destNode__title = "_end_").exclude(sourceNode__title = "_start_").exclude(fixedValue = 1).exclude(destNode__visible=0).exclude(sourceNode__visible=0)#.exclude(correctness = 1).exclude(correctness = -1)
                 for step in inforSteps5:
                     if step not in askInfoSteps:
                         askInfoSteps.append(step)
