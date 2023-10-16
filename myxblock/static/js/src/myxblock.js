@@ -421,13 +421,13 @@ function MyXBlock(runtime, element, data) {
 
         if (value.hints.length > 0) {
             for(var i = 0; i < value.hints.length; i++){
-                var feedback = prompt(hintMessages[language] + value.explanation[i] + " -> " + value.explanation[i + 1]);
+                var feedback = prompt(hintMessages[language] + value.hints[i] + " -> " + value.hints[i + 1]);
 
                 if (feedback != null) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
-                        data: JSON.stringify({ type: "hint", message: feedback, nodeFrom: value.explanation[i], nodeTo: value.explanation[++i] })
+                        data: JSON.stringify({ type: "hint", message: feedback, nodeFrom: value.hints[i], nodeTo: value.hints[++i] })
                     });
                 } else {
                     i++;

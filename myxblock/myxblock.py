@@ -1329,7 +1329,7 @@ class MyXBlock(XBlock):
             errorSpecificFeedback.text=data.get("message")
             errorSpecificFeedback.dateAdded = datetime.now()
             errorSpecificFeedback.studentId = self.studentId
-            errorSpecificFeedback.priority = 1
+            errorSpecificFeedback.priority = 100
             errorSpecificFeedback.usefulness = 0
             errorSpecificFeedback.save()
         elif feedbackType == 'knowledgeComponent':
@@ -1337,7 +1337,7 @@ class MyXBlock(XBlock):
             knowledgeComponent.text=data.get("message")
             knowledgeComponent.dateAdded = datetime.now()
             knowledgeComponent.studentId = self.studentId
-            knowledgeComponent.priority = 1
+            knowledgeComponent.priority = 100
             knowledgeComponent.usefulness = 0
             knowledgeComponent.save()
         elif feedbackType == 'explanation':
@@ -1345,7 +1345,7 @@ class MyXBlock(XBlock):
             explanation.text=data.get("message")
             explanation.dateAdded = datetime.now()
             explanation.studentId = self.studentId
-            explanation.priority = 1
+            explanation.priority = 100
             explanation.usefulness = 0
             explanation.save()
         elif feedbackType == 'hint':
@@ -1353,7 +1353,7 @@ class MyXBlock(XBlock):
             hint.text=data.get("message")
             hint.dateAdded = datetime.now()
             hint.studentId = self.studentId
-            hint.priority = 1
+            hint.priority = 100
             hint.usefulness = 0
             hint.save()
         elif feedbackType == 'doubtAnswer':
@@ -2275,7 +2275,7 @@ class MyXBlock(XBlock):
         #    KnowledgeComponentSteps.append(KnowledgeComponent.destNode.title)
         #Fim da parte do updateCG
 
-        #self.alreadyAnswered = True
+        self.alreadyAnswered = True
 
         if isAnswerCorrect == None:
             if loadedProblem.multipleChoiceProblem == 0:
@@ -2354,9 +2354,9 @@ class MyXBlock(XBlock):
                     nodeIdlistLiteral = ast.literal_eval(infoStep.nodeIdList)
                     possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index], destNode__id = nodeIdlistLiteral[index + 1]).exclude(visible = 0).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(sourceNode__fixedValue=1)
                     if possibleEdge.exists(): 
-                        if possibleEdge.first() not in askInfoSteps and possibleEdge.first().fixedValue == 0 and possibleEdge.first().correctness != 1 and possibleEdge.first().correctness != -1:
+                        if possibleEdge.first() not in askInfoSteps and possibleEdge.first().fixedValue == 0: #and possibleEdge.first().correctness != 1 and possibleEdge.first().correctness != -1:
                             askInfoSteps.append(possibleEdge.first())
-                        if possibleEdge.first().sourceNode not in askInfoSteps and possibleEdge.first().sourceNode.correctness != 1 and possibleEdge.first().sourceNode.correctness != -1:
+                        if possibleEdge.first().sourceNode not in askInfoSteps: #and possibleEdge.first().sourceNode.correctness != 1 and possibleEdge.first().sourceNode.correctness != -1:
                             askInfoSteps.append(possibleEdge.first().sourceNode)
                             askInfoResolutions[possibleEdge.first().sourceNode.id] = infoStep
 
@@ -2383,9 +2383,9 @@ class MyXBlock(XBlock):
                     nodeIdlistLiteral = ast.literal_eval(infoStep.nodeIdList)
                     possibleEdge = Edge.objects.filter(problem=loadedProblem, sourceNode__id = nodeIdlistLiteral[index + 1], destNode__id = nodeIdlistLiteral[index + 2]).exclude(visible = 0).exclude(destNode__visible=0).exclude(sourceNode__visible=0).exclude(destNode__fixedValue=1)
                     if possibleEdge.exists():
-                        if possibleEdge.first() not in askInfoSteps and possibleEdge.first().fixedValue == 0 and possibleEdge.first().correctness != 1 and possibleEdge.first().correctness != -1:
+                        if possibleEdge.first() not in askInfoSteps and possibleEdge.first().fixedValue == 0: #and possibleEdge.first().correctness != 1 and possibleEdge.first().correctness != -1:
                             askInfoSteps.append(possibleEdge.first())
-                        if possibleEdge.first().destNode not in askInfoSteps and possibleEdge.first().destNode.correctness != 1 and possibleEdge.first().destNode.correctness != -1:
+                        if possibleEdge.first().destNode not in askInfoSteps: #and possibleEdge.first().destNode.correctness != 1 and possibleEdge.first().destNode.correctness != -1:
                             askInfoSteps.append(possibleEdge.first().destNode)
                             askInfoResolutions[possibleEdge.first().destNode.id] = infoStep
 
@@ -2438,7 +2438,7 @@ class MyXBlock(XBlock):
                 if sourceNodeIndexEX < len(transformedResolution) - 1:
                     if transformedResolution[sourceNodeIndexEX + 1] == stepHint.destNode.title and Hint.objects.filter(problem=loadedProblem, edge=stepHint).count() < maxToAsk:
                         returnList.append(stepHint)
-        if len(returnList) >= maxExplanations:
+        if len(returnList) >= maxHints:
             returnList.sort(key=orderHints)
             return returnList[0:maxHints]
         else:

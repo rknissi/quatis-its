@@ -139,6 +139,7 @@ class Node_votes_history(models.Model):
 	negativeCounter = models.IntegerField(default=0)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
+	originalId = models.IntegerField(default=None, blank=True, null=True)
 	historyDate = models.DateTimeField(default=None, blank=True, null=True)
 	historyAction = models.TextField(default=None, blank=True, null=True)
 
