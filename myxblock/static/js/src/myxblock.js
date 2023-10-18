@@ -27,8 +27,8 @@ function MyXBlock(runtime, element, data) {
     var update_positions = runtime.handlerUrl(element, 'update_positions')
     var update_resolution_correctness = runtime.handlerUrl(element, 'update_resolution_correctness')
 
-    var yesAnswer = ["sim", "s", "yes", "y", "si", "ye", "yep"];
-    var noAnswer = ["não", "n", "no", "nao", "nope"];
+    var yesAnswer = ["sim", "s", "yes", "y", "si", "ye", "yep", "yeah", "yea"];
+    var noAnswer = ["não", "n", "no", "nao", "nope", "nop"];
 
     var yesUniversalAnswer = "yes"
     var noUniversalAnswer = "no"
@@ -68,6 +68,8 @@ function MyXBlock(runtime, element, data) {
     var stillHaveDoubts = ["Ainda lhe restam dúvidas?", "Do you still have any questions?"]
     var invalidFieldValuesMessage = ["Por favor remova os passos '_start_' e _end_ de sua resolução", "Please remove the steps '_start_' and '_end_' from your solution"]
     var selfLoopMessage = ["Não coloque 2 passos iguais um após o outro", "Please do not use 2 identical steps that are after each other"]
+    var invalidSolution = ["Uma resolução precisa conter pelo menos 2 passos!", "A solution must contain at least 2 steps!"]
+    var onlySpacesMessage = ["Remova os passos que tenham apenas espaços ou vazios", "Please remove any steps that only contains spaces or it's empty"]
 
     var doubtChoiceFirst = ["primeiro", "first"]
     var doubtChoiceSecond = ["segundo", "second"]
@@ -390,7 +392,7 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0; i < value.errorSpecific.length; i++){
                 var feedback = prompt(errorSpecificMessages[language] + value.errorSpecific[i] + " --> " + value.errorSpecific[i + 1]);
 
-                if (feedback != null) {
+                if (feedback != null && (feedback.replace(/\s/g, '').length)) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
@@ -407,7 +409,7 @@ function MyXBlock(runtime, element, data) {
         //    for(var i = 0; i < value.knowledgeComponent.length; i++){
         //        var feedback = prompt("Para o seguinte passo, qual elemento básico você considera necessário para resolvê-lo?\n" + value.knowledgeComponent[i] + " --> " + value.knowledgeComponent[i + 1]);
 
-        //        if (feedback != null) {
+        //        if (feedback != null && (str.replace(/\s/g, '').length)) {
         //            $.ajax({
         //                type: "POST",
         //                url: send_feedback,
@@ -423,7 +425,7 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0; i < value.hints.length; i++){
                 var feedback = prompt(hintMessages[language] + value.hints[i] + " -> " + value.hints[i + 1]);
 
-                if (feedback != null) {
+                if (feedback != null && (feedback.replace(/\s/g, '').length)) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
@@ -438,7 +440,7 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0; i < value.explanation.length; i++){
                 var feedback = prompt(explanationMessages[language] + value.explanation[i] + " --> " + value.explanation[i + 1]);
 
-                if (feedback != null) {
+                if (feedback != null && (feedback.replace(/\s/g, '').length)) {
                     $.ajax({
                         type: "POST",
                         url: send_feedback,
@@ -453,7 +455,7 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0; i < value.doubtsSteps.length; i++){
                 if (!doubtIds.includes(value.doubtsSteps[i].doubtId)) {
                     var feedback = prompt(stepDoubtMessage1[language] + value.doubtsSteps[i].message + stepDoubtMessage2[language] + value.doubtsSteps[i].source + " --> " + value.doubtsSteps[i].dest);
-                    if (feedback != null) {
+                    if (feedback != null && (feedback.replace(/\s/g, '').length)) {
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
@@ -467,7 +469,7 @@ function MyXBlock(runtime, element, data) {
             for(var i = 0; i < value.doubtsNodes.length; i++){
                 if (!doubtIds.includes(value.doubtsNodes[i].doubtId)) {
                     var feedback = prompt(stateDoubtMessage1[language] + value.doubtsNodes[i].message + stateDoubtMessage2[language] + value.doubtsNodes[i].node);
-                    if (feedback != null) {
+                    if (feedback != null && (feedback.replace(/\s/g, '').length)) {
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
@@ -523,6 +525,10 @@ function MyXBlock(runtime, element, data) {
             alert(selfLoopMessage[language])
             return
         }
+        if (checkIfContainsOnlySpacesStep()) {
+            alert(onlySpacesMessage[language])
+            return
+        }
         
         disableButton("hintButton")
         var userAnswer = getCompleteAnswer()
@@ -552,6 +558,49 @@ function MyXBlock(runtime, element, data) {
                 return true
             }
         }
+        return false
+    }
+
+    function checkIfSpecialCase() {
+        foundEmpty = false
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            if (foundEmpty) {
+                return true
+            }
+            if (document.getElementById("idt" + i).value == '') {
+                foundEmpty = true
+            }
+        }
+        return false
+    }
+
+    function checkIfContainsOnlySpacesStep() {
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            var partialAnswer = transformToSimplerAnswer(document.getElementById("idt" + i).value);
+
+            if (document.getElementById("idt" + i).value == '') {
+                if (checkIfSpecialCase()) {
+                    return true
+                }
+
+            } else if (!(partialAnswer.replace(/\s/g, '').length)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    function checkIfContainsLessThanTwoStep() {
+        count = 0
+        for (var i = minimumCheckboxLLineId; i < checkboxLineId; i++) {
+            var partialAnswer = transformToSimplerAnswer(document.getElementById("idt" + i).value);
+            if (partialAnswer && (partialAnswer.replace(/\s/g, '').length)) {
+                count++
+            }
+        }
+        if (count < 2) {
+            return true
+        } 
         return false
     }
 
@@ -585,6 +634,14 @@ function MyXBlock(runtime, element, data) {
         }
         if (checkIfContainsSelfLoops()) {
             alert(selfLoopMessage[language])
+            return
+        }
+        if (checkIfContainsLessThanTwoStep()) {
+            alert(invalidSolution[language])
+            return
+        }
+        if (checkIfContainsOnlySpacesStep()) {
+            alert(onlySpacesMessage[language])
             return
         }
         disableButton("answerButton")
@@ -701,6 +758,10 @@ function MyXBlock(runtime, element, data) {
             alert(selfLoopMessage[language])
             return
         }
+        if (checkIfContainsOnlySpacesStep()) {
+            alert(onlySpacesMessage[language])
+            return
+        }
         disableButton("askQuestion")
         var currentStep = null
         var checkedBoxes = []
@@ -783,7 +844,7 @@ function MyXBlock(runtime, element, data) {
                         var destNodeValue = sourceNode.value
                     }
 
-                    if (doubt != null) {
+                    if (doubt != null && (doubt.replace(/\s/g, '').length)) {
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
@@ -858,7 +919,7 @@ function MyXBlock(runtime, element, data) {
                             var destNodeValue = sourceNode.value
                         }
 
-                        if (doubt != null) {
+                        if (doubt != null && (doubt.replace(/\s/g, '').length)) {
                             $.ajax({
                                 type: "POST",
                                 url: send_feedback,
@@ -908,7 +969,7 @@ function MyXBlock(runtime, element, data) {
 
                     doubt = prompt(whatDoubtStepMessage[language] + sourceNode.value + " -> " + destNode.value);
 
-                    if (doubt != null) {
+                    if (doubt != null && (doubt.replace(/\s/g, '').length)) {
                         $.ajax({
                             type: "POST",
                             url: send_feedback,
@@ -968,15 +1029,17 @@ function MyXBlock(runtime, element, data) {
 
                         doubt = prompt(whatDoubtStepMessage[language] + sourceNode.value + " -> " + destNode.value);
 
-                        $.ajax({
-                            type: "POST",
-                            url: send_feedback,
-                            data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
-                            success: function (value) {
-                                alert(doubtSentMessage[language])
-                                addDoubtIdtoList(value.doubtId)
-                            }
-                        });
+                        if (doubt != null && (doubt.replace(/\s/g, '').length)) {
+                            $.ajax({
+                                type: "POST",
+                                url: send_feedback,
+                                data: JSON.stringify({ type: "doubtStep", message: doubt, nodeFrom: sourceNode.value, nodeTo: destNode.value }),
+                                success: function (value) {
+                                    alert(doubtSentMessage[language])
+                                    addDoubtIdtoList(value.doubtId)
+                                }
+                            });
+                        }
                     }
                 }
                 $.ajax({
