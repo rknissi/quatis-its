@@ -2095,7 +2095,16 @@ class MyXBlock(XBlock):
         #self.saveStatesAndSteps(answerArray)
 
         if loadedProblem.multipleChoiceProblem == 1 and 'radioAnswer' not in data :
-            return {"error": "Nenhuma opções de resposta foi selecionada!"}
+            if self.language == 'pt':
+                return {"error": "Nenhuma opções de resposta foi selecionada!"}
+            else:
+                return {"error": "Please select one of the answers!"}
+
+        if len(answerArray) < 2 :
+                if self.language == 'pt':
+                    return {"error": "A sua resolução precisa conter pelo menos 2 passos"}
+                else:
+                    return {"error": "Your solution must have at least 2 steps"}
 
         if loadedProblem.multipleChoiceProblem == 1:
             self.answerRadio = data['radioAnswer']
@@ -2287,7 +2296,7 @@ class MyXBlock(XBlock):
                 if self.language == 'pt':
                     message = "Sua resposta e resolução estão em análise"
                 else:
-                    message = "Both your answer and resolution are being analyzed"
+                    message = "Both your answer and solution are being analyzed"
 
         elif isAnswerCorrect:
             if loadedProblem.multipleChoiceProblem == 0:
@@ -2299,7 +2308,7 @@ class MyXBlock(XBlock):
                 if self.language == 'pt':
                     message = "Sua resposta e resolução estão ambas corretas! Parabéns!"
                 else:
-                    message = "Both your answer and resolutions are correct! Congratulations!"
+                    message = "Both your answer and solution are correct! Congratulations!"
         elif not isAnswerCorrect:
             if loadedProblem.multipleChoiceProblem == 0:
                 if self.language == 'pt':
@@ -2310,7 +2319,7 @@ class MyXBlock(XBlock):
                 if self.language == 'pt':
                     message = "Sua resolução e/ou resposta final estão incorretas"
                 else:
-                    message = "Your resolution and/or your answer are incorrect"
+                    message = "Your solution and/or your answer are incorrect"
 
         self.saveStatesAndSteps(answerArray)
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
