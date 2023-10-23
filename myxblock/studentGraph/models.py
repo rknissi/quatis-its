@@ -108,6 +108,7 @@ class Node_votes(models.Model):
 	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='nodeVote', blank=True, null=True)
 	positiveCounter = models.IntegerField(default=0)
 	negativeCounter = models.IntegerField(default=0)
+	lastStudentId = models.TextField(default=None, blank=True, null=True)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 
@@ -120,7 +121,7 @@ class Node_votes(models.Model):
 			old = Node_votes.objects.get(id = instance.id)
 			if old.positiveCounter != instance.positiveCounter or old.negativeCounter != instance.negativeCounter:
 				newEntry = Node_votes_history(problem = instance.problem, node = instance.node, 
-	       			positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified,
+	       			positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified, lastStudentId = instance.lastStudentId,
 		   			originalId = instance.id, historyDate = datetime.now(), historyAction =  "save")
 				newEntry.save()
 
@@ -128,7 +129,7 @@ class Node_votes(models.Model):
 	def post_save(sender, instance, created, **kwargs):
 		if created:
 			newEntry = Node_votes_history(problem = instance.problem, node = instance.node, 
-	       		positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified,
+	       		positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified, lastStudentId = instance.lastStudentId,
 		   		originalId = instance.id, historyDate = datetime.now(), historyAction =  "created")
 			newEntry.save()
 
@@ -137,6 +138,7 @@ class Node_votes_history(models.Model):
 	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='nodeVoteHistory', blank=True, null=True)
 	positiveCounter = models.IntegerField(default=0)
 	negativeCounter = models.IntegerField(default=0)
+	lastStudentId = models.TextField(default=None, blank=True, null=True)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	originalId = models.IntegerField(default=None, blank=True, null=True)
@@ -213,6 +215,7 @@ class Edge_votes(models.Model):
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='edgeVote', blank=True, null=True)
 	positiveCounter = models.IntegerField(default=0)
 	negativeCounter = models.IntegerField(default=0)
+	lastStudentId = models.TextField(default=None, blank=True, null=True)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 
@@ -225,7 +228,7 @@ class Edge_votes(models.Model):
 			old = Edge_votes.objects.get(id = instance.id)
 			if old.positiveCounter != instance.positiveCounter or old.negativeCounter != instance.negativeCounter:
 				newEntry = Edge_votes_history(problem = instance.problem, edge = instance.edge, 
-	       			positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified,
+	       			positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified, lastStudentId = instance.lastStudentId,
 		   			originalId = instance.id, historyDate = datetime.now(), historyAction =  "save")
 				newEntry.save()
 
@@ -233,7 +236,7 @@ class Edge_votes(models.Model):
 	def post_save(sender, instance, created, **kwargs):
 		if created:
 			newEntry = Edge_votes_history(problem = instance.problem, edge = instance.edge, 
-	       		positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified,
+	       		positiveCounter = instance.positiveCounter, negativeCounter = instance.negativeCounter, dateAdded = instance.dateAdded, dateModified = instance.dateModified, lastStudentId = instance.lastStudentId,
 		   		originalId = instance.id, historyDate = datetime.now(), historyAction =  "created")
 			newEntry.save()
 
@@ -242,6 +245,7 @@ class Edge_votes_history(models.Model):
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='edgeVoteHistory', blank=True, null=True)
 	positiveCounter = models.IntegerField(default=0)
 	negativeCounter = models.IntegerField(default=0)
+	lastStudentId = models.TextField(default=None, blank=True, null=True)
 	dateAdded = models.DateTimeField()
 	dateModified = models.DateTimeField(default=None, blank=True, null=True)
 	originalId = models.IntegerField(default=None, blank=True, null=True)
@@ -611,6 +615,20 @@ class Answer_history(models.Model):
 	originalId = models.IntegerField(default=None, blank=True, null=True)
 	historyDate = models.DateTimeField(default=None, blank=True, null=True)
 	historyAction = models.TextField(default=None, blank=True, null=True)
+
+	class Meta:
+		app_label  = 'studentGraph'
+
+
+class AskedFeedback(models.Model):
+	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
+	feedbackType = models.TextField()
+	type = models.IntegerField(default=0) #0 = node, 1 = edge
+	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='selectedEdge', blank=True, null=True)
+	node = models.ForeignKey(Node, on_delete=models.CASCADE, related_name='selectedNode', blank=True, null=True)
+	doubt = models.ForeignKey(Doubt, on_delete=models.CASCADE, related_name='doubtNode', blank=True, null=True)
+	studentId = models.TextField()
+	dateAdded = models.DateTimeField()
 
 	class Meta:
 		app_label  = 'studentGraph'

@@ -89,7 +89,7 @@ def createGraphInitialPositions(problemId):
 
     createGraphInitialPositionsNextSteps(nextEdges, usedEdges, currentY, loadedProblem)
 
-    needToCalculate = Node.objects.filter(problem=loadedProblem, alreadyCalculatedPos = 0)
+    needToCalculate = Node.objects.select_for_update().filter(problem=loadedProblem, alreadyCalculatedPos = 0)
     if needToCalculate.exists():
         for needTocalculateNode in needToCalculate:
             pos = avoidSamePosFromAnotherNode(currentX, currentY, loadedProblem)

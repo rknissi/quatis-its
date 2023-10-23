@@ -7,7 +7,7 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 import ast 
-from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent, Attempt, Edge_votes, Node_votes
+from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent, Attempt, Edge_votes, Node_votes, AskedFeedback
 from .visualGraph import *
 from .openaiExplanation import *
 from django.utils.timezone import now
@@ -1281,8 +1281,9 @@ class MyXBlock(XBlock):
             if possibleEdgeVotes.exists():
                 loadedEdgeVotes = possibleEdgeVotes.first()
                 loadedEdgeVotes.dateModified = datetime.now()
+                loadedEdgeVotes.lastStudentId = self.studentId
             else:
-                loadedEdgeVotes = Edge_votes(problem=loadedProblem, edge=loadedEdge, dateAdded = datetime.now())
+                loadedEdgeVotes = Edge_votes(problem=loadedProblem, edge=loadedEdge, dateAdded = datetime.now(), lastStudentId=self.studentId)
 
             if data.get("message") == yesUniversalAnswer:
                 loadedEdgeVotes.positiveCounter += 1
@@ -1305,8 +1306,9 @@ class MyXBlock(XBlock):
             if possibleNodeVotes.exists():
                 loadedNodeVotes = possibleNodeVotes.first()
                 loadedNodeVotes.dateModified = datetime.now()
+                loadedNodeVotes.lastStudentId = self.studentId
             else:
-                loadedNodeVotes = Node_votes(problem=loadedProblem, node=loadedNode, dateAdded = datetime.now())
+                loadedNodeVotes = Node_votes(problem=loadedProblem, node=loadedNode, dateAdded = datetime.now(), lastStudentId=self.studentId)
 
             if data.get("message") == yesUniversalAnswer:
                 loadedNodeVotes.positiveCounter += 1
@@ -1318,6 +1320,9 @@ class MyXBlock(XBlock):
             if loadedNodeVotes.positiveCounter >= maxVotesToFixCorrectness:
                 loadedNode.correctness = 1
                 loadedNode.fixedValue = 1
+                possibleEdge = Edge.objects.filter(problem = loadedProblem, sourceNode = loadedNode, destNode__title = "_end_")
+                if possibleEdge.exists():
+                    loadedNode.linkedSolution = self.problemCorrectAnswer
                 loadedNode.save()
             elif loadedNodeVotes.negativeCounter >= maxVotesToFixCorrectness:
                 loadedNode.correctness = -1
@@ -2322,7 +2327,39 @@ class MyXBlock(XBlock):
                     message = "Your solution and/or your answer are incorrect"
 
         self.saveStatesAndSteps(answerArray)
+        self.saveAskedFeedbacks(loadedProblem, minimalStates, minimalSteps, explanationSteps, hintsSteps, errorSpecificSteps, doubtsNodeReturn, doubtsStepReturn)
         return {"message": message, "minimalStep": minimalSteps, "minimalState": minimalStates, "errorSpecific": errorSpecificSteps, "explanation": explanationSteps, "doubtsSteps": doubtsStepReturn, "doubtsNodes": doubtsNodeReturn, "answerArray": answerArray, "hints": hintsSteps, "minimalStateResolutions": resolutionForStates}
+
+    def saveAskedFeedbacks(self, loadedProblem, minimalStates, minimalSteps, explanations, hints, errorSpecifics, doubtStates, doubtSteps):
+        for state in minimalStates:
+            state = Node.objects.get(problem = loadedProblem, title = state)
+            feedback = AskedFeedback(problem=loadedProblem, type=0,feedbackType="minimalState", dateAdded = datetime.now(), studentId=self.studentId, node=state)
+            feedback.save()
+        for i in range(0, len(minimalSteps), 2):
+            step = Edge.objects.get(problem = loadedProblem, sourceNode__title = minimalSteps[i], destNode__title=minimalSteps[i+1])
+            feedback = AskedFeedback(problem=loadedProblem, type=1,feedbackType="minimalStep", dateAdded = datetime.now(), studentId=self.studentId, edge=step)
+            feedback.save()
+        for i in range(0, len(explanations), 2):
+            step = Edge.objects.get(problem = loadedProblem, sourceNode__title = explanations[i], destNode__title=explanations[i+1])
+            feedback = AskedFeedback(problem=loadedProblem, type=1,feedbackType="explanation", dateAdded = datetime.now(), studentId=self.studentId, edge=step)
+            feedback.save()
+        for i in range(0, len(hints), 2):
+            step = Edge.objects.get(problem = loadedProblem, sourceNode__title = hints[i], destNode__title=hints[i+1])
+            feedback = AskedFeedback(problem=loadedProblem, type=1,feedbackType="hint", dateAdded = datetime.now(), studentId=self.studentId, edge=step)
+            feedback.save()
+        for i in range(0, len(errorSpecifics), 2):
+            step = Edge.objects.get(problem = loadedProblem, sourceNode__title = errorSpecifics[i], destNode__title=errorSpecifics[i+1])
+            feedback = AskedFeedback(problem=loadedProblem, type=1,feedbackType="errorSpecific", dateAdded = datetime.now(), studentId=self.studentId, edge=step)
+            feedback.save()
+        for doubtObj in doubtStates:
+            doubt = Doubt.objects.get(problem = loadedProblem, id=doubtObj["doubtId"])
+            feedback = AskedFeedback(problem=loadedProblem, type=0,feedbackType="doubtState", dateAdded = datetime.now(), studentId=self.studentId, doubt=doubt)
+            feedback.save()
+        for doubtObj in doubtSteps:
+            doubt = Doubt.objects.get(problem = loadedProblem, id=doubtObj["doubtId"])
+            feedback = AskedFeedback(problem=loadedProblem, type=1,feedbackType="doubtStep", dateAdded = datetime.now(), studentId=self.studentId, doubt=doubt)
+            feedback.save()
+        return
 
     def getMinimalFeedbackFromStudentResolution(self, resolution, nodeIdList):
         askInfoSteps = []
@@ -2759,30 +2796,30 @@ class MyXBlock(XBlock):
                 res.correctness = calculatedNodeRes[res.nodeIdList]
                 res.save()
 
-            if res.correctness == 1 and res.nodeIdList not in calculatedNodeRes:
-                lastNodeFromRes = Node.objects.select_for_update().get(id =  ast.literal_eval(res.nodeIdList)[-2])
-                if lastNodeFromRes.fixedValue == 0:
-                    possibleOptions = {}
-                    allSameRes = Resolution.objects.filter(problem=loadedProblem, nodeIdList = res.nodeIdList, edgeIdList = res.edgeIdList)
-                    for sameRes in allSameRes:
-                        if sameRes.selectedOption not in possibleOptions:
-                            possibleOptions[sameRes.selectedOption] = 1
-                        else:
-                            possibleOptions[sameRes.selectedOption] += 1
-                    finalOption = None
-                    finalOptionCount = None
+            #if res.correctness == 1 and res.nodeIdList not in calculatedNodeRes:
+            #    lastNodeFromRes = Node.objects.select_for_update().get(id =  ast.literal_eval(res.nodeIdList)[-2])
+            #    if lastNodeFromRes.fixedValue == 0:
+            #        possibleOptions = {}
+            #        allSameRes = Resolution.objects.filter(problem=loadedProblem, nodeIdList = res.nodeIdList, edgeIdList = res.edgeIdList)
+            #        for sameRes in allSameRes:
+            #            if sameRes.selectedOption not in possibleOptions:
+            #                possibleOptions[sameRes.selectedOption] = 1
+            #            else:
+            #                possibleOptions[sameRes.selectedOption] += 1
+            #        finalOption = None
+            #        finalOptionCount = None
 
-                    for key in possibleOptions.keys():
-                        if finalOption == None:
-                            finalOption = key
-                            finalOptionCount = possibleOptions[key]
-                        else:
-                            if finalOptionCount < possibleOptions[key]:
-                                finalOption = key
-                                finalOptionCount = possibleOptions[key]
+            #        for key in possibleOptions.keys():
+            #            if finalOption == None:
+            #                finalOption = key
+            #                finalOptionCount = possibleOptions[key]
+            #            else:
+            #                if finalOptionCount < possibleOptions[key]:
+            #                    finalOption = key
+            #                    finalOptionCount = possibleOptions[key]
 
-                    lastNodeFromRes.linkedSolution = finalOption
-                    lastNodeFromRes.save()
+            #        lastNodeFromRes.linkedSolution = finalOption
+            #        lastNodeFromRes.save()
 
             calculatedNodeRes[res.nodeIdList] = res.correctness
         return {}
