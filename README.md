@@ -1,4 +1,4 @@
-![QUATIS logo](./readme_stuff/QUATIS.png)
+![QUATIS logo](./readme_stuff/QUATIs.png)
 # Hello, and welcome to QUATIS!
 
 **QUATIS** is an acronymn for **Q**uick and **U**ncomplicated **A**uthoring **T**ools for **I**ntelligent tutoring **S**ystems.
