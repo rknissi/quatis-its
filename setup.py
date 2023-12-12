@@ -35,7 +35,7 @@ setup(
     ],
     entry_points={
         'xblock.v1': [
-            'myxblock = myxblock:MyXBlock',
+            'myxblock = myxblock:Quatis_main',
         ]
     },
     package_data=package_data("myxblock", ["static", "public"]),

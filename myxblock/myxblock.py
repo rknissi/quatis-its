@@ -7,9 +7,9 @@ from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Integer, Scope, String, Boolean, List, Set, Dict, Float
 import ast 
-from .studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent, Attempt, Edge_votes, Node_votes, AskedFeedback
-from .visualGraph import *
-from .openaiExplanation import *
+from myxblock.studentGraph.models import Answer, Problem, Node, Edge, Resolution, ErrorSpecificFeedbacks, Hint, Explanation, Doubt, KnowledgeComponent, Attempt, Edge_votes, Node_votes, AskedFeedback
+from myxblock.visualGraph import *
+from myxblock.openaiExplanation import *
 from django.utils.timezone import now
 from datetime import datetime  
 from django.http import JsonResponse
@@ -50,6 +50,12 @@ noAnswer = ["não", "n", "no", "nao"]
 yesUniversalAnswer = "yes"
 noUniversalAnswer = "no"
 
+incorrectStates = [175,179,186,187,195,196,222,262,263,264,265,274,287,288,289,290,295,296,394,395,397,477,495,496,500,554,612,660,145,146,159,168,171,199,237,238,270,330,382,383,384,459,605,606,607,608,609,610,611,682,683,684,160,192,194,198,271,272,297,349,350,449,450]
+incorrectSteps = [228,229,242,243,287,288,289,290,291,295,361,383,402,403,404,405,406,544,545,546,653,654,679,680,681,687,688,689,690,759,760,820,846,847,914,192,194,198,251,367,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,267,268,273,376,377,415,416,481,482,616,617,618,661]
+stepsWithOneHints = [381,235,234]
+stepsWithTwoHints = [223,382]
+stepsWithExplanations = [849,850]
+
 #Ainda não salvando nada nessa variável
 allResolutionsNew = allResolutionsDefault
 
@@ -81,11 +87,11 @@ def orderByTime(element):
 
 def transformToSimplerAnswer(answer):
     if answer is not None:
-        withoutSpaces = answer.replace(" ", "")
-        lowerCase = withoutSpaces.lower()
+        lowerCase = answer.lower()
         noAccent = unidecode(lowerCase)
+        withoutSpaces = noAccent.replace(" ", "")
 
-        return noAccent
+        return withoutSpaces
     return answer
 
 
@@ -94,7 +100,7 @@ def transformToSimplerAnswer(answer):
 #Scope.user_state_summary = Dado igual para todos os alunos
 #Scope.content = Dado imutável
 
-class MyXBlock(XBlock):
+class Quatis_main(XBlock):
     pre_save.connect(Node.pre_save, Node, dispatch_uid=".studentGraph.models.Node") 
     post_save.connect(Node.post_save, Node, dispatch_uid=".studentGraph.models.Node") 
     pre_save.connect(Node_votes.pre_save, Node_votes, dispatch_uid=".studentGraph.models.Node_votes") 
@@ -336,9 +342,9 @@ class MyXBlock(XBlock):
         self.studentRetries += 1
 
         if self.language == "pt":
-            html = self.resource_string("static/html/myxblock.html")
+            html = self.resource_string("static/html/quatis.html")
         else:
-            html = self.resource_string("static/html/myxblockEn.html")
+            html = self.resource_string("static/html/quatisEn.html")
         loadedProblem = Problem.objects.filter(id=self.problemId)
         if loadedProblem.exists():
             r1 = Resolution(problem=loadedProblem[0], studentId = self.studentId, dateStarted = datetime.now(), attempt = self.studentRetries)
@@ -349,11 +355,11 @@ class MyXBlock(XBlock):
             frag = Fragment(str(html).format(block=self))
             
 
-        frag.add_css(self.resource_string("static/css/myxblock.css"))
-        frag.add_javascript(self.resource_string("static/js/src/myxblock.js"))
+        frag.add_css(self.resource_string("static/css/quatis.css"))
+        frag.add_javascript(self.resource_string("static/js/src/quatis.js"))
 
         #Também precisa inicializar
-        frag.initialize_js('MyXBlock')
+        frag.initialize_js('Quatis')
         self.lastWrongElementCount = 0
         self.usedStates = []
         self.usedSteps = []
@@ -368,7 +374,7 @@ class MyXBlock(XBlock):
     problem_view = student_view
 
     def studio_view(self,context=None):
-        html=self.resource_string("static/html/myxblockEdit.html")
+        html=self.resource_string("static/html/quatisEdit.html")
 
         loadedProblem = Problem.objects.filter(id=self.problemId)
         if loadedProblem.exists():
@@ -396,10 +402,137 @@ class MyXBlock(XBlock):
                                          openApiToken=self.openApiToken,
                                          language=self.language
                                          ))
-        frag.add_javascript(self.resource_string("static/js/src/myxblockEdit.js"))
+        frag.add_javascript(self.resource_string("static/js/src/quatisEdit.js"))
 
-        frag.initialize_js('MyXBlockEdit')
+        frag.initialize_js('QuatisEdit')
         return frag
+
+    def calculateCompletness(self, loadedProblem, currentNode, currentNodeIds, currentEdgeIds):
+        allSolutions = []
+        allSolutions2 = []
+        allSums = []
+        reallyIncorrectSteps = [218,219,224,228,229,242,243,292,361,364,383,402,403,404,405,544,545,546,653,654,679,680,681,759,760,820,846,847,914,192,194,198,251,252,259,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,266,272,274,275,326,376,377,415,416,481,482,616,617,618,661]
+
+        steps = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode=currentNode)
+        for step in steps:
+            if (step.destNode.title == '_end_'):
+                newList = currentNodeIds.copy()
+                newList.append(step.destNode.id)
+
+                newList2 = currentEdgeIds.copy()
+                newList2.append(step.id)
+                
+                allSolutions.append(tuple(newList))
+                allSolutions2.append(tuple(newList2))
+
+                allSum = 0
+                for node in newList:
+                    allSum += 1
+
+                for edge in newList2:
+                    allSum += 1
+                    if edge not in reallyIncorrectSteps and newList2.index(edge) != 0 and newList2.index(edge) != (len(newList2) - 1):
+                        allSum += 2
+                    
+                allSum+=1
+                
+                allSums.append(allSum)
+                
+
+            else:
+                if step.destNode.id not in currentNodeIds:
+                    newList = currentNodeIds.copy()
+                    newList.append(step.destNode.id)
+
+                    newList2 = currentEdgeIds.copy()
+                    newList2.append(step.id)
+
+                    result = self.calculateCompletness(loadedProblem, step.destNode, newList, newList2)
+
+                    allSolutions = allSolutions + result["nodes"]
+                    allSolutions2 = allSolutions2 + result["edges"]
+                    allSums = allSums + result["allSums"]
+
+        
+        return {"nodes": allSolutions, "edges": allSolutions2, "allSums": allSums}
+
+    def calculateCompletness2(self, loadedProblem, currentNode, currentNodeIds, currentEdgeIds):
+        allSolutions = []
+        allSolutions2 = []
+        allSums = []
+        incorrectStates = [175,179,186,187,195,196,222,262,263,264,265,274,287,288,289,290,295,296,394,395,397,477,495,496,500,554,612,660,145,146,159,168,171,199,237,238,270,330,382,383,384,459,605,606,607,608,609,610,611,682,683,684,160,192,194,198,271,272,297,349,350,449,450]
+        incorrectSteps = [228,229,242,243,287,288,289,290,291,295,361,383,402,403,404,405,406,544,545,546,653,654,679,680,681,687,688,689,690,759,760,820,846,847,914,192,194,198,251,367,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,267,268,273,376,377,415,416,481,482,616,617,618,661]
+        reallyIncorrectSteps = [218,219,224,228,229,242,243,292,361,364,383,402,403,404,405,544,545,546,653,654,679,680,681,759,760,820,846,847,914,192,194,198,251,252,259,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,266,272,274,275,326,376,377,415,416,481,482,616,617,618,661]
+        stepsWithOneHints = [381,235,234]
+        stepsWithTwoHints = [223,382,112,113,114,115,116,117,118,119,120,134,135,136,137,138,139,140,141,147,148,149,150,151,152,153,154]
+        stepsWithExplanations = [849,850,112,134,147]
+        stepsStartAndEnd = [108,110,111,121,179,207,214,220,225,226,244,286,293,349,357,359,360,362,363,365,374,412,414,543,549,683,686,819,821,915,130,132,133,142,159,168,173,180,193,195,199,253,258,279,280,302,316,366,368,369,391,395,530,707,816,818,836,845,947,143,145,146,155,163,172,182,232,237,241,246,250,257,269,276,325,327,348,378,483]
+
+        steps = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode=currentNode)
+        for step in steps:
+            if (step.destNode.title == '_end_'):
+                newList = currentNodeIds.copy()
+                newList.append(step.destNode.id)
+
+                newList2 = currentEdgeIds.copy()
+                newList2.append(step.id)
+                
+                allSolutions.append(tuple(newList))
+                allSolutions2.append(tuple(newList2))
+
+                allSum = 0
+                for node in newList:
+                    if node in incorrectStates:
+                        #Change correctness of nodes
+                        allSum += 1
+
+                ifWrong = False
+                ifExplanation = False
+                for edge in newList2:
+                    if edge in incorrectSteps:
+                        #Change correctness of edge
+                        allSum += 1
+                    if edge in stepsWithExplanations:
+                        #Check if there's already one edge with explanation
+                        ifExplanation = True
+                    if edge in stepsWithOneHints:
+                        #Add nopne hint when there's already one
+                        allSum += 1
+                    if edge not in stepsWithOneHints and edge not in stepsWithTwoHints and edge not in reallyIncorrectSteps and newList2.index(edge) != 0 and newList2.index(edge) != (len(newList2) - 1):
+                        #Add 2 hints if there's noh ints, and if the edge is acutally correct
+                        allSum += 2
+                    
+                    if edge in reallyIncorrectSteps:
+                        # Check if the edge is incorrect, to add a error specific later
+                        ifWrong = True
+
+                if ifWrong:
+                    #Add an error specific
+                    allSum+=1
+                if not ifExplanation and not ifWrong:
+                    #Add an explanation
+                    allSum+=1
+                
+                allSums.append(allSum)
+                
+
+            else:
+                if step.destNode.id not in currentNodeIds:
+                    newList = currentNodeIds.copy()
+                    newList.append(step.destNode.id)
+
+                    newList2 = currentEdgeIds.copy()
+                    newList2.append(step.id)
+
+                    result = self.calculateCompletness2(loadedProblem, step.destNode, newList, newList2)
+
+                    allSolutions = allSolutions + result["nodes"]
+                    allSolutions2 = allSolutions2 + result["edges"]
+                    allSums = allSums + result["allSums"]
+
+        
+        return {"nodes": allSolutions, "edges": allSolutions2, "allSums": allSums}
+
 
     @transaction.atomic
     def saveStatesAndSteps(self, elements):
@@ -499,14 +632,16 @@ class MyXBlock(XBlock):
         for node in graphData['nodes']:
             nodeModel = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
             if not nodeModel.exists():
-                n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
+                #n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
+                n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=1)
                 n1.save()
             else:
                 nodeModel = nodeModel.first()
 
                 if ("x" in node and nodeModel.nodePositionX != node["x"]) or ("y" in node and nodeModel.nodePositionY != node["y"]) or nodeModel.linkedSolution != node["linkedSolution"] or nodeModel.correctness != float(node["correctness"]) or nodeModel.fixedValue != float(node["fixedValue"]) or nodeModel.visible != float(node["visible"]):
                     nodeModel.correctness = float(node["correctness"])
-                    nodeModel.fixedValue = float(node["fixedValue"])
+                    #nodeModel.fixedValue = float(node["fixedValue"])
+                    nodeModel.fixedValue = 1
                     nodeModel.visible = float(node["visible"])
                     if float(node["visible"]) == 0:
                         self.remove_node_feedbacks(nodeModel, loadedProblem)
@@ -606,7 +741,8 @@ class MyXBlock(XBlock):
             if not edgeModel.exists():
                 fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["from"]))
                 toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["to"]))
-                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
+                #e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=1)
                 e1.save()
             else:
                 edgeModel = Edge.objects.select_for_update().get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
@@ -617,7 +753,8 @@ class MyXBlock(XBlock):
                         self.remove_edge_feedbacks(edgeModel, loadedProblem)
                         edgeModel.correctness = 0
                     edgeModel.dateModified = datetime.now()
-                    edgeModel.fixedValue = float(edge["fixedValue"])
+                    #edgeModel.fixedValue = float(edge["fixedValue"])
+                    edgeModel.fixedValue = 1
                     edgeModel.save()
                     if edge["modifiedCorrectness"] == 1:
                         self.recalculateResolutionCorrectnessFromEdge(edgeModel)
@@ -1920,6 +2057,14 @@ class MyXBlock(XBlock):
 
 
         return {"incorrectNodes": incorrectSortedNodesJson, "incorrectEdges": incorrectSortedEdgesJson, "correctNodes": correctSortedNodesJson, "correctEdges": correctSortedEdgesJson, "errorSpecificFeedbacks": errorSpecificFeedbacksJson, "hints": hintJsons, "explanations": explanationsJson, "doubts": doubtsJson}
+
+    @XBlock.json_handler
+    def generate_report2(self, data, suffix=''):
+        loadedProblem = Problem.objects.get(id=self.problemId)
+        startNode = Node.objects.filter(problem=loadedProblem, title = '_start_')
+        allSolutions = self.calculateCompletness(loadedProblem, startNode.first(), [startNode.first().id], [])
+        return {"nodes": json.dumps(list(allSolutions["nodes"])), "edges": json.dumps(list(allSolutions["edges"])), "allSums": json.dumps(list(allSolutions["allSums"])), "count": len(allSolutions["allSums"])}
+
 
 
     @XBlock.json_handler
