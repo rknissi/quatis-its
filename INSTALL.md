@@ -18,7 +18,7 @@ After that, you need to create all tables. Please login to the MySQL DB, and run
 ## 3 - Install main package
 Install the QUATIS Xblock as a python package:
 
-    pip install myxblock
+    pip install quatis
 
 ## 4 - Restart apache
 After the installation, it's necessary to restart apache so the installation can take effect. The command to restart it varies between systems. Here are some examples (yours may be different from the ones liested below. Use then as examples):

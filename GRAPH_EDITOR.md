@@ -4,6 +4,8 @@ The graph editor is the main feature for the QUATIS, since it's a simplification
 
 On the left, you will be able to see the graph itself and interact with it. You can click with the mouse to select the graph nodes or edges and change their position. You can also click and hold on a empty space to span the view.
 
+![Graph UI](./readme_stuff/editor9.png)
+
 If you prefer, you can click on the **+** and **-** buttons on the top left corner to increass or decrease the zoom level of the graph.
 
 Ypu can right-click on the graph to show additional options, like enter in fullscreen view or save the graph as a .png or .svg file for later use
@@ -29,7 +31,6 @@ If you click on any node or edge in the left side of the screen, the windows on 
 
 Here, you will be able to change the following details of the node
 - Correctness: It says how correct or wrong a node is. The value varies from -1 (incorrect) to 1 (correct)
-- Fixed Correctness: mark here after putting the right correctness
 - Final answer: if the node is used as a final step non a correct solution, put here the exact alternative
 - Type: a node can be initial, normal or final. Initial means it can be used as the initial step of a solution. Final means it can be used as the final step
 - Doubts: one of the feedbacks, it will be explained with more details later
@@ -54,8 +55,6 @@ If it's an edge it will look like this:
 ![Edge menu](./readme_stuff/editor2.png)
 
 - Validity: It says how correct or wrongt a node is. The value varies from -1 (incorrect) to 1 (correct)
-- Fixed validity: mark here after putting the right correctness
-- Error specific, explainations, etc: the feedbacks that can be shown in this edge, it will be explained with more details later
 
 An edge is considered as valid if the action from the source node to the destiny node is correct. if we use the example below:
 
@@ -89,4 +88,4 @@ If you try editing any feedback, like hints or explanations, it will look like t
 These are the elements you can edit from an existing feedback:
 - Text: What will be shown to students
 - Order: In cases where the same step has multiple feedbacks, they will follow the order. The order that feedbacks will be shown to the student is in a crescent order (1 comes first than 2)
-- Utility: shows how much students liked this feedback or not. Each positive vote increases the value by 1, while each negative vote decreases by 1
+- Usefulness: shows how much students liked this feedback or not. Each positive vote increases the value by 1, while each negative vote decreases by 1

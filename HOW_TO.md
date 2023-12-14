@@ -78,7 +78,12 @@ In those cases, the student have the option to see existing or create new questi
 
 ## Finalizing the exercise
 
-When the student finishes the exercise, heshe will select one of the available options on the left, and after that click on the **Send button**.
-The system will show if your solution is correct, incorrect or if it's in analysis
+When the student finishes the exercise, heshe will select one of the available options on the left, and after that click on the **Send answer** button.
+The system will show if your solution is correct, incorrect or if it's in analysis (if QUATIS still doesn't know if it's correct or not, for example a new solution that wasn't used before)
+
+![Sending the answer](./readme_stuff/student7.png)
 
 After sending your solution, the system may the student for more information (for example explaining a step or checking if its correct or not)
+
+![Asking for hints](./readme_stuff/student5.png)
+![Asking for explanations](./readme_stuff/student6.png)
