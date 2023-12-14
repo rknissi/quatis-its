@@ -24,8 +24,6 @@ If you scroll down all to the end, you can click on the button to show the graph
 
 ![Graph editor button](./readme_stuff/teacher3.png)
 
-After clicking on it, you will see the graph editor. It can be separated in 2 parts, the left where the graph itself will be shown, and the right, where you will be able to create or edit the nodes and edges.
-
 ![Graph editor interface](./readme_stuff/teacher4.png)
 
 Since the graph editor is complex, you can access it separately clicking [here](./GRAPH_EDITOR.md).

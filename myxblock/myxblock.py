@@ -374,7 +374,10 @@ class Quatis_main(XBlock):
     problem_view = student_view
 
     def studio_view(self,context=None):
-        html=self.resource_string("static/html/quatisEdit.html")
+        if self.language == "pt":
+            html=self.resource_string("static/html/quatisEdit.html")
+        else:
+            html = self.resource_string("static/html/quatisEditEn.html")
 
         loadedProblem = Problem.objects.filter(id=self.problemId)
         if loadedProblem.exists():
@@ -632,16 +635,16 @@ class Quatis_main(XBlock):
         for node in graphData['nodes']:
             nodeModel = Node.objects.select_for_update().filter(problem=loadedProblem, title=transformToSimplerAnswer(node["id"]))
             if not nodeModel.exists():
-                #n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
-                n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=1)
+                n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=float(node["fixedValue"]))
+                #n1 = Node(title=node["id"], linkedSolution=node["linkedSolution"], correctness=float(node["correctness"]), problem=loadedProblem, nodePositionX=node["x"], nodePositionY=node["y"], dateAdded=datetime.now(), fixedValue=1)
                 n1.save()
             else:
                 nodeModel = nodeModel.first()
 
                 if ("x" in node and nodeModel.nodePositionX != node["x"]) or ("y" in node and nodeModel.nodePositionY != node["y"]) or nodeModel.linkedSolution != node["linkedSolution"] or nodeModel.correctness != float(node["correctness"]) or nodeModel.fixedValue != float(node["fixedValue"]) or nodeModel.visible != float(node["visible"]):
                     nodeModel.correctness = float(node["correctness"])
-                    #nodeModel.fixedValue = float(node["fixedValue"])
-                    nodeModel.fixedValue = 1
+                    nodeModel.fixedValue = float(node["fixedValue"])
+                    #nodeModel.fixedValue = 1
                     nodeModel.visible = float(node["visible"])
                     if float(node["visible"]) == 0:
                         self.remove_node_feedbacks(nodeModel, loadedProblem)
@@ -741,8 +744,8 @@ class Quatis_main(XBlock):
             if not edgeModel.exists():
                 fromNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["from"]))
                 toNode = Node.objects.get(problem=loadedProblem, title=transformToSimplerAnswer(edge["to"]))
-                #e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
-                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=1)
+                e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=float(edge["fixedValue"]))
+                #e1 = Edge(sourceNode=fromNode, destNode=toNode, correctness=float(edge["correctness"]), problem=loadedProblem, dateAdded=datetime.now(), fixedValue=1)
                 e1.save()
             else:
                 edgeModel = Edge.objects.select_for_update().get(problem=loadedProblem, sourceNode__title=transformToSimplerAnswer(edge["from"]), destNode__title=transformToSimplerAnswer(edge["to"]))
@@ -753,8 +756,8 @@ class Quatis_main(XBlock):
                         self.remove_edge_feedbacks(edgeModel, loadedProblem)
                         edgeModel.correctness = 0
                     edgeModel.dateModified = datetime.now()
-                    #edgeModel.fixedValue = float(edge["fixedValue"])
-                    edgeModel.fixedValue = 1
+                    edgeModel.fixedValue = float(edge["fixedValue"])
+                    #edgeModel.fixedValue = 1
                     edgeModel.save()
                     if edge["modifiedCorrectness"] == 1:
                         self.recalculateResolutionCorrectnessFromEdge(edgeModel)
@@ -1595,7 +1598,7 @@ class Quatis_main(XBlock):
 
     @XBlock.json_handler
     def generate_graph(self, data, suffix=''):
-        return {"teste": getJsonFromProblemGraph(self.problemId)}
+        return {"teste": getJsonFromProblemGraph(self.problemId), "lang": self.language}
 
     #COMO MOSTRAR SE UMA REPSOSTAS ESTÁ CORRETA?
     #TALVEZ COLOCAR ALGUMA COISA NOA TELA QUE MOSTRE QUE A LINHA ESTÁ CORRETA

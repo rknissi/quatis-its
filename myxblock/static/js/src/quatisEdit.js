@@ -36,6 +36,8 @@ function QuatisEdit(runtime, element) {
   var unknownState = [-0.69999, 0.69999]
   var correctState = [0.7, 1]
 
+  var language = 'pt'
+
 
   var defaultArrowStroke = "3 ";
   var defaultArrowSize = 8;
@@ -285,13 +287,6 @@ function QuatisEdit(runtime, element) {
   $('#createStep', element).click(function(eventObject) {
     var el = $(element);
 
-    var fixedValueCheckbox = el.find('input[id=stepFixedValue]').is(':checked')
-    if (fixedValueCheckbox == true) {
-      fixedValueCheckbox = 1
-    } else {
-      fixedValueCheckbox = 0
-    }
-
     var sourceStateExists = false
     var destStateExists = false
 
@@ -322,7 +317,7 @@ function QuatisEdit(runtime, element) {
         hovered: { stroke: { thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()) } },
         selected: { stroke: { color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' } },
         correctness: correctness,
-        fixedValue: fixedValueCheckbox,
+        fixedValue: 1,
         visible: 1,
         modifiedCorrectness: 0
       };
@@ -371,13 +366,6 @@ function QuatisEdit(runtime, element) {
 
     var body;
 
-    var fixedValueCheckbox = el.find('input[id=stateFixedValue]').is(':checked')
-    if (fixedValueCheckbox == true) {
-      fixedValueCheckbox = 1
-    } else {
-      fixedValueCheckbox = 0
-    }
-
     if (dropDownValue === 'normalState') {
       body = {
         id: stateName,
@@ -385,7 +373,7 @@ function QuatisEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: correctness,
-        fixedValue: fixedValueCheckbox,
+        fixedValue: 1,
         linkedSolution: null,
         visible: 1,
         x: 0,
@@ -400,7 +388,7 @@ function QuatisEdit(runtime, element) {
         height: defaultNodeHeight,
         fill: getNodeColor(el.find('input[id=stateCorrectness]').val()),
         correctness: el.find('input[id=stateCorrectness]').val(),
-        fixedValue: fixedValueCheckbox,
+        fixedValue: 1,
         linkedSolution: null,
         visible: 1,
         stroke: strokeType,
@@ -445,13 +433,8 @@ function QuatisEdit(runtime, element) {
     var el = $(element);
     var id = el.find('input[id=editState]').val()
     var value = el.find('input[id=editStateValue]').val()
-    var fixedValue = el.find('input[id=editStateFixedValue]').is(':checked')
+    var fixedValue = 1
     var linkedSolution = el.find('input[id=editStateLinkedSolution]').val()
-    if (fixedValue == true) {
-      fixedValue = 1
-    } else {
-      fixedValue = 0
-    }
 
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
@@ -479,12 +462,8 @@ function QuatisEdit(runtime, element) {
 
     }
     var value = el.find('input[id=editStepValue]').val()
-    var fixedValue = el.find('input[id=editStepFixedValue]').is(':checked')
-    if (fixedValue == true) {
-      fixedValue = 1
-    } else {
-      fixedValue = 0
-    }
+    var fixedValue = 1
+
     changeStepCorrectness(from, to, value, fixedValue)
   });
 
@@ -655,7 +634,10 @@ function QuatisEdit(runtime, element) {
     }
       var nodes = chart.nodes();
 
-      chart.title("Grafo de conhecimento");
+      if (language == 'pt')
+        chart.title("Grafo de conhecimento");
+      else
+        chart.title("Knowledge graph");
 
       // set the size of nodes
       nodes.normal().height(30);
@@ -716,11 +698,7 @@ function QuatisEdit(runtime, element) {
                 document.getElementById("editStateValue").value = data.nodes[i].correctness;
                 document.getElementById("editStateCount").value = data.nodes[i].counter;
                 document.getElementById("editStateLinkedSolution").value = data.nodes[i].linkedSolution;
-                if (data.nodes[i].fixedValue == 1) {
-                  document.getElementById("editStateFixedValue").checked = true;
-                } else {
-                  document.getElementById("editStateFixedValue").checked = false;
-                }
+                data.nodes[i].fixedValue = 1;
 
                 var body = {
                   node: data.nodes[i].id
@@ -850,7 +828,10 @@ function QuatisEdit(runtime, element) {
                 }
 
                 var el = document.createElement("option");
-                el.textContent = "<Adicionar um novo feedback>";
+                if (language == 'pt')
+                  el.textContent = "<Adicionar um novo feedback>";
+                else
+                  el.textContent = "<Add a new feedback>";
                 el.value = 0;
                 errorSpecificSelect.appendChild(el);
                 currentErrorSpecificFeedback.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
@@ -868,7 +849,10 @@ function QuatisEdit(runtime, element) {
                   currentExplanations.set(id, explanations[i])
                 }
                 var el = document.createElement("option");
-                el.textContent = "<Adicionar uma nova explicação>";
+                if (language == 'pt')
+                  el.textContent = "<Adicionar uma nova explicação>";
+                else
+                  el.textContent = "<Add a new explanation>";
                 el.value = 0;
                 explanationSelect.appendChild(el);
                 currentExplanations.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
@@ -886,7 +870,10 @@ function QuatisEdit(runtime, element) {
                   currentHints.set(id, hints[i])
                 }
                 var el = document.createElement("option");
-                el.textContent = "<Adicionar uma nova dica>";
+                if (language == 'pt')
+                  el.textContent = "<Adicionar uma nova dica>";
+                else
+                  el.textContent = "<Add a new hint>";
                 el.value = 0;
                 hintSelect.appendChild(el);
                 currentHints.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
@@ -899,11 +886,7 @@ function QuatisEdit(runtime, element) {
             document.getElementById("editStepDest").value = data.edges[edgePos].to;
             document.getElementById("editStepCount").value = data.edges[edgePos].counter;
             document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
-            if (data.edges[edgePos].fixedValue == 1) {
-              document.getElementById("editStepFixedValue").checked = true;
-            } else {
-              document.getElementById("editStepFixedValue").checked = false;
-            }
+            data.edges[edgePos].fixedValue = 1;
 
             edgeMenu.style.display = "block";
           }
@@ -1200,7 +1183,10 @@ function QuatisEdit(runtime, element) {
       }   
     }
     var el = document.createElement("option");
-    el.textContent = "<Adicionar uma nova resposta>";
+    if (language == 'pt')
+      el.textContent = "<Adicionar uma nova resposta>";
+    else
+      el.textContent = "<Add a new answer>";
     el.value = 0;
     answersSelect.appendChild(el);
     currentAnswers.set(0, {"id": "", "counter": 0, "text": "", "usefulness": 0})
@@ -1296,7 +1282,10 @@ function QuatisEdit(runtime, element) {
       }   
     }
     var el = document.createElement("option");
-    el.textContent = "<Adicionar uma nova resposta>";
+    if (language == 'pt')
+      el.textContent = "<Adicionar uma nova resposta>";
+    else
+      el.textContent = "<Add a new answer>";
     el.value = 0;
     answersSelect.appendChild(el);
     currentAnswers.set(0, {"id": "", "counter": 0, "text": "", "usefulness": 0})
@@ -1632,6 +1621,7 @@ function QuatisEdit(runtime, element) {
       url: getGraphurl,
       data: JSON.stringify({}),
       success: function (value) {
+        language = value.lang
         var loadingMessage = document.getElementById("loadingMessage");
         loadingMessage.style.display = "none"
 

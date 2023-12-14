@@ -1,4 +1,4 @@
-The graph editor is the main feature for the QUATIS, since it's a simplification of the knowledge for each exercised .
+The graph editor is the main feature for the QUATIS, since it's a simplification of the knowledge for each exercised.
 
 # Graph visualization
 
