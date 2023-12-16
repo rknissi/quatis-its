@@ -16,10 +16,54 @@ The front-end ewas developed using HTTP, CSS and Javascript. No UI editor was us
 # Back-end
 Every XBlock is developed using Phython
 
-# Graph
-The graph was initially represented using Dicts, which are also known as maps in other languages like Java. Because of limitations of the XBlock, it was migrated to the MySQL DB, which every elemento of the graph is included there.
+# Details
+As mentioned on the README, the main steps of a common uso of QUATIS would be the following:
+1. The teacher adds the exercise, and customize both the data (like title and descrption) and the knowledge graph
+2. Students will start doing the exercise
+3. Student's data, like new solutions and feedbacks, are added to the graph
+4. From time to time, the teacher will check the graph and correct it
 
+We will now include more specific details on how each step occurs in the backend part of it
+
+## Step 1
 The information from the exercise, like the title, description, alternatives, etc are all set using the XBlock fields, which you can customize to be the same value for everyone or be unique for each student. You can see more information about it [here](https://edx.readthedocs.io/projects/xblock-tutorial/en/latest/concepts/fields.html)
+
+The graph's elements like the nodes and edges were initially represented using Dicts (which can also be XBlocks variables), which are also known as maps in other languages like Java. 
+Because of limitations of the XBlock, which is that it's variables cannot bew modified by both teachers and students, it was migrated to the MySQL DB, which every elemento of the graph is included there.
+
+The tables are separated for on of each element from the graph. These are the main ones:
+
+- Problem (Base element, includes the Id of the problem, which is also an XBlock variable, and it's used to bridge the XBlock variables and the MySQL DB)
+- Node
+- Edge
+- Resolution (represent a solution that the student made during the exercise. Each student that used QUATIS will have an entry here)
+- Attempt (every time a stunde tries an exercise, it will add an attempt in this table)
+- Hint
+- Explanation
+- Error Specific Feedbacks
+- Doubts
+- Answers
+
+Each table above also inclujdes a history table, which stores the changes made to every element of the graph
+
+Also, for safety purposes, QUATIS will also do a backup of all tables every hour. It can be used to rollback or recover the information in case of emergency, or for studies
+
+## Step 2
+During the exercise, every time a student loads the page, QUATIS will count both the time it started and also an attempt
+
+
+## Step 3
+
+When sending the answer, QUATIS will use the step-by-step solution and the selected option and analyze both.
+If all nodes and edges from the Step-by-step solution are coorect/vald, and the selected option is also the correct one, it will share the message that the solution is correct.
+If at least one node is incorrect or one edge is invalid, it will show the response message that the solution is incorrect
+If some element still have the correctness or the validy as unknown, the response message will say that the solution is still in analysis.
+
+After checking if the solution is correct, QUATIS will check on the graph which nodes and edges still need to be checked if they are correct, and also which edges may bstill need feedbacks to be added, for example when a student adds new nodes and edges, they won't have any feedbacks like hints. These informations can also be added by students.
+
+When finishing the exercise and sending all asked feedbacks, the timer will stop, thus completing the information about the student's solution (available on the **resolution** table)
+
+
 
 # Backend calls
 During the usage of QUATIS for both teachers and students, you may need to communicate with the QUATIS back end system in roder to obtain or update data. Here is the list of calls that you can do. This may be useful if you want to explore the system further:
@@ -31,7 +75,7 @@ During the usage of QUATIS for both teachers and students, you may need to commu
 - increase_feedback_count: increase the amount of times a feedback was seem
 - send_answer: send the student's solution to QUATIS, for checking if it'1s correct
 - send_feedback: creates the feedback that the student sents
-- recommend_feedback: it increase or decrease the usefullness of a feedback
+- recommend_feedback: it increase or decrease the usefulness of a feedback
 - get_doubts_and_answers_from_step: obtain the doubts and answers from other students on a certain step (graph's edge)
 - get_doubts_and_answers_from_state: obtain the doubts and answers from other students on a certain state (graph's node)
 - update_positions: the generate graph will try to position the new edges and nodes to increase visibility of the graph's elements
