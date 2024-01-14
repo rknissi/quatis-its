@@ -581,8 +581,9 @@ class Quatis_main(XBlock):
             existingRes.dateFinished = datetime.now()
             existingRes.confirmationKey = confirmation
             existingRes.save()
+            return {"status": "Success", "confirmationCode": confirmation}
 
-        return {"status": "Success", "confirmationCode": confirmation}
+        return {"status": "Success"}
 
     def generateConfirmationKey(self, randonLength):
         return str(self.studentId) + ''.join(random.choices(string.ascii_uppercase, k=randonLength))
