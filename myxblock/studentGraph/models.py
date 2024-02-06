@@ -327,7 +327,6 @@ class Attempt(models.Model):
 	class Meta:
 		app_label  = 'studentGraph'
 
-
 class ErrorSpecificFeedbacks(models.Model):
 	problem = models.ForeignKey(Problem, on_delete=models.CASCADE)
 	edge = models.ForeignKey(Edge, on_delete=models.CASCADE, related_name='errorSpecificFeedbackEdge', blank=True, null=True)

@@ -2762,26 +2762,29 @@ class Quatis_main(XBlock):
         stateCorrectness = 0
         stepCorrectness = 0
 
-        for stateId in stateIdList:
-            if stateId != stateIdList[0] and stateId != stateIdList[-1]:
-                if innerUpdate:
-                    state = Node.objects.select_for_update().get(problem=loadedProblem, id = stateId)
-                    stateCorrectness = stateCorrectness + self.corretudeEstado(state, innerUpdate)
-                else:
-                    state = Node.objects.get(problem=loadedProblem, id = stateId)
-                    stateCorrectness = stateCorrectness + state.correctness
+        try:
+            for stateId in stateIdList:
+                if stateId != stateIdList[0] and stateId != stateIdList[-1]:
+                    if innerUpdate:
+                        state = Node.objects.select_for_update().get(problem=loadedProblem, id = stateId)
+                        stateCorrectness = stateCorrectness + self.corretudeEstado(state, innerUpdate)
+                    else:
+                        state = Node.objects.get(problem=loadedProblem, id = stateId)
+                        stateCorrectness = stateCorrectness + state.correctness
 
 
-        for stepId in stepIdList:
-            if stepId != stepIdList[0] and stepId != stepIdList[-1]:
-                if innerUpdate:
-                    step = Edge.objects.select_for_update().get(problem=loadedProblem, id = stepId)
-                    stepCorrectness = stepCorrectness + self.validadePasso(step, innerUpdate)
-                else:
-                    step = Edge.objects.get(problem=loadedProblem, id = stepId)
-                    stepCorrectness = stepCorrectness + step.correctness
+            for stepId in stepIdList:
+                if stepId != stepIdList[0] and stepId != stepIdList[-1]:
+                    if innerUpdate:
+                        step = Edge.objects.select_for_update().get(problem=loadedProblem, id = stepId)
+                        stepCorrectness = stepCorrectness + self.validadePasso(step, innerUpdate)
+                    else:
+                        step = Edge.objects.get(problem=loadedProblem, id = stepId)
+                        stepCorrectness = stepCorrectness + step.correctness
                 
-        return (1/(2*stateIdAmount)) * (stateCorrectness) + (1/(2*stepIdAmount)) * (stepCorrectness)
+            return (1/(2*stateIdAmount)) * (stateCorrectness) + (1/(2*stepIdAmount)) * (stepCorrectness)
+        except:
+            return 0
     
     def possuiEstado(self, state, resolution):
         return state.id in ast.literal_eval(resolution.nodeIdList)
