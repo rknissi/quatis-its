@@ -1,10 +1,13 @@
+<script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-bundle.min.js"></script>
+
+<!--
+<script src="https://cdn.anychart.com/releases/v8/js/anychart-graph.min.js"></script>
+<script src="https://cdn.anychart.com/releases/v8/js/anychart-exports.min.js"></script>
 <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-base.min.js"></script>
 <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-core.min.js"></script>
-<script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-bundle.min.js"></script>
-<script src="https://cdn.anychart.com/releases/v8/js/anychart-graph.min.js"></script>
 <script src="https://cdn.anychart.com/releases/v8/js/anychart-data-adapter.min.js"></script>
 <script src="https://cdn.anychart.com/releases/v8/js/anychart-ui.min.js"></script>
-<script src="https://cdn.anychart.com/releases/v8/js/anychart-exports.min.js"></script>
+-->
 <link href="https://cdn.anychart.com/releases/v8/css/anychart-ui.min.css" type="text/css" rel="stylesheet">
 <link href="https://cdn.anychart.com/releases/v8/fonts/css/anychart-font.min.css" type="text/css" rel="stylesheet">
 
@@ -177,17 +180,17 @@
       <button type="button" id='import_graph'>Importar</button> 
     </li>
     <p></p>
-    <button type="button" id='generate_report'>Gerar relatório</button>
+    <button hidden type="button" id='generate_report'>Gerar relatório</button>
     <p></p>
     <button type="button" id='export_graph'>Exportar grafo</button>
     <p></p>
     <p></p>
-    <button type="button" id='reset_counters'>Zerar contador de visualização</button>
+    <button hidden type="button" id='reset_counters'>Zerar contador de visualização</button>
     <p></p>
 
   <div>
     <li class="action-item">
-      <button type="button" id='createGraph'>Gerar grafo de conhecimento</button> 
+      <button type="button" id='createGraph'>Gerar árvore de conhecimento</button> 
     </li>
   </div>
 
@@ -315,10 +318,10 @@
 
     <div class="edgeMenu" id="edgeMenu">
       <div class="wrapper-comp-setting extraSpace">
-        <label class="label setting-label" for="editStepSource">Estado inicial</label>
+        <label class="label setting-label" for="editStepSource">Estado fonte</label>
         <input class="input readOnly increaseInputSpace" name="editStepSource" disabled=true id="editStepSource"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editStepDest">Estado final</label>
+        <label class="label setting-label" for="editStepDest">Estado destino</label>
         <input class="input readOnly increaseInputSpace" name="editStepDest" disabled=true id="editStepDest"  type="text" />
         <p></p>
         <label class="label setting-label" for="editStepCount">Quantidade de vezes vista</label>

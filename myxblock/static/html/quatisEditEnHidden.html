@@ -6,160 +6,6 @@
 
 <div class="wrapper-comp-settings is-active editor-with-buttons" id="settings-tab">
   <ul class="list-input settings-list" id="optionsList">
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemTitle">Title  </label>
-        <input class="input setting-input" name="problemTitle" id="problemTitle" value="{problemTitle}" type="text" />
-      </div>
-      <span class="tip setting-help">Example: Solve the equation below</span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemDescription">Description </label>
-        <input class="input setting-input" name="problemDescription" id="problemDescription" value="{problemDescription}" type="text" />
-      </div>
-      <span class="tip setting-help">Example: Please solve the equation 2X = 4</span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="multipleChoiceProblem">Multiple choice problem (actual value: {multipleChoiceProblem})</label>
-        <select class="input setting-input" name="multipleChoiceProblem" id="multipleChoiceProblem" value="{multipleChoiceProblem}">
-          <option value="1">Yes</option>
-          <option value="0">No</option>
-        </select>
-      </div>
-      <span class="tip setting-help">Check if it's a multiple choice problem (1 for yes, 0 for no)</span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemDefaultHint">Default hint (in portuguese)</label>
-        <input class="input setting-input" name="problemDefaultHint" id="problemDefaultHint" value="{problemDefaultHint}" type="text" />
-      </div>
-      <span class="tip setting-help">The hint that will be shown if it can't find a proper one</span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemDefaultHintEnglish">Default hint</label>
-        <input class="input setting-input" name="problemDefaultHintEnglish" id="problemDefaultHintEnglish" value="{problemDefaultHintEnglish}" type="text" />
-      </div>
-      <span class="tip setting-help">The hint that will be shown if it can't find a proper one</span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemInitialHint">Initial hint (in portuguese) </label>
-        <input class="input setting-input" name="problemInitialHint" id="problemInitialHint" value="{problemInitialHint}" type="text" />
-      </div>
-      <span class="tip setting-help">The hint that will appear if the current solution is empty </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemInitialHintEnglish">Initial hint </label>
-        <input class="input setting-input" name="problemInitialHintEnglish" id="problemInitialHintEnglish" value="{problemInitialHintEnglish}" type="text" />
-      </div>
-      <span class="tip setting-help">The hint that will appear if the current solution is empty </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer1">Choice 1  </label>
-        <input class="input setting-input" name="problemAnswer1" id="problemAnswer1" value="{problemAnswer1}" type="text" />
-      </div>
-      <span class="tip setting-help">Choice 1. This is ignored if the exercise is not a multiple choice </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer2">Choice 2  </label>
-        <input class="input setting-input" name="problemAnswer2" id="problemAnswer2" value="{problemAnswer2}" type="text" />
-      </div>
-      <span class="tip setting-help">Choice 2. This is ignored if the exercise is not a multiple choice </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer3">Choice 3  </label>
-        <input class="input setting-input" name="problemAnswer3" id="problemAnswer3" value="{problemAnswer3}" type="text" />
-      </div>
-      <span class="tip setting-help">Choice 3. This is ignored if the exercise is not a multiple choice </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer4">Choice 4  </label>
-        <input class="input setting-input" name="problemAnswer4" id="problemAnswer4" value="{problemAnswer4}" type="text" />
-      </div>
-      <span class="tip setting-help">Choice 4. This is ignored if the exercise is not a multiple choice </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemAnswer5">Choice 5  </label>
-        <input class="input setting-input" name="problemAnswer5" id="problemAnswer5" value="{problemAnswer5}" type="text" />
-      </div>
-      <span class="tip setting-help">Choice 5. This is ignored if the exercise is not a multiple choice </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemCorrectAnswer">Correct choice  </label>
-        <input class="input setting-input" name="problemCorrectAnswer" id="problemCorrectAnswer" value="{problemCorrectAnswer}" type="text" />
-      </div>
-      <span class="tip setting-help">The coccrect choice. This is ignored if the exercise is not a multiple choice </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemSubject">Exercise's subject  </label>
-        <input class="input setting-input" name="problemSubject" id="problemSubject" value="{problemSubject}" type="text" />
-      </div>
-      <span class="tip setting-help">The subject of the exercise, like math or biology </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="problemTags">Tags  </label>
-        <input class="input setting-input" name="problemTags" id="problemTags" value="{problemTags}" type="text" />
-      </div>
-      <span class="tip setting-help">Tags of the exervise, like math and equation  </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="callOpenAiExplanation">Utilizes AI to generate an explanation  </label>
-        <input class="input setting-input" name="callOpenAiExplanation" id="callOpenAiExplanation" value="{callOpenAiExplanation}" type="text" />
-      </div>
-      <span class="tip setting-help">If it will have an AI generated explanation </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="questionToAsk">If yes, what will be the question?  </label>
-        <input class="input setting-input" name="questionToAsk" id="questionToAsk" value="{questionToAsk}" type="text" />
-      </div>
-      <span class="tip setting-help">What will be the question to the AI </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="openApiToken">OpenApi token  </label>
-        <input class="input setting-input" name="openApiToken" id="openApiToken" value="{openApiToken}" type="text" />
-      </div>
-      <span class="tip setting-help">Which OpenApi token will be used </span>
-    </li>
-
-    <li class="field comp-setting-entry is-set">
-      <div class="wrapper-comp-setting">
-        <label class="label setting-label" for="language">Language  </label>
-        <input class="input setting-input" name="language" id="language" value="{language}" type="text" />
-      </div>
-      <span class="tip setting-help">Language of the user interface for both student and teacher</span>
-    </li>
 
     <li class="field comp-setting-entry is-set">
       <div class="wrapper-comp-setting">
@@ -168,16 +14,8 @@
       </div>
       <span class="tip setting-help">Import the data from a previously created exercise as a JSON</span>
       <p></p>
-      <button type="button" id='import_graph'>Import</button> 
+      <button type="button" id='import_graph'>Import</button>
     </li>
-    <p></p>
-    <button type="button" id='generate_report'>Generate report</button>
-    <p></p>
-    <button type="button" id='export_graph'>Export graph</button>
-    <p></p>
-    <p></p>
-    <button type="button" id='reset_counters'>Reset visualization counter</button>
-    <p></p>
 
   <div>
     <li class="action-item">
@@ -210,8 +48,8 @@
         <label class="label setting-label" for="editStateValue">Correctness</label>
         <input class="input increaseInputSpace" name="editStateValue" id="editStateValue"  type="text" />
         <p></p>
-        <label class="label setting-label" for="editStateLinkedSolution">Linked to choice</label>
-        <input class="input increaseInputSpace" name="editStateLinkedSolution" id="editStateLinkedSolution" type="text" />
+        <label style="display: none;" class="label setting-label" for="editStateLinkedSolution">Linked to choice</label>
+        <input hidden class="input increaseInputSpace" name="editStateLinkedSolution" id="editStateLinkedSolution" type="text" />
         <p></p>
         <label class="label setting-label" for="stateType">Type  </label>
         <select class="increaseInputSpace" name="changeStateType" id="changeStateType">
@@ -227,7 +65,7 @@
         <p></p>
       </div>
         <p></p>
-      <div class="wrapper-comp-setting extraSpace">
+      <div hidden class="wrapper-comp-setting extraSpace">
 
         <label class="label setting-label" for="">Doubts</label>
         <select class="increaseInputSpace" name="stateDoubts" id="stateDoubts">
@@ -320,7 +158,7 @@
         <p></p>
       </div>
         <p></p>
-      <div class="wrapper-comp-setting extraSpace">
+      <div hidden class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="">Error specific feedback</label>
         <select class="increaseInputSpace" name="stepErrorSpecificFeedbacks" id="stepErrorSpecificFeedbacks">
         </select>
@@ -329,7 +167,7 @@
         <p></p>
       </div>
         <p></p>
-      <div class="wrapper-comp-setting extraSpace">
+      <div hidden class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="">Explanations</label>
         <select class="increaseInputSpace" name="stepExplanations" id="stepExplanations">
         </select>
@@ -338,7 +176,7 @@
         <p></p>
       </div>
         <p></p>
-      <div class="wrapper-comp-setting extraSpace">
+      <div hidden class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="">Hints</label>
         <select class="increaseInputSpace" name="stepHints" id="stepHints">
         </select>
@@ -347,7 +185,7 @@
         <p></p>
       </div>
         <p></p>
-      <div class="wrapper-comp-setting extraSpace">
+      <div hidden class="wrapper-comp-setting extraSpace">
         <label class="label setting-label" for="">Doubts</label>
         <select class="increaseInputSpace" name="stepDoubts" id="stepDoubts">
         </select>

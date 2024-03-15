@@ -23,6 +23,8 @@ function QuatisEdit(runtime, element) {
 
   var chart;
   var data;
+  var lastNodeId = null;
+  var problemDescription = null
 
   var invalidStep = [-1, -0.80001]
   var stronglyInvalidStep = [-0.8, -0.40001]
@@ -48,10 +50,14 @@ function QuatisEdit(runtime, element) {
   var initialNodeShape = "square";
   var finalNodeShape = "diamond";
   var initialNodeStroke = {"color": "black", "dash": "5 5"};
+  var initialNodeStrokeFixed = {"color": "blue", "thickness": "2", "dash": "5 5"};
   var finalNodeStroke = "1 black";
+  var finalNodeStrokeFixed = "2 blue";
   var multipleNodeShape = "star7";
   var multipleNodeStroke = "1 black";
+  var multipleNodeStrokeFixed = "2 blue";
   var normalNodeStroke = null
+  var normalNodeStrokeFixed = "2 blue"
 
 
   var currentDoubtAnswers = new Map()
@@ -126,8 +132,8 @@ function QuatisEdit(runtime, element) {
     for (i = 0; i < data.nodes.length; ++i) {
       if (nodeName === data.nodes[i].id) {
         nodeData = data.nodes[i];
+        nodeData.stroke = data.nodes[i].fixedValue == 0 ? normalNodeStroke : normalNodeStrokeFixed;
         data.nodes.splice(i, 1);
-        nodeData.stroke = normalNodeStroke;
         nodeData.shape = normalNodeShape;
         addNode(nodeData);
         break;
@@ -140,8 +146,8 @@ function QuatisEdit(runtime, element) {
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
+          nodeData.stroke =  data.nodes[i].fixedValue == 0 ? initialNodeStroke : initialNodeStrokeFixed;
           data.nodes.splice(i, 1);
-          nodeData.stroke = initialNodeStroke;
           nodeData.shape = initialNodeShape;
           addNode(nodeData);
           break;
@@ -154,8 +160,8 @@ function QuatisEdit(runtime, element) {
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
+          nodeData.stroke = data.nodes[i].fixedValue == 0 ? finalNodeStroke : finalNodeStrokeFixed
           data.nodes.splice(i, 1);
-          nodeData.stroke = finalNodeStroke
           nodeData.shape = finalNodeShape;
           addNode(nodeData);
           break;
@@ -168,8 +174,8 @@ function QuatisEdit(runtime, element) {
       for (i = 0; i < data.nodes.length; ++i) {
         if (nodeName === data.nodes[i].id) {
           nodeData = data.nodes[i];
+          nodeData.stroke = data.nodes[i].fixedValue == 0 ? multipleNodeStroke : multipleNodeStrokeFixed;
           data.nodes.splice(i, 1);
-          nodeData.stroke = multipleNodeStroke
           nodeData.shape = multipleNodeShape;
           addNode(nodeData);
           break;
@@ -195,21 +201,22 @@ function QuatisEdit(runtime, element) {
           break;
         }
     }
-    //reApplyConfig();
   }
 
   function changeStepCorrectness(sourceName, distName, value, fixedValue){
       for (i = 0; i < data.edges.length; ++i) {
         if (sourceName === data.edges[i].from && distName === data.edges[i].to) {
           edgeData = data.edges[i];
+          data.edges.splice(i, 1);
     
           edgeData.correctness = value
           edgeData.fixedValue = fixedValue;
 
-          edgeData.normal = {stroke: defaultArrowStroke + getEdgeColor(value)}
+          edgeData.normal = {stroke: {thickness: 5, color: getEdgeColor(value), dash: '5 3'}}
           edgeData.hovered = {stroke: {thickness: 5, color: getEdgeColor(value)}}
           edgeData.selected = {stroke: {color: getEdgeColor(value), dash: '10 3', thickness: '7' }}
           edgeData.modifiedCorrectness = 1;
+          addEdge(edgeData)
           
           break;
         }
@@ -301,19 +308,43 @@ function QuatisEdit(runtime, element) {
         destStateExists = true
       }
     }
+
+    for (i = 0; i < data.edges.length; ++i) {
+      if (sourceState == data.edges[i].from && destState == data.edges[i].to
+        || destState == data.edges[i].from && sourceState == data.edges[i].to) {
+        if (language == 'pt') 
+          window.alert("Esse passo já existe")
+        else
+          window.alert("This step already exists")
+
+        return
+      }
+    }
+
     var correctness = el.find('input[id=stepCorrectness]').val()
     if (!correctness) {
       correctness = 0
+    } else if (isNaN(correctness) || correctness > 1 || correctness < -1) {
+      if (language == 'pt') 
+        window.alert("O valor da validade é um número entre -1 e 1")
+      else
+        window.alert("Validity has the values between -1 and 1")
+      return
     }
 
     if (sourceState == destState) {
-      window.alert("Ambos estados são iguais, selecione estados diferentes")
+      if (language == 'pt')
+        window.alert("Ambos estados são iguais, selecione estados diferentes")
+      else
+        window.alert("Both nodes are the same, choose different nodes")
     } else if (sourceStateExists && destStateExists) {
       var info = {
         from: sourceState,
         to: destState,
         counter: 0,
-        normal: { stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()) },
+        
+        //normal: { stroke: defaultArrowStroke + getEdgeColor(el.find('input[id=stepCorrectness]').val()) },
+        normal: {stroke: {thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '5 3'} },
         hovered: { stroke: { thickness: 5, color: getEdgeColor(el.find('input[id=stepCorrectness]').val()) } },
         selected: { stroke: { color: getEdgeColor(el.find('input[id=stepCorrectness]').val()), dash: '10 3', thickness: '7' } },
         correctness: correctness,
@@ -327,7 +358,10 @@ function QuatisEdit(runtime, element) {
       addEdge(info);
       reApplyConfig();
     } else {
-      window.alert("Um dos estados do passo não existe. Crie o estado antes de criar o passo")
+      if (language == 'pt') 
+        window.alert("Um dos estados do passo não existe. Crie o estado antes de criar o passo")
+      else
+        window.alert("One of the nodes do not exists. Please create it before creating the step")
     }
   });
 
@@ -342,26 +376,47 @@ function QuatisEdit(runtime, element) {
 
     var stateName = el.find('input[id=stateName]').val().toLowerCase().replaceAll(' ', '')
 
+    if (!stateName) {
+      if (language == 'pt') 
+        window.alert("Coloque um nome para esse estado")
+      else
+        window.alert("Input a name for this node")
+      return
+    }
+
     for (i = 0; i < data.nodes.length; ++i) {
       if (stateName === data.nodes[i].id) {
-        window.alert("Você já dicionou um estado com o mesmo nome")
+        if (language == 'pt')
+          window.alert("Você já adicionou um estado com o mesmo nome")
+        else
+          window.alert("There's already a node with the same name")
+        return
       }
     }
 
     var correctness = el.find('input[id=stateCorrectness]').val()
     if (!correctness) {
       correctness = 0
+    } else if (isNaN(correctness) || correctness > 1 || correctness < -1) {
+        if (language == 'pt')
+          window.alert("O valor da corretude é um número entre -1 e 1")
+        else
+          window.alert("Correctness has values between -1 e 1")
+        return
     }
 
     if (dropDownValue === 'initialState') {
-        strokeType = initialNodeStroke;
+        strokeType = initialNodeStrokeFixed;
         shapeType = initialNodeShape;
     } else if (dropDownValue === 'finalState') {
-        strokeType = finalNodeStroke;
+        strokeType = finalNodeStrokeFixed;
         shapeType = finalNodeShape;
     } else if (dropDownValue === 'initialAndFinalState') {
-        strokeType = multipleNodeStroke;
+        strokeType = multipleNodeStrokeFixed;
         shapeType = multipleNodeShape;
+    } else {
+        strokeType = normalNodeStrokeFixed;
+        shapeType = normalNodeShape;
     }
 
     var body;
@@ -376,6 +431,10 @@ function QuatisEdit(runtime, element) {
         fixedValue: 1,
         linkedSolution: null,
         visible: 1,
+        stroke: strokeType,
+        shape: shapeType,
+        hovered: {"stroke": {"color": "#333333", "thickness": 3}}, 
+        selected:  {"stroke": {"color": "#333333", "thickness": 3}},
         x: 0,
         y: 0,
         type: dropDownValue,
@@ -393,6 +452,8 @@ function QuatisEdit(runtime, element) {
         visible: 1,
         stroke: strokeType,
         shape: shapeType,
+        hovered: {"stroke": {"color": "#333333", "thickness": 3}}, 
+        selected:  {"stroke": {"color": "#333333", "thickness": 3}},
         x: 0,
         y: 0,
         type: dropDownValue,
@@ -406,17 +467,20 @@ function QuatisEdit(runtime, element) {
   });
 
   $('#removeState', element).click(function(eventObject) {
+    //document.getElementById("removeState").disabled = true;
     var el = $(element);
     var id = el.find('input[id=editState]').val()
     removeNode(id)
 
     var nodeMenu = document.getElementById("nodeMenu");
     var addMenu = document.getElementById("addMenu");
+    //document.getElementById("removeState").disabled = false;
     nodeMenu.style.display = "none";
     addMenu.style.display = "block";
   });
 
   $('#removeStep', element).click(function(eventObject) {
+    //document.getElementById("removeStep").disabled = true;
     var el = $(element);
     var from = el.find('input[id=editStepSource]').val()
     var to = el.find('input[id=editStepDest]').val()
@@ -424,6 +488,7 @@ function QuatisEdit(runtime, element) {
 
     var edgeMenu = document.getElementById("edgeMenu");
     var addMenu = document.getElementById("addMenu");
+    //document.getElementById("removeStep").disabled = false;
     edgeMenu.style.display = "none";
     addMenu.style.display = "block";
   });
@@ -438,6 +503,16 @@ function QuatisEdit(runtime, element) {
 
     var dropDown = document.getElementById("changeStateType");
     var dropDownValue = dropDown.options[dropDown.selectedIndex].value;
+
+    if (!value) {
+      value = 0
+    } else if (isNaN(value) || value > 1 || value < -1) {
+      if (language == 'pt')
+        window.alert("O valor da corretude é um número entre -1 e 1")
+      else
+        window.alert("Correctness value is between -1 and 1")
+      return
+    }
 
     changeNodeCorrectness(id, value, fixedValue, linkedSolution)
     if (dropDownValue === 'normalState') {
@@ -457,12 +532,25 @@ function QuatisEdit(runtime, element) {
     var from = el.find('input[id=editStepSource]').val()
     var to = el.find('input[id=editStepDest]').val()
     if (transformToSimplerAnswer(from) == transformToSimplerAnswer(to)) {
-      alert("Não é possível conectar o element com ele mesmo")
+      if (language == 'pt')
+        alert("Não é possível conectar o elemento com ele mesmo")
+      else
+        alert("You cannot do a self loop")
       return
 
     }
     var value = el.find('input[id=editStepValue]').val()
     var fixedValue = 1
+
+    if (!value) {
+      value = 0
+    } else if (isNaN(value) || value > 1 || value < -1) {
+      if (language == 'pt')
+        window.alert("O valor da validade é um número entre -1 e 1")
+      else
+        window.alert("Validity value is between -1 e 1")
+      return
+    }
 
     changeStepCorrectness(from, to, value, fixedValue)
   });
@@ -528,7 +616,10 @@ function QuatisEdit(runtime, element) {
       url: resetCountersUrl,
       data: JSON.stringify(data),
       success: function (data) {
+      if (language == 'pt')
         window.alert("Informações de contagens zerados")
+      else
+        window.alert("Step and state counters resetted")
       }   
     });
   });
@@ -585,7 +676,9 @@ function QuatisEdit(runtime, element) {
   });
 
   function createOrReloadGraph(value) {
+    var hasRemoved = false
     if (value != null) {
+      problemDescription = value.teste.desc
 
       chart = anychart.graph(value.teste);
       var credits = chart.credits();
@@ -600,14 +693,19 @@ function QuatisEdit(runtime, element) {
       zoomController.render();
 
     } else {
-      document.getElementById("graph").innerHTML = "";
       var nodeData = chart.toJson().chart.graphData.nodes
 
       for (i = 0; i < nodeData.length; ++i) {
         for (j = 0; j < data.nodes.length; ++j) {
           if (nodeData[i].id === data.nodes[j].id) {
-            data.nodes[j].x = nodeData[i].x;
-            data.nodes[j].y = nodeData[i].y;
+            if (data.nodes[j].x != nodeData[i].x || data.nodes[j].y != nodeData[i].y) {
+              data.nodes[j].x = nodeData[i].x;
+              data.nodes[j].y = nodeData[i].y;
+              updatedNode = data.nodes[j]
+              data.nodes.splice(j, 1);
+              addNode(updatedNode)
+              j--
+            }
             break
           }
         }
@@ -615,29 +713,49 @@ function QuatisEdit(runtime, element) {
 
       saveGraph();
 
+
       for (i = 0; i < data.nodes.length; ++i) {
         if (data.nodes[i].visible == 0) {
           nodeName = data.nodes[i].id
           data.nodes.splice(i, 1);
+          //lastNodeId = null
           removeEdgeWithNode(nodeName)
+          hasRemoved = true
         }
       }
 
       for (i = 0; i < data.edges.length; ++i) {
         if (data.edges[i].visible == 0) {
           data.edges.splice(i, 1);
+          hasRemoved = true
         }
       }
 
-      chart = anychart.graph(data);
+      if (hasRemoved) {
+        document.getElementById("graph").innerHTML = "";
+        chart = anychart.graph(data);
+      } else {
+        chart.edges().arrows({
+          enabled: false
+        });
+        chart.data(data);
+      }
 
     }
       var nodes = chart.nodes();
 
-      if (language == 'pt')
-        chart.title("Grafo de conhecimento");
-      else
-        chart.title("Knowledge graph");
+      if (language == 'pt') {
+        if (problemDescription)
+          chart.title("Árvore de conhecimento: " + problemDescription);
+        else
+          chart.title("Árvore de conhecimento");
+      }
+      else {
+        if (problemDescription)
+          chart.title("Knowledge graph: " + problemDescription);
+        else
+          chart.title("Knowledge graph");
+      }
 
       // set the size of nodes
       nodes.normal().height(30);
@@ -663,241 +781,283 @@ function QuatisEdit(runtime, element) {
       chart.nodes().labels().format("{%id}");
       chart.nodes().labels().fontSize(defaultFontSize);
       chart.nodes().labels().fontWeight(600);
-
       chart.edges().arrows({
         enabled: true,
         size: defaultArrowSize,
         position: '80%'
       });
-    
-      chart.interactivity().scrollOnMouseWheel(true);
-      chart.interactivity().zoomOnMouseWheel(false);
 
-      chart.layout().type("fixed");
+      if (value != null || hasRemoved == true) {
+        chart.interactivity().scrollOnMouseWheel(true);
+        chart.interactivity().zoomOnMouseWheel(false);
+        
+        chart.layout().type("fixed");
+        chart.container("graph");
+        chart.draw();
+        chart.listen("click", function (e) {
+          var tag = e.domTarget.tag;
+          var nodeMenu = document.getElementById("nodeMenu");
+          var edgeMenu = document.getElementById("edgeMenu");
+          var addMenu = document.getElementById("addMenu");
+          var doubtMenu = document.getElementById("doubtMenu");
+          var feedbackMenu = document.getElementById("feedbackMenu");
 
-      chart.container("graph").draw();
+          if (tag) {
+            if (tag.type === 'node') {
+              edgeMenu.style.display = "none";
+              addMenu.style.display = "none";
+              doubtMenu.style.display = "none";
+              feedbackMenu.style.display = "none";
 
-      chart.listen("click", function(e) {
-        var tag = e.domTarget.tag;
-        var nodeMenu = document.getElementById("nodeMenu");
-        var edgeMenu = document.getElementById("edgeMenu");
-        var addMenu = document.getElementById("addMenu");
-        var doubtMenu = document.getElementById("doubtMenu");
-        var feedbackMenu = document.getElementById("feedbackMenu");
+              for (var i = 0; i < data.nodes.length; i++) {
+                if (data.nodes[i].id === tag.id) {
+                  document.getElementById("editState").value = tag.id;
+                  document.getElementById("editStateValue").value = data.nodes[i].correctness;
+                  document.getElementById("editStateCount").value = data.nodes[i].counter;
+                  document.getElementById("editStateLinkedSolution").value = data.nodes[i].linkedSolution;
 
-        if (tag) {
-          if (tag.type === 'node') {
-            edgeMenu.style.display = "none";
-            addMenu.style.display = "none";
-            doubtMenu.style.display = "none";
-            feedbackMenu.style.display = "none";
+                  var body = {
+                    node: data.nodes[i].id
+                  };
 
-            for (var i = 0; i < data.nodes.length; i++) {
-              if (data.nodes[i].id === tag.id) {
-                document.getElementById("editState").value = tag.id;
-                document.getElementById("editStateValue").value = data.nodes[i].correctness;
-                document.getElementById("editStateCount").value = data.nodes[i].counter;
-                document.getElementById("editStateLinkedSolution").value = data.nodes[i].linkedSolution;
-                data.nodes[i].fixedValue = 1;
+                  $.ajax({
+                    type: "POST",
+                    url: getNodeInfoUrl,
+                    data: JSON.stringify(body),
+                    success: function (nodeInfo) {
 
-                var body = {
-                  node: data.nodes[i].id
-                };
+                      currentDoubtAnswers.clear()
+                      var select = document.getElementById("stateDoubts");
+                      var i, L = select.options.length - 1;
+                      for (i = L; i >= 0; i--) {
+                        select.remove(i);
+                      }
 
-                $.ajax({
-                  type: "POST",
-                  url: getNodeInfoUrl,
-                  data: JSON.stringify(body),
-                  success: function (nodeInfo) {
+                      doubts = nodeInfo.doubts
 
-                    currentDoubtAnswers.clear()
-                    var select = document.getElementById("stateDoubts");
-                    var i, L = select.options.length - 1;
-                    for(i = L; i >= 0; i--) {
-                       select.remove(i);
+                      for (var i = 0; i < doubts.length; i++) {
+
+                        var id = doubts[i].id;
+                        var text = doubts[i].text;
+                        var counter = doubts[i].counter;
+                        var el = document.createElement("option");
+                        el.textContent = text;
+                        el.value = id;
+                        el.counter = counter;
+                        select.appendChild(el);
+
+                        currentDoubtAnswers.set(id, doubts[i].answers)
+                      }
                     }
 
-                    doubts = nodeInfo.doubts
+                  });
 
-                    for (var i = 0; i < doubts.length; i++) {
+                  //data.nodes[i].fixedValue = 1;
 
-                      var id = doubts[i].id;
-                      var text = doubts[i].text;
-                      var counter = doubts[i].counter;
-                      var el = document.createElement("option");
-                      el.textContent = text;
-                      el.value = id;
-                      el.counter = counter;
-                      select.appendChild(el);
+                  if (data.nodes[i].shape === 'diamond') {
+                    document.getElementById('changeStateType').value = 'finalState';
+                  } else if (data.nodes[i].shape === 'square') {
+                    document.getElementById('changeStateType').value = 'initialState';
+                  } else if (data.nodes[i].shape === 'star7') {
+                    document.getElementById('changeStateType').value = 'initialAndFinalState';
+                  } else {
+                    document.getElementById('changeStateType').value = 'normalState';
+                  }
 
-                      currentDoubtAnswers.set(id, doubts[i].answers)
-                    }
-                  }   
+                  //lastNodeId = i
+                  //newNode = data.nodes[i]
+                  //data.nodes.splice(i, 1);
+                  //addNode(newNode);
+                  //chart.data(data);
 
-                });
 
-                if (data.nodes[i].shape === 'diamond') {
-                  document.getElementById('changeStateType').value = 'finalState';
-                } else if (data.nodes[i].shape === 'square') {
-                  document.getElementById('changeStateType').value = 'initialState';
-                } else if (data.nodes[i].shape === 'star7') {
-                  document.getElementById('changeStateType').value = 'initialAndFinalState';
-                } else {
-                  document.getElementById('changeStateType').value = 'normalState';
+                  nodeMenu.style.display = "block";
+                  break;
                 }
-
-                nodeMenu.style.display = "block";
-                break;
               }
             }
-          }
-          else if (tag.type === 'edge') {
+            else if (tag.type === 'edge') {
+              nodeMenu.style.display = "none";
+              addMenu.style.display = "none";
+              doubtMenu.style.display = "none";
+              feedbackMenu.style.display = "none";
+
+              edgePos = tag.id.split("_")[1];
+              var body = {
+                from: data.edges[edgePos].from,
+                to: data.edges[edgePos].to
+              };
+
+              $.ajax({
+                type: "POST",
+                url: getEdgeInfoUrl,
+                data: JSON.stringify(body),
+                success: function (edgeInfo) {
+
+                  currentDoubtAnswers.clear()
+                  currentExplanations.clear()
+                  currentErrorSpecificFeedback.clear()
+                  currentHints.clear()
+
+                  var errorSpecificSelect = document.getElementById("stepErrorSpecificFeedbacks");
+                  var i, L = errorSpecificSelect.options.length - 1;
+                  for (i = L; i >= 0; i--) {
+                    errorSpecificSelect.remove(i);
+                  }
+
+                  var explanationSelect = document.getElementById("stepExplanations");
+                  var i, L = explanationSelect.options.length - 1;
+                  for (i = L; i >= 0; i--) {
+                    explanationSelect.remove(i);
+                  }
+
+                  var hintSelect = document.getElementById("stepHints");
+                  var i, L = hintSelect.options.length - 1;
+                  for (i = L; i >= 0; i--) {
+                    hintSelect.remove(i);
+                  }
+
+                  var doubtSelect = document.getElementById("stepDoubts");
+                  var i, L = doubtSelect.options.length - 1;
+                  for (i = L; i >= 0; i--) {
+                    doubtSelect.remove(i);
+                  }
+
+
+                  var doubts = edgeInfo.doubts
+                  for (var i = 0; i < doubts.length; i++) {
+
+                    var id = doubts[i].id;
+                    var text = doubts[i].text;
+                    var counter = doubts[i].counter;
+                    var el = document.createElement("option");
+                    el.textContent = text;
+                    el.value = id;
+                    el.counter = counter;
+                    doubtSelect.appendChild(el);
+
+                    currentDoubtAnswers.set(id, doubts[i].answers)
+                  }
+
+                  var errorSpecificFeedbacks = edgeInfo.errorSpecificFeedbacks
+                  for (var i = 0; i < errorSpecificFeedbacks.length; i++) {
+
+                    var id = errorSpecificFeedbacks[i].id;
+                    var text = errorSpecificFeedbacks[i].text;
+                    var el = document.createElement("option");
+                    el.textContent = text;
+                    el.value = id;
+                    errorSpecificSelect.appendChild(el);
+
+                    currentErrorSpecificFeedback.set(id, errorSpecificFeedbacks[i])
+                  }
+
+                  var el = document.createElement("option");
+                  if (language == 'pt')
+                    el.textContent = "<Adicionar um novo feedback>";
+                  else
+                    el.textContent = "<Add a new feedback>";
+                  el.value = 0;
+                  errorSpecificSelect.appendChild(el);
+                  currentErrorSpecificFeedback.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
+
+                  var explanations = edgeInfo.explanations
+                  for (var i = 0; i < explanations.length; i++) {
+
+                    var id = explanations[i].id;
+                    var text = explanations[i].text;
+                    var el = document.createElement("option");
+                    el.textContent = text;
+                    el.value = id;
+                    explanationSelect.appendChild(el);
+
+                    currentExplanations.set(id, explanations[i])
+                  }
+                  var el = document.createElement("option");
+                  if (language == 'pt')
+                    el.textContent = "<Adicionar uma nova explicação>";
+                  else
+                    el.textContent = "<Add a new explanation>";
+                  el.value = 0;
+                  explanationSelect.appendChild(el);
+                  currentExplanations.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
+
+                  var hints = edgeInfo.hints
+                  for (var i = 0; i < hints.length; i++) {
+
+                    var id = hints[i].id;
+                    var text = hints[i].text;
+                    var el = document.createElement("option");
+                    el.textContent = text;
+                    el.value = id;
+                    hintSelect.appendChild(el);
+
+                    currentHints.set(id, hints[i])
+                  }
+                  var el = document.createElement("option");
+                  if (language == 'pt')
+                    el.textContent = "<Adicionar uma nova dica>";
+                  else
+                    el.textContent = "<Add a new hint>";
+                  el.value = 0;
+                  hintSelect.appendChild(el);
+                  currentHints.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
+
+
+                }
+              });
+
+              document.getElementById("editStepSource").value = data.edges[edgePos].from;
+              document.getElementById("editStepDest").value = data.edges[edgePos].to;
+              document.getElementById("editStepCount").value = data.edges[edgePos].counter;
+              document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
+              //data.edges[edgePos].fixedValue = 1;
+              //data.edges[edgePos].normal.stroke = { "thickness": 5, "color": getEdgeColor(data.edges[edgePos].correctness), "dash": '5 3' }
+
+              edgeMenu.style.display = "block";
+            }
+          } else {
+            //if (lastNodeId) {
+            //  newNode = data.nodes[lastNodeId]
+            //  data.nodes.splice(lastNodeId, 1);
+            //  addNode(newNode);
+
+            //  var nodeData = chart.toJson().chart.graphData.nodes
+            //  for (i = 0; i < nodeData.length; ++i) {
+            //    for (j = 0; j < data.nodes.length; ++j) {
+            //      if (nodeData[i].id === data.nodes[j].id) {
+            //        if (data.nodes[j].x != nodeData[i].x || data.nodes[j].y != nodeData[i].y) {
+            //          data.nodes[j].x = nodeData[i].x;
+            //          data.nodes[j].y = nodeData[i].y;
+            //          updatedNode = data.nodes[j]
+            //          data.nodes.splice(j, 1);
+            //          addNode(updatedNode)
+            //        }
+            //        break
+            //      }
+            //    }
+            //  }
+
+            //  chart.edges().arrows({
+            //    enabled: false
+            //  });
+            //  chart.data(data);
+            //  chart.edges().arrows({
+            //    enabled: true,
+            //    size: defaultArrowSize,
+            //    position: '80%'
+            //  });
+            //  lastNodeId = null
+            //}
+            addMenu.style.display = "block";
             nodeMenu.style.display = "none";
-            addMenu.style.display = "none";
+            edgeMenu.style.display = "none";
             doubtMenu.style.display = "none";
             feedbackMenu.style.display = "none";
-
-            edgePos = tag.id.split("_")[1];
-            var body = {
-              from: data.edges[edgePos].from,
-              to: data.edges[edgePos].to
-            };
-
-            $.ajax({
-              type: "POST",
-              url: getEdgeInfoUrl,
-              data: JSON.stringify(body),
-              success: function (edgeInfo) {
-
-                currentDoubtAnswers.clear()
-                currentExplanations.clear()
-                currentErrorSpecificFeedback.clear()
-                currentHints.clear()
-
-                var errorSpecificSelect = document.getElementById("stepErrorSpecificFeedbacks");
-                var i, L = errorSpecificSelect.options.length - 1;
-                for (i = L; i >= 0; i--) {
-                  errorSpecificSelect.remove(i);
-                }
-
-                var explanationSelect = document.getElementById("stepExplanations");
-                var i, L = explanationSelect.options.length - 1;
-                for (i = L; i >= 0; i--) {
-                  explanationSelect.remove(i);
-                }
-
-                var hintSelect = document.getElementById("stepHints");
-                var i, L = hintSelect.options.length - 1;
-                for (i = L; i >= 0; i--) {
-                  hintSelect.remove(i);
-                }
-
-                var doubtSelect = document.getElementById("stepDoubts");
-                var i, L = doubtSelect.options.length - 1;
-                for (i = L; i >= 0; i--) {
-                  doubtSelect.remove(i);
-                }
-
-
-                var doubts = edgeInfo.doubts
-                for (var i = 0; i < doubts.length; i++) {
-
-                  var id = doubts[i].id;
-                  var text = doubts[i].text;
-                  var counter = doubts[i].counter;
-                  var el = document.createElement("option");
-                  el.textContent = text;
-                  el.value = id;
-                  el.counter = counter;
-                  doubtSelect.appendChild(el);
-
-                  currentDoubtAnswers.set(id, doubts[i].answers)
-                }
-
-                var errorSpecificFeedbacks = edgeInfo.errorSpecificFeedbacks
-                for (var i = 0; i < errorSpecificFeedbacks.length; i++) {
-
-                  var id = errorSpecificFeedbacks[i].id;
-                  var text = errorSpecificFeedbacks[i].text;
-                  var el = document.createElement("option");
-                  el.textContent = text;
-                  el.value = id;
-                  errorSpecificSelect.appendChild(el);
-
-                  currentErrorSpecificFeedback.set(id, errorSpecificFeedbacks[i])
-                }
-
-                var el = document.createElement("option");
-                if (language == 'pt')
-                  el.textContent = "<Adicionar um novo feedback>";
-                else
-                  el.textContent = "<Add a new feedback>";
-                el.value = 0;
-                errorSpecificSelect.appendChild(el);
-                currentErrorSpecificFeedback.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
-
-                var explanations = edgeInfo.explanations
-                for (var i = 0; i < explanations.length; i++) {
-
-                  var id = explanations[i].id;
-                  var text = explanations[i].text;
-                  var el = document.createElement("option");
-                  el.textContent = text;
-                  el.value = id;
-                  explanationSelect.appendChild(el);
-
-                  currentExplanations.set(id, explanations[i])
-                }
-                var el = document.createElement("option");
-                if (language == 'pt')
-                  el.textContent = "<Adicionar uma nova explicação>";
-                else
-                  el.textContent = "<Add a new explanation>";
-                el.value = 0;
-                explanationSelect.appendChild(el);
-                currentExplanations.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
-
-                var hints = edgeInfo.hints
-                for (var i = 0; i < hints.length; i++) {
-
-                  var id = hints[i].id;
-                  var text = hints[i].text;
-                  var el = document.createElement("option");
-                  el.textContent = text;
-                  el.value = id;
-                  hintSelect.appendChild(el);
-
-                  currentHints.set(id, hints[i])
-                }
-                var el = document.createElement("option");
-                if (language == 'pt')
-                  el.textContent = "<Adicionar uma nova dica>";
-                else
-                  el.textContent = "<Add a new hint>";
-                el.value = 0;
-                hintSelect.appendChild(el);
-                currentHints.set(0, { "id": "", "counter": 0, "text": "", "usefulness": 0, "priority": 0 })
-
-
-              }   
-            });
-
-            document.getElementById("editStepSource").value = data.edges[edgePos].from;
-            document.getElementById("editStepDest").value = data.edges[edgePos].to;
-            document.getElementById("editStepCount").value = data.edges[edgePos].counter;
-            document.getElementById("editStepValue").value = data.edges[edgePos].correctness;
-            data.edges[edgePos].fixedValue = 1;
-
-            edgeMenu.style.display = "block";
           }
-        } else {
-          addMenu.style.display = "block";
-          nodeMenu.style.display = "none";
-          edgeMenu.style.display = "none";
-          doubtMenu.style.display = "none";
-          feedbackMenu.style.display = "none";
-        }
-      });
+        });
+
+      }
 
   }
 
@@ -962,7 +1122,10 @@ function QuatisEdit(runtime, element) {
   $('#removeDoubtAnswer', element).click(function(eventObject) {
     var el = $(element);
     if (!el.find('input[id=editAnswerId]').val()) {
-      alert("Não é possível remover essa resposta")
+      if (language == 'pt')
+        alert("Não é possível remover essa resposta")
+      else
+        alert("You cannot remove this answer")
       return
     }
     var data = {
@@ -1143,7 +1306,10 @@ function QuatisEdit(runtime, element) {
 
     var doubtDropDown = document.getElementById("stateDoubts");
     if (!doubtDropDown.options[doubtDropDown.selectedIndex]) {
-      alert("Não há dúvidas para se editar")
+      if (language == 'pt')
+        alert("Não há dúvidas para se editar")
+      else
+        alert("There are no doubts to edit")
       return;
     }
 
@@ -1242,7 +1408,10 @@ function QuatisEdit(runtime, element) {
 
     var doubtDropDown = document.getElementById("stepDoubts");
     if (!doubtDropDown.options[doubtDropDown.selectedIndex]) {
-      alert("Não há dúvidas para se editar")
+      if (language == 'pt')
+        alert("Não há dúvidas para se editar")
+      else
+        alert("There are no doubts to edit")
       return;
     }
 
@@ -1327,7 +1496,10 @@ function QuatisEdit(runtime, element) {
 
     var errorSpecificDropDown = document.getElementById("stepErrorSpecificFeedbacks");
     if (!errorSpecificDropDown.options[errorSpecificDropDown.selectedIndex]) {
-      alert("Não há feedbacks específicos para se editar")
+      if (language == 'pt')
+        alert("Não há feedbacks específicos para se editar")
+      else
+        alert("There are no feedbacks to edit")
       return;
     }
 
@@ -1369,7 +1541,10 @@ function QuatisEdit(runtime, element) {
 
     var hintDropDown = document.getElementById("stepHints");
     if (!hintDropDown.options[hintDropDown.selectedIndex]) {
-      alert("Não há dicas para se editar")
+      if (language == 'pt')
+        alert("Não há dicas para se editar")
+      else
+        alert("There are no hints to edit")
       return;
     }
 
@@ -1411,7 +1586,10 @@ function QuatisEdit(runtime, element) {
 
     var explanationDropDown = document.getElementById("stepExplanations");
     if (!explanationDropDown.options[explanationDropDown.selectedIndex]) {
-      alert("Não há explicações para se editar")
+      if (language == 'pt')
+        alert("Não há explicações para se editar")
+      esle
+        alert("There are no explanations to edit")
       return;
     }
 
