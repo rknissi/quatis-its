@@ -285,8 +285,18 @@ function QuatisEdit(runtime, element) {
       type: "POST",
       url: submitGraphDataUrl,
       data: JSON.stringify(body),
+      tryCount : 0,
+      retryLimit : 3,
       success: function (data) {
-      }   
+      },
+      error : function(xhr, textStatus, errorThrown ) {
+        this.tryCount++;
+        if (this.tryCount <= this.retryLimit) {
+          $.ajax(this);
+          return;
+        }
+        return;
+      }  
     });
   }
 

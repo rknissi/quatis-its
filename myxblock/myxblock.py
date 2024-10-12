@@ -377,7 +377,7 @@ class Quatis_main(XBlock):
         if self.language == "pt":
             html=self.resource_string("static/html/quatisEditHidden.html")
         else:
-            html = self.resource_string("static/html/quatisEditEnHidden.html")
+            html = self.resource_string("static/html/quatisEditEn.html")
 
         loadedProblem = Problem.objects.filter(id=self.problemId)
         if loadedProblem.exists():
@@ -414,7 +414,8 @@ class Quatis_main(XBlock):
         allSolutions = []
         allSolutions2 = []
         allSums = []
-        reallyIncorrectSteps = [218,219,224,228,229,242,243,292,361,364,383,402,403,404,405,544,545,546,653,654,679,680,681,759,760,820,846,847,914,192,194,198,251,252,259,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,266,272,274,275,326,376,377,415,416,481,482,616,617,618,661]
+        #reallyIncorrectSteps = [218,219,224,228,229,242,243,292,361,364,383,402,403,404,405,544,545,546,653,654,679,680,681,759,760,820,846,847,914,192,194,198,251,252,259,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,266,272,274,275,326,376,377,415,416,481,482,616,617,618,661]
+        reallyIncorrectStates = [5749,5753,5761,5762,5764,5765,5773,5774,5776,5778,5779,5783,5784,5785,5786,5787,5788,5789,5795,5801,5802,5803,5807,5809,6422,6424,6437,6438,6439,6440,6441,6443,6446,6447,6448,6450,6452,6453,6454,6455,6456,6457,6458,6972,6974,6975,6976,6979,6988,6989,6992,6993,6994,6995,6996]
 
         steps = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode=currentNode)
         for step in steps:
@@ -462,14 +463,15 @@ class Quatis_main(XBlock):
     def calculateCompletness2(self, loadedProblem, currentNode, currentNodeIds, currentEdgeIds):
         allSolutions = []
         allSolutions2 = []
+        allSumsOnlyCorrect = []
         allSums = []
-        incorrectStates = [175,179,186,187,195,196,222,262,263,264,265,274,287,288,289,290,295,296,394,395,397,477,495,496,500,554,612,660,145,146,159,168,171,199,237,238,270,330,382,383,384,459,605,606,607,608,609,610,611,682,683,684,160,192,194,198,271,272,297,349,350,449,450]
-        incorrectSteps = [228,229,242,243,287,288,289,290,291,295,361,383,402,403,404,405,406,544,545,546,653,654,679,680,681,687,688,689,690,759,760,820,846,847,914,192,194,198,251,367,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,267,268,273,376,377,415,416,481,482,616,617,618,661]
-        reallyIncorrectSteps = [218,219,224,228,229,242,243,292,361,364,383,402,403,404,405,544,545,546,653,654,679,680,681,759,760,820,846,847,914,192,194,198,251,252,259,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,266,272,274,275,326,376,377,415,416,481,482,616,617,618,661]
-        stepsWithOneHints = [381,235,234]
-        stepsWithTwoHints = [223,382,112,113,114,115,116,117,118,119,120,134,135,136,137,138,139,140,141,147,148,149,150,151,152,153,154]
-        stepsWithExplanations = [849,850,112,134,147]
-        stepsStartAndEnd = [108,110,111,121,179,207,214,220,225,226,244,286,293,349,357,359,360,362,363,365,374,412,414,543,549,683,686,819,821,915,130,132,133,142,159,168,173,180,193,195,199,253,258,279,280,302,316,366,368,369,391,395,530,707,816,818,836,845,947,143,145,146,155,163,172,182,232,237,241,246,250,257,269,276,325,327,348,378,483]
+        incorrectStates = [5749,5753,5761,5762,5764,5765,5773,5774,5776,5778,5779,5783,5784,5785,5786,5787,5788,5789,5795,5801,5802,5803,5807,5809,6422,6424,6437,6438,6439,6440,6441,6443,6446,6447,6448,6450,6452,6453,6454,6455,6456,6457,6458,6972,6974,6975,6976,6979,6988,6989,6992,6993,6994,6995,6996]
+        incorrectSteps = [9057,9069,9070,9072,9073,9074,9075,9076,9077,9078,9081,9085,9091,9092,9093,9095,9096,9104,9105,9106,9117,9119,9120,9121,9123,9124,9125,9126,9127,9128,9131,9132,9133,10111,10112,10136,10140,10141,10146,10147,10148,10149,10150,10151,10152,10156,10158,10159,10160,10161,10979,10984,10990,10992,10993,10995,10997,11000,11001,11008,11009,11010,11011,11012,11013,11015]
+        #reallyIncorrectSteps = [218,219,224,228,229,242,243,292,361,364,383,402,403,404,405,544,545,546,653,654,679,680,681,759,760,820,846,847,914,192,194,198,251,252,259,370,457,458,525,526,527,528,529,628,629,839,841,842,843,844,945,946,181,231,240,249,266,272,274,275,326,376,377,415,416,481,482,616,617,618,661]
+        #stepsWithOneHints = [381,235,234]
+        #stepsWithTwoHints = [223,382,112,113,114,115,116,117,118,119,120,134,135,136,137,138,139,140,141,147,148,149,150,151,152,153,154]
+        #stepsWithExplanations = [849,850,112,134,147]
+        #stepsStartAndEnd = [108,110,111,121,179,207,214,220,225,226,244,286,293,349,357,359,360,362,363,365,374,412,414,543,549,683,686,819,821,915,130,132,133,142,159,168,173,180,193,195,199,253,258,279,280,302,316,366,368,369,391,395,530,707,816,818,836,845,947,143,145,146,155,163,172,182,232,237,241,246,250,257,269,276,325,327,348,378,483]
 
         steps = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode=currentNode)
         for step in steps:
@@ -483,41 +485,23 @@ class Quatis_main(XBlock):
                 allSolutions.append(tuple(newList))
                 allSolutions2.append(tuple(newList2))
 
+                allSumOnlyCorrect = 0
                 allSum = 0
                 for node in newList:
+                    allSum += 2
                     if node in incorrectStates:
                         #Change correctness of nodes
-                        allSum += 1
+                        allSumOnlyCorrect += 1
 
-                ifWrong = False
-                ifExplanation = False
                 for edge in newList2:
+                    allSum += 2
                     if edge in incorrectSteps:
                         #Change correctness of edge
-                        allSum += 1
-                    if edge in stepsWithExplanations:
-                        #Check if there's already one edge with explanation
-                        ifExplanation = True
-                    if edge in stepsWithOneHints:
-                        #Add nopne hint when there's already one
-                        allSum += 1
-                    if edge not in stepsWithOneHints and edge not in stepsWithTwoHints and edge not in reallyIncorrectSteps and newList2.index(edge) != 0 and newList2.index(edge) != (len(newList2) - 1):
-                        #Add 2 hints if there's noh ints, and if the edge is acutally correct
-                        allSum += 2
-                    
-                    if edge in reallyIncorrectSteps:
-                        # Check if the edge is incorrect, to add a error specific later
-                        ifWrong = True
+                        allSumOnlyCorrect += 1
 
-                if ifWrong:
-                    #Add an error specific
-                    allSum+=1
-                if not ifExplanation and not ifWrong:
-                    #Add an explanation
-                    allSum+=1
-                
+                allSumsOnlyCorrect.append(allSumOnlyCorrect)
+                allSum -= 8
                 allSums.append(allSum)
-                
 
             else:
                 if step.destNode.id not in currentNodeIds:
@@ -531,10 +515,11 @@ class Quatis_main(XBlock):
 
                     allSolutions = allSolutions + result["nodes"]
                     allSolutions2 = allSolutions2 + result["edges"]
+                    allSumsOnlyCorrect = allSumsOnlyCorrect + result["allSumsOnlyCorrect"]
                     allSums = allSums + result["allSums"]
 
         
-        return {"nodes": allSolutions, "edges": allSolutions2, "allSums": allSums}
+        return {"nodes": allSolutions, "edges": allSolutions2, "allSumsOnlyCorrect": allSumsOnlyCorrect, "allSums": allSums}
 
 
     @transaction.atomic
@@ -649,7 +634,7 @@ class Quatis_main(XBlock):
                         self.remove_node_feedbacks(nodeModel, loadedProblem)
                         nodeModel.correctness = 0
                         
-                        sourceEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = nodeModel)
+                        sourceEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, sourceNode = nodeModel, visible = 1)
                         if sourceEdges.exists():
                             for sourceEdge in sourceEdges:
                                 self.remove_edge_feedbacks(sourceEdge, loadedProblem)
@@ -658,7 +643,7 @@ class Quatis_main(XBlock):
                                     sourceEdge.correctness = 0
                                 sourceEdge.save()
 
-                        destEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, destNode = nodeModel)
+                        destEdges = Edge.objects.select_for_update().filter(problem=loadedProblem, destNode = nodeModel, visible = 1)
                         if destEdges.exists():
                             for destEdge in destEdges:
                                 self.remove_edge_feedbacks(destEdge, loadedProblem)
@@ -2074,8 +2059,8 @@ class Quatis_main(XBlock):
     def generate_report2(self, data, suffix=''):
         loadedProblem = Problem.objects.get(id=self.problemId)
         startNode = Node.objects.filter(problem=loadedProblem, title = '_start_')
-        allSolutions = self.calculateCompletness(loadedProblem, startNode.first(), [startNode.first().id], [])
-        return {"nodes": json.dumps(list(allSolutions["nodes"])), "edges": json.dumps(list(allSolutions["edges"])), "allSums": json.dumps(list(allSolutions["allSums"])), "count": len(allSolutions["allSums"])}
+        allSolutions = self.calculateCompletness2(loadedProblem, startNode.first(), [startNode.first().id], [])
+        return {"nodes": json.dumps(list(allSolutions["nodes"])), "edges": json.dumps(list(allSolutions["edges"])), "allSums": json.dumps(list(allSolutions["allSums"])), "count": len(allSolutions["allSums"]), "allSumsOnlyCorrect": json.dumps(list(allSolutions["allSumsOnlyCorrect"]))}
 
 
 
