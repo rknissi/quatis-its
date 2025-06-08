@@ -53,6 +53,8 @@ Supposinng a teacher will use QUATIS to create an exercise, and the students wil
 3. Student's data, like new solutions and feedbacks, are added to the graph
 4. From time to time, the teacher will check the graph and correct it
 
+You can check [here](./PROOF_OF_CONCEPT.md) to see QUATIS in action in a small proof of concept, seeing how collective intelligence can help teachers to not just decrease the amount of work, but also to learn more about their students and their solutions.
+
 # First steps
 ## Installation
 First nof all, you need to be using the Open edX platform in order to use the QUATIS, since it's a XBlock. You also need access to the edX system, because since QUATIS is more complex than normal componenets, the installation process won't be as simple as others.
@@ -66,7 +68,3 @@ After successfully installing, click [here](./HOW_TO.md) to access the guide and
 
 ## Techincal details
 Click [here](./TECHNICAL.md) to access the documentation for the technical details of QUATIS, as well as here to access the commands that you can do to access the  system
-
-## Proof of concept
-
-Click [here](./PROOF_OF_CONCEPT.md) to get access regarding ou proof of concept, where we used QUATIS with real people to have an idea of it's functionality.
