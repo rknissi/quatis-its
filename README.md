@@ -66,3 +66,7 @@ After successfully installing, click [here](./HOW_TO.md) to access the guide and
 
 ## Techincal details
 Click [here](./TECHNICAL.md) to access the documentation for the technical details of QUATIS, as well as here to access the commands that you can do to access the  system
+
+## Proof of concept
+
+Click [here](./PROOF_OF_CONCEPT.md) to get access regarding ou proof of concept, where we used QUATIS with real people to have an idea of it's functionality.
